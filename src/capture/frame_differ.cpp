@@ -5,7 +5,9 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <thread>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -304,6 +306,7 @@ void FrameDiffer::Reset()
     // readbacks eligible for the new stream's classification.
     m_stagingWrite = 0;
     m_stagingWritten = 0;
+    m_starvation.Reset();
     m_noiseFloor.Reset();
     m_loggedFloor = -1.0f;
     // Per-stream state only; GPU resources stay alive. The next Process()
@@ -366,9 +369,37 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
             hr = ctx->Map(m_resultStaging[readSlot].Get(), 0, D3D11_MAP_READ,
                           D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped);
         }
+        // Sustained starvation (readback_starvation.h): wait a bounded time for
+        // the oldest copy, which readSlot names at this point.
+        bool waited = false;
+        if (hr == DXGI_ERROR_WAS_STILL_DRAWING) {
+            const bool wasStarved = m_starvation.starved;
+            if (m_starvation.OnBusy(m_readbackWaitAllowed)) {
+                if (!wasStarved) {
+                    FDLog(L"readback busy for " + std::to_wstring(m_starvation.consecutiveBusy) +
+                          L" frames: waiting up to " + std::to_wstring(kStarvedWaitMs) +
+                          L" ms per frame until the GPU keeps up");
+                }
+                ctx->Flush();
+                const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kStarvedWaitMs);
+                do {
+                    std::this_thread::yield();
+                    hr = ctx->Map(m_resultStaging[readSlot].Get(), 0, D3D11_MAP_READ,
+                                  D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped);
+                } while (hr == DXGI_ERROR_WAS_STILL_DRAWING && std::chrono::steady_clock::now() < deadline);
+                if (hr == DXGI_ERROR_WAS_STILL_DRAWING) {
+                    m_readbackWaitTimeouts++;
+                } else if (SUCCEEDED(hr)) {
+                    waited = true;
+                    m_readbackWaits++;
+                }
+            }
+        }
         if (hr == DXGI_ERROR_WAS_STILL_DRAWING) {
             m_readbackSkips++;
         } else if (SUCCEEDED(hr)) {
+            if (m_starvation.starved && !waited) FDLog(L"readback keeping up again");
+            m_starvation.OnRead(waited);
             m_classificationAvailable = true;
             // Read the kTilesX x kTilesY grid of per-tile mean SADs. Take the
             // max (localized-motion rescue signal) and the average. Because the
@@ -425,14 +456,13 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
                 FDLog(L"noise floor " + std::to_wstring(m_loggedFloor) + L": duplicate bounds lower " +
                       std::to_wstring(lower) + L" upper " + std::to_wstring(upper));
             }
-            bool rawNew;
-            if (m_lastDiff >= upper) {
-                rawNew = true;
-            } else if (m_lastDiff < lower) {
-                rawNew = false;
-            } else {
-                rawNew = m_wasNew; // sticky in deadband
-            }
+            // In the deadband the previous verdict stands, except while the last
+            // two votes alternate: there the alternation continues
+            // (ClassifyAgainstBounds in noise_floor.h explains why).
+            const bool lastVote   = m_recentNew[(m_recentIdx + kSmoothWindow - 1) % kSmoothWindow];
+            const bool voteBefore = m_recentNew[(m_recentIdx + kSmoothWindow - 2) % kSmoothWindow];
+            const bool recentAlternating = m_recentCount >= 2 && lastVote != voteBefore;
+            bool rawNew = ClassifyAgainstBounds(m_lastDiff, lower, upper, m_wasNew, recentAlternating);
 
             // Rescue-OR (max-tile). Localized motion (a character idle
             // animation in one corner, a small HUD element) produces real

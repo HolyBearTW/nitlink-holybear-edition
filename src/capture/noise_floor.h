@@ -96,4 +96,16 @@ private:
     uint32_t m_updates = 0;
 };
 
+// Stage 1 of the differ's classification. A difference at or above the upper bound is a change, below the lower
+// bound a repeat. In between, the previous verdict stands, except while the last two votes alternate (a 30 fps
+// source on a 60 Hz link sends every frame twice): there the alternation continues. In alternating content the held
+// verdict is always the opposite of the expected one, so continuing the alternation keeps a repeat whose noise sits
+// between the bounds a repeat and a small change between them a change. Repeat noise can drift with the picture
+// (measured on a UGREEN 1080p60 card: 0.0004-0.0011 within seconds), and dark, slow scenes give small changes.
+inline bool ClassifyAgainstBounds(float diff, float lower, float upper, bool wasNew, bool recentAlternating) {
+    if (diff >= upper) return true;
+    if (diff < lower) return false;
+    return recentAlternating ? !wasNew : wasNew;
+}
+
 }

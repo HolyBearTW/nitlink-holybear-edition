@@ -466,4 +466,8 @@ if(BUILD_TESTING)
         src/app/config.cpp src/app/settings_message.cpp src/app/game_database.cpp)
     target_include_directories(NitLinkManualHdmiSourceTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     add_test(NAME manual_hdmi_source COMMAND NitLinkManualHdmiSourceTests)
+
+    add_executable(NitLinkReadbackStarvationTests tests/readback_starvation_tests.cpp)
+    target_include_directories(NitLinkReadbackStarvationTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME readback_starvation COMMAND NitLinkReadbackStarvationTests)
 endif()

@@ -4,6 +4,7 @@
 #include <wrl/client.h>
 #include <cstdint>
 #include "noise_floor.h"
+#include "readback_starvation.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -72,6 +73,14 @@ public:
     // classification instead of waiting. Cumulative; a steadily growing
     // count means the GPU is contended by other work.
     uint32_t GetReadbackSkips() const { return m_readbackSkips; }
+    // Allow a bounded wait for a starved readback (readback_starvation.h).
+    // Set when the classification drives presentation ("Source frame rate");
+    // otherwise readbacks never wait.
+    void SetReadbackWaitAllowed(bool allowed) { m_readbackWaitAllowed = allowed; }
+    // Readbacks that waited for the GPU and got a result, and waits that ran
+    // out of time. Cumulative.
+    uint32_t GetReadbackWaits() const { return m_readbackWaits; }
+    uint32_t GetReadbackWaitTimeouts() const { return m_readbackWaitTimeouts; }
     float GetLastDiffValue()  const { return m_lastDiff; }
 
     // Max-tile SAD from the previous Process() (see the tiled compute shader).
@@ -152,6 +161,13 @@ private:
     uint32_t                           m_stagingWrite   = 0;
     uint32_t                           m_stagingWritten = 0;
     uint32_t                           m_readbackSkips  = 0;
+    // Bounded wait once readbacks starve (readback_starvation.h): per frame,
+    // at most kStarvedWaitMs, half a frame at 60 Hz.
+    static constexpr int               kStarvedWaitMs = 8;
+    ReadbackStarvation                 m_starvation;
+    bool                               m_readbackWaitAllowed = false;
+    uint32_t                           m_readbackWaits = 0;
+    uint32_t                           m_readbackWaitTimeouts = 0;
 
     bool   m_wasNew    = true;
     bool   m_classificationAvailable = false;

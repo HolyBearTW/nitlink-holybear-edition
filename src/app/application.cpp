@@ -2635,6 +2635,9 @@ void Application::Run()
         if (haveFreshFrame && freshFrameIsRealSource
             && m_frameDiffer && m_renderer->GetRawCaptureSRV()) {
             const auto differStart = std::chrono::steady_clock::now();
+            // Only "Source frame rate" presents from the classification, so
+            // only there may a starved readback wait for the GPU.
+            m_frameDiffer->SetReadbackWaitAllowed(pacing == kPacingUnique);
             m_frameDiffer->Process(m_renderer->GetContext(),
                                      m_renderer->GetRawCaptureSRV());
             m_loopDifferSumMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - differStart).count();
@@ -2746,6 +2749,8 @@ void Application::Run()
                            << L" readbackSkips=" << readbackSkips
                            << L" droppedDelta=" << (counterReset ? 0 : dropped - lastDropped)
                            << L" readbackSkipDelta=" << (counterReset ? 0 : readbackSkips - lastReadbackSkips)
+                           << L" readbackWaits=" << (m_frameDiffer ? m_frameDiffer->GetReadbackWaits() : 0)
+                           << L" readbackWaitTimeouts=" << (m_frameDiffer ? m_frameDiffer->GetReadbackWaitTimeouts() : 0)
                            << L" counterReset=" << counterReset
                            << L" sampleSeconds=" << std::chrono::duration<double>(now - lastDiffLog).count()
                            << L" presentOk=" << ph.presentOk

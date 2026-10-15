@@ -444,6 +444,11 @@ if(BUILD_TESTING)
     target_link_libraries(NitLinkPresentWaitTests PRIVATE d3d11 dxgi d3dcompiler windowscodecs)
     add_test(NAME present_wait_paths COMMAND NitLinkPresentWaitTests)
 
+    add_executable(NitLinkResizeRecoveryTests tests/resize_recovery_tests.cpp src/renderer/dx11_renderer.cpp)
+    target_include_directories(NitLinkResizeRecoveryTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkResizeRecoveryTests PRIVATE d3d11 dxgi d3dcompiler windowscodecs)
+    add_test(NAME swap_chain_resize_recovery COMMAND NitLinkResizeRecoveryTests)
+
     add_executable(NitLinkGc553ProHdrTests
         tests/gc553pro_hdr_source_tests.cpp
         src/capture/gc553pro_hdr_source.cpp

@@ -1905,11 +1905,16 @@ void Application::Run()
         // retry) would otherwise dereference a null renderer here. Skipping the
         // resize is safe: the pending rebuild recreates the swap chain at the
         // current client size, and any later resize event repeats this block.
-        if (m_window->WasResized() && m_renderer) {
-            auto [w, h] = m_window->GetClientSize();
-            AppLog(L"Resize event: handling resize");
+        // A resize the swap chain refused stays pending: WasResized() remains
+        // set and the block runs again once the retry time is reached.
+        const bool resizePending = m_window->WasResized() && m_renderer;
+        const auto [w, h] = resizePending ? m_window->GetClientSize() : std::pair<uint32_t, uint32_t>{};
+        const auto resizeNow = std::chrono::steady_clock::now();
+        if (resizePending && (m_resizeRetryCount == 0 || resizeNow >= m_resizeRetryAt
+                || w != m_resizeRetryWidth || h != m_resizeRetryHeight)) {
+            if (m_resizeRetryCount == 0) AppLog(L"Resize event: handling resize");
             if (m_overlay) m_overlay->OnResizeBegin();
-            m_renderer->Resize(w, h);
+            const bool resized = m_renderer->Resize(w, h);
             ApplyPresentCap();
             // Update the WebView2 child controller bounds so it stays
             // sized to the new client rect. The control is always sized
@@ -1924,8 +1929,28 @@ void Application::Run()
                 // overlay stays functional after window resize.
                 m_overlay->OnResizeEnd();
             }
-            m_window->AcknowledgeResize();
-            AppLog(L"Resize event: done");
+            if (resized) {
+                if (m_resizeRetryCount > 0) {
+                    AppLog(L"Resize event: swap chain resized after "
+                        + std::to_wstring(m_resizeRetryCount) + L" refused attempt(s)");
+                }
+                m_resizeRetryCount = 0;
+                m_window->AcknowledgeResize();
+                AppLog(L"Resize event: done");
+            } else {
+                // Rendering continues into the previous buffers, which DWM
+                // scales to the window, until a retry succeeds.
+                ++m_resizeRetryCount;
+                m_resizeRetryWidth = w;
+                m_resizeRetryHeight = h;
+                const int shift = static_cast<int>(std::min<uint32_t>(m_resizeRetryCount - 1, 3));
+                m_resizeRetryAt = resizeNow + std::chrono::milliseconds(250 << shift);
+                if (m_resizeRetryCount == 1 || m_resizeRetryCount % 30 == 0) {
+                    AppLog(L"Resize event: swap chain kept its previous buffers ("
+                        + std::to_wstring(w) + L"x" + std::to_wstring(h) + L" refused, attempt "
+                        + std::to_wstring(m_resizeRetryCount) + L"); rendering at the previous size and retrying");
+                }
+            }
         }
 
         // Refresh display metadata only on a display notification or monitor

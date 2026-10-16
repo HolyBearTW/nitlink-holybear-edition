@@ -11,7 +11,8 @@ public:
     // Find all connected video capture devices (capture cards, webcams, etc.)
     static std::vector<DeviceInfo> FindCaptureDevices();
 
-    // Filter to just capture cards (heuristic: excludes known webcam vendors)
+    // Filter to just capture cards (heuristic: excludes devices whose names
+    // look like cameras)
     static std::vector<DeviceInfo> FindCaptureCards();
 
     // Select the index of the device that best matches preferredName.
@@ -20,9 +21,12 @@ public:
     //   2. Case-insensitive substring match (preferredName found inside
     //      the device friendly name, so a saved short identifier still
     //      matches an enumerated name with extra suffixes).
-    //   3. First device whose name contains "Elgato" (bias against
-    //      laptop webcams in the common laptop-plus-capture-card setup).
-    //   4. Index 0 (MF enumeration order).
+    //   3. First Elgato device that does not look like a camera, then the
+    //      first other capture card by name that does not look like one.
+    //   4. First device that does not look like a camera (webcams, VR
+    //      headset cameras and virtual cameras are skipped).
+    //   5. Index 0 (MF enumeration order) when every device looks like
+    //      a camera.
     // Returns -1 only when the input list is empty. Callers that have
     // already checked for empty can treat the return value as a valid
     // index into devices.

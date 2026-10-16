@@ -604,8 +604,8 @@ bool Config::Save(const std::string& path)
 
     file << "# Capture\n";
     file << "# Friendly name of the preferred capture device, e.g. \"Elgato 4K Pro\".\n";
-    file << "# Empty falls back to the first Elgato device when present, otherwise to\n";
-    file << "# the first device Media Foundation enumerates.\n";
+    file << "# Empty picks a capture card (Elgato first), skipping webcams, VR headset\n";
+    file << "# cameras and virtual cameras unless no other device is present.\n";
     file << "preferred_device = " << preferredUtf8 << "\n\n";
 
     file << "# HDMI IN source identity only; does not change capture or HDR policy.\n";

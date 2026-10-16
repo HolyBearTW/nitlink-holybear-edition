@@ -55,7 +55,9 @@ Code contributions merged into NitLink:
   the wide Full-mode settings layout, the Content FPS headline and
   automatic present pacing on the exact display refresh rate
   ([#26](https://github.com/nitlink-dev/nitlink/pull/26),
-  [#31](https://github.com/nitlink-dev/nitlink/pull/31)).
+  [#31](https://github.com/nitlink-dev/nitlink/pull/31)); NitLink 1.2.5:
+  manual HDMI source labels with their Discord identity, and the Simplified
+  Chinese HUD labels ([#25](https://github.com/nitlink-dev/nitlink/pull/25)).
 
 - CN_115, [@CN115](https://github.com/CN115), NitLink 1.2.4: the low-latency
   audio path (configurable capture-to-playback buffering, device-clock

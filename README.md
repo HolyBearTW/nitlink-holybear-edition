@@ -365,6 +365,10 @@ MIT. See `LICENSE`. Third-party licenses (NIS, WebView2, WIL, MJP's Catmull-Rom)
 - **Testing & feedback**: u/Lordmau5, u/XSilverlink, and u/TooxChilly for hardware testing, bug reports, and cross-card latency measurements.
 - **Hardware**: u/elgato_phil (Elgato) provided the 4K X and the Cam Link 4K used for validation.
 - **Traditional Chinese (zh-TW) localization**: [HolyBear（聖小熊）](https://github.com/HolyBearTW) (`@HolyBearTW`) for translation review and real-device validation.
+- **Simplified Chinese (zh-CN) localization**: [CN_115](https://github.com/CN115) (`@CN115`).
+- **German (de-DE) localization**: [Noka123](https://github.com/Noka123) (`@Noka123`).
+- **Korean (ko-KR) localization**: [iorph](https://github.com/i0rph) (`@i0rph`) for translation and real-device localization review.
+- See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) for the full contributor and research credits.
 
 ---
 

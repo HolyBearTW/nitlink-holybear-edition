@@ -49,6 +49,9 @@ inline bool CanOpenExternal(std::wstring_view current, std::wstring_view target,
         (target == L"https://tally.so/r/EkZjNr" ||
          target == L"https://ko-fi.com/klosed89" ||
          target == L"https://github.com/HolyBearTW" ||
+         target == L"https://github.com/CN115" ||
+         target == L"https://github.com/Noka123" ||
+         target == L"https://github.com/i0rph" ||
          target == L"https://store.steampowered.com/app/5346980");
 }
 inline bool IsLocalScreenshotPath(std::wstring_view path) {

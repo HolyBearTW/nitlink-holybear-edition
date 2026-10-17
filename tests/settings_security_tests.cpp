@@ -278,6 +278,7 @@ int main() {
          L"https://nitlink.invalid/assets/menu/menu.js?x", L"file:///C:/secret.txt"})
         Expect(!FindResource(bad), "unlisted resource");
     for (auto target : {L"https://tally.so/r/EkZjNr", L"https://ko-fi.com/klosed89", L"https://github.com/HolyBearTW",
+         L"https://github.com/CN115", L"https://github.com/Noka123", L"https://github.com/i0rph",
          L"https://store.steampowered.com/app/5346980"}) {
         Expect(CanOpenExternal(MenuUri, target, true), "user activated menu link");
         Expect(!CanOpenExternal(MenuUri, target, false), "script popup");
@@ -286,6 +287,8 @@ int main() {
     for (auto target : {L"file:///C:/run.exe", L"ms-settings:display", L"javascript:alert(1)",
          L"http://ko-fi.com/klosed89", L"https://ko-fi.com/klosed89?redirect=elsewhere",
          L"https://ko-fi.com@other.invalid/klosed89", L"https://other.invalid/",
+         L"https://github.com/i0rph?redirect=elsewhere", L"https://github.com/Noka123.evil.invalid",
+         L"https://github.com@other.invalid/CN115",
          L"http://store.steampowered.com/app/5346980", L"https://store.steampowered.com/app/5346980?x"})
         Expect(!CanOpenExternal(MenuUri, target, true), "unlisted shell target");
     Expect(IsLocalScreenshotPath(L"C:\\Users\\測試\\Pictures\\NitLink\\nitlink_1.png"), "local screenshot");

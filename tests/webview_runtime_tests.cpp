@@ -688,6 +688,7 @@ int main(int argc, char** argv) {
             const lastCheck = document.getElementById('holy-bear-last-check');
             return document.documentElement.lang === 'zh-TW' &&
                 update.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5-holybear') &&
+                update.classList.contains('is-new-version') &&
                 !update.hidden && link.href.endsWith('/v1.2.5-holybear') && !link.hidden && !badge.hidden &&
                 lastCheck.textContent === new Date(1791730000 * 1000).toLocaleString('zh-TW') &&
                 document.getElementById('toggle-prevent-sleep').classList.contains('on') &&

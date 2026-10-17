@@ -425,7 +425,7 @@ window.NitLinkLocales['de-DE'] = {
   "update.never": "Noch nicht geprüft",
   "update.checking": "Updates werden gesucht…",
   "update.current": "Sie verwenden die aktuelle HolyBear Edition.",
-  "update.available": "NitLink {version} HolyBear Edition ist verfügbar.",
+  "update.available": "Neue Version gefunden: NitLink {version} HolyBear Edition",
   "update.offline": "Verbindung zu GitHub nicht möglich.",
   "update.rateLimited": "GitHub hat diese Anfrage vorübergehend begrenzt. Versuchen Sie es später erneut.",
   "update.notFound": "Es wurde kein veröffentlichtes HolyBear Release gefunden.",

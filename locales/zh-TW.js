@@ -411,7 +411,7 @@ window.NitLinkLocales['zh-TW'] = {
   'update.never': '尚未檢查更新',
   'update.checking': '正在檢查更新…',
   'update.current': '已是最新的 HolyBear Edition。',
-  'update.available': 'NitLink {version} HolyBear Edition 已發布。',
+  'update.available': '找到新版本：NitLink {version} HolyBear Edition',
   'update.offline': '無法連線至 GitHub。',
   'update.rateLimited': 'GitHub 暫時限制了這次請求，請稍後再試。',
   'update.notFound': '找不到已發布的 HolyBear 正式版本。',

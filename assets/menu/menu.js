@@ -168,6 +168,7 @@
       const validTag = /^v\d+\.\d+\.\d+(?:\.\d+)?-holybear$/.test(latestTag);
       const expectedUrl = validTag ? 'https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/' + latestTag : '';
       const showRelease = s.hasNewer === true && key === 'available' && typeof s.url === 'string' && s.url === expectedUrl;
+      status.classList.toggle('is-new-version', showRelease);
       link.hidden = !showRelease;
       if (showRelease) link.href = expectedUrl;
       else link.removeAttribute('href');

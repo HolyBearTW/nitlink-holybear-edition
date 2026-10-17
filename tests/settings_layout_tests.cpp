@@ -752,10 +752,10 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
                 true, std::wstring_view(status) == L"checking", false, L"");
             std::wstring expression = L"(() => { const node=document.querySelector('#holy-bear-update-status'); return node.hidden === ";
             expression += std::wstring_view(status) == L"never" ? L"true" : L"false";
-            expression += L" && node.textContent === window.NitLinkLocales['" + std::wstring(locale) + L"']['update.";
+            expression += L" && node.classList.contains('is-new-version') === false && node.textContent === window.NitLinkLocales['" + std::wstring(locale) + L"']['update.";
             expression += key;
             expression += L"']; })()";
-            Check(Script(view, expression) == L"true", "localized update status renders without a duplicate unknown row");
+            Check(Script(view, expression) == L"true", "localized update status renders without a duplicate unknown row or false new-version alert");
         }
     }
     for (const auto timestamp : {0LL, -1LL, 9223372036854775807LL}) {
@@ -772,6 +772,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     Check(Script(view, LR"JS((() => {
         const link = document.querySelector('#holy-bear-release-link'), status = document.querySelector('#holy-bear-update-status');
         return status.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5-holybear') &&
+            status.classList.contains('is-new-version') &&
             !link.hidden && link.href === 'https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear' &&
             document.querySelector('#holy-bear-update-badge').hidden === false;
     })())JS") == L"true", "newer release shows a localized message, verified link and unread state");
@@ -858,7 +859,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         document.querySelector('#about-details-summary').textContent === '技术信息' &&
         document.querySelector('#about-contributors-summary').textContent === '贡献者' &&
         document.querySelector('#holy-bear-check-update').textContent === '检查更新' &&
-        document.querySelector('#holy-bear-update-status').textContent.includes('已发布'))JS") == L"true",
+        document.querySelector('#holy-bear-update-status').textContent.includes('发现新版本'))JS") == L"true",
         "Simplified Chinese updates the About and update controls");
     PushAboutUpdate(host, L"Right", L"en-US", L"available", L"v1.2.5-holybear",
         true, true, false, true, validUrl.c_str());
@@ -866,7 +867,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         document.querySelector('#about-details-summary').textContent === 'Technical Information' &&
         document.querySelector('#about-contributors-summary').textContent === 'Contributors' &&
         document.querySelector('#holy-bear-check-update').textContent === 'Check for updates' &&
-        document.querySelector('#holy-bear-update-status').textContent.includes('has been released'))JS") == L"true",
+        document.querySelector('#holy-bear-update-status').textContent.includes('New version found'))JS") == L"true",
         "English updates About and update controls");
 
     for (const auto size : {std::pair{1920, 1080}, std::pair{2560, 1440}}) {

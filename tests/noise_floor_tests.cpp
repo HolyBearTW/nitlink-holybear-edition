@@ -18,17 +18,57 @@ static void Require(bool ok, const char* what) {
 }
 
 // Stage-1 hysteresis of FrameDiffer::Process with the estimator's bounds; returns the committed "new" votes.
-static std::vector<bool> Classify(const std::vector<float>& diffs, NoiseFloorEstimator& est, float baseUpper = 0.0005f, float baseLower = 0.0002f) {
+// stickyDeadband: the previous verdict always stands between the bounds (no alternation rule), for comparison.
+static std::vector<bool> Classify(const std::vector<float>& diffs, NoiseFloorEstimator& est, float baseUpper = 0.0005f,
+                                  float baseLower = 0.0002f, bool stickyDeadband = false) {
     std::vector<bool> votes;
-    bool wasNew = true;
+    bool wasNew = true, lastVote = true, voteBefore = true;
     for (float d : diffs) {
         est.Observe(d);
         const auto b = est.Compute(baseUpper, baseLower);
-        bool raw = d >= b.upper ? true : (d < b.lower ? false : wasNew);
+        const bool alternating = !stickyDeadband && votes.size() >= 2 && lastVote != voteBefore;
+        const bool raw = NitLink::ClassifyAgainstBounds(d, b.lower, b.upper, wasNew, alternating);
         wasNew = raw;
+        voteBefore = lastVote;
+        lastVote = raw;
         votes.push_back(raw);
     }
     return votes;
+}
+
+// Capture of a noisy card shaped after a measured UGREEN 1080p60 trace: repeat noise level changing
+// with the picture every 20-60 frames between levelLo and levelHi, +-15% per frame; new frames add motion, log-uniform
+// in [motionLo, motionHi], or in [0.0006, 0.0015] during dark slow stretches. kind 0 = 30 fps (change, repeat),
+// 1 = 60 fps (every frame a change).
+struct Sample { float diff; bool isNew; };
+static std::vector<Sample> NoisyCapture(uint64_t seed, int frames, int kind, double darkShare, double levelLo,
+                                        double levelHi, double motionLo = 0.002, double motionHi = 0.04) {
+    uint64_t s = seed * 2654435761u + 1;
+    auto u = [&s]() { s ^= s << 13; s ^= s >> 7; s ^= s << 17; return (s >> 11) * (1.0 / 9007199254740992.0); };
+    auto logRange = [&u](double a, double b) { return a * std::pow(b / a, u()); };
+    std::vector<Sample> out;
+    int segLeft = 0; double level = levelLo; bool dark = false;
+    for (int i = 0; i < frames; ++i) {
+        if (segLeft-- <= 0) { segLeft = 20 + (int)(40 * u()); level = levelLo + (levelHi - levelLo) * u(); dark = u() < darkShare; }
+        const bool isNew = kind == 1 || i % 2 == 0;
+        double d = level * (0.85 + 0.35 * u());
+        if (isNew) d += dark ? logRange(0.0006, 0.0015) : logRange(motionLo, motionHi);
+        out.push_back({(float)d, isNew});
+    }
+    return out;
+}
+
+struct Errors { double repeatsAsNew = 0, missed = 0; };
+static Errors Measure(const std::vector<Sample>& capture, bool stickyDeadband) {
+    std::vector<float> diffs;
+    for (const auto& c : capture) diffs.push_back(c.diff);
+    NoiseFloorEstimator e;
+    const auto votes = Classify(diffs, e, 0.0005f, 0.0002f, stickyDeadband);
+    long repeats = 0, news = 0, asNew = 0, missed = 0;
+    for (size_t i = 120; i < capture.size(); ++i) {
+        if (capture[i].isNew) { ++news; missed += !votes[i]; } else { ++repeats; asNew += votes[i]; }
+    }
+    return {repeats ? 100.0 * asNew / repeats : 0.0, news ? 100.0 * missed / news : 0.0};
 }
 
 static std::vector<float> Alternating(float low, float high, int n, float jitter = 0.0f) {
@@ -102,6 +142,43 @@ int main(int argc, char** argv) {
         Require(!e.Valid(), "bands above the noise ceiling are not a floor");
         int news = 0; for (bool b : votes) news += b;
         Require(news == 120, "alternating real motion keeps every frame");
+    }
+    {   // noise drifting with the picture (0.0004-0.0011) and dark slow stretches: the sticky deadband reads repeats as
+        // changes and misses small changes; following the alternation in the deadband cuts both
+        Errors now, sticky;
+        for (uint64_t seed = 1; seed <= 3; ++seed) {
+            const auto capture = NoisyCapture(seed, 60 * 120, 0, 0.30, 0.0004, 0.0011);
+            const auto a = Measure(capture, false), b = Measure(capture, true);
+            now.repeatsAsNew += a.repeatsAsNew / 3; now.missed += a.missed / 3;
+            sticky.repeatsAsNew += b.repeatsAsNew / 3; sticky.missed += b.missed / 3;
+        }
+        std::printf("drifting noise, 30%% dark: repeats as new %.2f%% (sticky %.2f%%), missed %.2f%% (sticky %.2f%%)\n",
+                    now.repeatsAsNew, sticky.repeatsAsNew, now.missed, sticky.missed);
+        Require(now.repeatsAsNew < 7.0 && now.repeatsAsNew < 0.5 * sticky.repeatsAsNew, "drifting noise: far fewer repeats read as new");
+        Require(now.missed < 4.0 && now.missed < 0.5 * sticky.missed, "drifting noise: far fewer real frames missed");
+    }
+    {   // steady noise with dark slow stretches: small real changes after a repeat count as changes
+        Errors now{}, sticky{};
+        for (uint64_t seed = 1; seed <= 3; ++seed) {
+            const auto capture = NoisyCapture(seed, 60 * 120, 0, 0.30, 0.0007, 0.0007);
+            const auto a = Measure(capture, false), b = Measure(capture, true);
+            now.missed += a.missed / 3; sticky.missed += b.missed / 3; now.repeatsAsNew += a.repeatsAsNew / 3;
+        }
+        Require(now.missed < 0.5 && now.missed < sticky.missed, "steady noise, dark scenes: almost no real frame missed");
+        Require(now.repeatsAsNew < 0.5, "steady noise: repeats stay repeats");
+    }
+    {   // 60 fps content on the same noisy card, including slow motion near the noise: no more frames lost than with the sticky deadband
+        for (int slow = 0; slow < 2; ++slow) {
+            Errors now{}, sticky{};
+            for (uint64_t seed = 1; seed <= 3; ++seed) {
+                auto capture = NoisyCapture(seed + 50, 1200, 0, 0.0, 0.0004, 0.0011);   // floor learned on 30 fps first
+                const auto body = NoisyCapture(seed, 60 * 120, 1, 0.0, 0.0004, 0.0011, slow ? 0.0008 : 0.002, slow ? 0.003 : 0.04);
+                capture.insert(capture.end(), body.begin(), body.end());
+                const auto a = Measure(capture, false), b = Measure(capture, true);
+                now.missed += a.missed / 3; sticky.missed += b.missed / 3;
+            }
+            Require(now.missed <= sticky.missed + 0.2, slow ? "slow 60 fps: frames kept as well as with the sticky deadband" : "60 fps: frames kept as well as with the sticky deadband");
+        }
     }
     if (argc > 1) {   // replay a recorded trace: print floor and unique rate per second
         std::ifstream in(argv[1]);

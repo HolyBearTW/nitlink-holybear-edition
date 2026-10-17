@@ -8,6 +8,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <script src="locales/en-US.js"></script>
   <script src="locales/de-DE.js"></script>
+  <script src="locales/ko-KR.js"></script>
   <script src="locales/zh-TW.js"></script>
   <script src="locales/zh-CN.js"></script>
   <style>
@@ -53,6 +54,7 @@
       user-select: none;
     }
     :lang(zh-CN) { --sans: "Archivo", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif; }
+    :lang(ko-KR) { --sans: "Archivo", "Malgun Gothic", sans-serif; }
     button, select { font: inherit; }
     ::-webkit-scrollbar { width: 12px; }
     ::-webkit-scrollbar-track { background: #191919; }
@@ -614,6 +616,7 @@
                 <select class="language-select" id="language-select">
                   <option value="system" data-i18n="language.system"></option>
                   <option value="de-DE" data-i18n="language.german"></option>
+                  <option value="ko-KR" data-i18n="language.korean"></option>
                   <option value="en-US" data-i18n="language.english"></option>
                   <option value="zh-CN" data-i18n="language.simplifiedChinese"></option>
                   <option value="zh-TW" data-i18n="language.traditionalChinese"></option>
@@ -709,9 +712,9 @@
         <section class="pane" id="pane-about">
           <div class="band">
             <span class="band-title" data-i18n="section.about"></span>
-            <span class="band-hint">v1.2.4</span>
+            <span class="band-hint">v1.2.5</span>
           </div>
-          <div class="row kv"><span class="row-name" data-i18n="about.build"></span><span class="row-value">1.2.4</span></div>
+          <div class="row kv"><span class="row-name" data-i18n="about.build"></span><span class="row-value">1.2.5</span></div>
           <div class="row kv"><span class="row-name" data-i18n="about.renderer"></span><span class="row-value">D3D11 · P010 / NV12 / BGRA</span></div>
           <div class="about-copy">
             <p data-i18n="about.description"></p>
@@ -726,6 +729,21 @@
                 <span data-i18n="about.localizationTraditionalChinese"></span>
                 <a href="https://github.com/HolyBearTW" target="_blank" rel="noopener noreferrer" data-i18n="about.localizationName"></a>
                 <span data-i18n="about.localizationHandle"></span>
+              </div>
+              <div class="about-credit-entry">
+                <span data-i18n="language.simplifiedChinese"></span><span> (zh-CN) - </span>
+                <a href="https://github.com/CN115" target="_blank" rel="noopener noreferrer">CN_115</a>
+                <span> (@CN115)</span>
+              </div>
+              <div class="about-credit-entry">
+                <span data-i18n="language.german"></span><span> (de-DE) - </span>
+                <a href="https://github.com/Noka123" target="_blank" rel="noopener noreferrer">Noka123</a>
+                <span> (@Noka123)</span>
+              </div>
+              <div class="about-credit-entry">
+                <span data-i18n="language.korean"></span><span> (ko-KR) - </span>
+                <a href="https://github.com/i0rph" target="_blank" rel="noopener noreferrer">iorph</a>
+                <span> (@i0rph)</span>
               </div>
             </div>
           </div>

@@ -1,5 +1,7 @@
 #include "capture/capture_device.h"
 #include "capture/dshow_capture.h"
+#include "capture/elgato_4kx_source.h"
+#include "app/capture_output_policy.h"
 
 #include <wrl/implements.h>
 #include <iostream>
@@ -407,7 +409,44 @@ bool RunChecks()
                        "session B may publish its own P010 after readback");
     }
 
-    for (const auto name : {L"Elgato Game Capture 4K Pro", L"Generic capture card"}) {
+    {
+        Source4KProMode mode;
+        mode.detected = true;
+        mode.width = 2560;
+        mode.height = 1440;
+        mode.fps = 60;
+        mode.hdrValid = true;
+        const Mode xP010 = {MFVideoFormat_P010, 2560, 1440, 60, 1};
+        const Mode xNV12 = {MFVideoFormat_NV12, 2560, 1440, 60, 1};
+        for (bool hdr : {true, false}) {
+            mode.hdrActive = hdr;
+            bool sourceHDR = false, available = false;
+            Apply4KXSourceHdr(mode, sourceHDR, available);
+            for (bool output : {false, true}) {
+                const auto policy = Decide4KXSourceCapturePolicy(
+                    NegotiatedCaptureFormatKind::Other, false, output,
+                    CaptureFormatPreference::Auto, sourceHDR, available, false);
+                CaptureDevice device;
+                auto source = MakeSource({{{xNV12, xP010}}});
+                CaptureDevice::OverrideSpec ov;
+                ov.width = 2560; ov.height = 1440; ov.fps = 60;
+                pass &= Expect(Access::Negotiate(device, source.Get(), L"Elgato 4K X",
+                                                policy.desiredCaptureIsP010, ov),
+                               "4K X source policy selects the advertised 1440p60 native mode");
+                pass &= Expect(policy.desiredCaptureIsP010 == hdr,
+                               "4K X requests P010 only for valid HDR regardless of output preference");
+                pass &= Expect(Access::Format(device).width == 2560 &&
+                               Access::Format(device).height == 1440,
+                               "4K X keeps 1440p dimensions");
+                pass &= ExpectRate(device, 60, 1, "4K X keeps 60 Hz at 1440p");
+            }
+        }
+        CaptureDevice fallbackDevice;
+        auto onlySDR = MakeSource({{{xNV12}}});
+        pass &= Expect(Access::Negotiate(fallbackDevice, onlySDR.Get(), L"Elgato 4K X", true),
+                       "4K X enumeration without P010 retains the generic Open fallback path");
+    }
+    for (const auto name : {L"Elgato Game Capture 4K Pro", L"Elgato 4K S", L"Generic capture card"}) {
         CaptureDevice device;
         auto source = MakeSource({{{{MFVideoFormat_P010, 2560, 1440, 30, 1}, p010}}});
         pass &= Expect(Access::Negotiate(device, source.Get(), name, true),

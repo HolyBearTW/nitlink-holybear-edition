@@ -375,7 +375,7 @@ bool Config::Load(const std::string& path)
         if (key == "window_width")    windowWidth  = ParseU32(val, windowWidth, 320, 16384);
         if (key == "window_height")   windowHeight = ParseU32(val, windowHeight, 240, 16384);
         if (key == "language") {
-            if (val == "system" || val == "en-US" || val == "zh-TW" || val == "zh-CN" || val == "de-DE") language = val;
+            if (val == "system" || val == "en-US" || val == "zh-TW" || val == "zh-CN" || val == "de-DE" || val == "ko-KR") language = val;
         }
         if (key == "manual_hdmi_source")
             manualHdmiSource = NormalizeManualHdmiSource(val);
@@ -580,7 +580,7 @@ bool Config::Save(const std::string& path)
     file << "# NitLink Configuration\n";
     file << "# https://github.com/nitlink-dev/nitlink\n\n";
 
-    file << "# Interface language: system | en-US | zh-TW | zh-CN | de-DE\n";
+    file << "# Interface language: system | en-US | zh-TW | zh-CN | de-DE | ko-KR\n";
     file << "language = " << language << "\n\n";
 
     file << "# Window\n";
@@ -604,8 +604,8 @@ bool Config::Save(const std::string& path)
 
     file << "# Capture\n";
     file << "# Friendly name of the preferred capture device, e.g. \"Elgato 4K Pro\".\n";
-    file << "# Empty falls back to the first Elgato device when present, otherwise to\n";
-    file << "# the first device Media Foundation enumerates.\n";
+    file << "# Empty picks a capture card (Elgato first), skipping webcams, VR headset\n";
+    file << "# cameras and virtual cameras unless no other device is present.\n";
     file << "preferred_device = " << preferredUtf8 << "\n\n";
 
     file << "# HDMI IN source identity only; does not change capture or HDR policy.\n";

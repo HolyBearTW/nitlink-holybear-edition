@@ -56,8 +56,10 @@ int main() {
         const auto simplified = localization.Get(key);
         localization.SetPreference("de-DE");
         const auto german = localization.Get(key);
-        Expect(english != key && chinese != key && simplified != key && german != key &&
-               english != chinese && english != simplified && english != german,
+        localization.SetPreference("ko-KR");
+        const auto korean = localization.Get(key);
+        Expect(english != key && chinese != key && simplified != key && german != key && korean != key &&
+               english != chinese && english != simplified && english != german && english != korean,
                "all native locale tables define each settings/config warning");
     }
     localization.SetPreference("zh-CN");
@@ -74,6 +76,13 @@ int main() {
     Expect(localization.Format(L"toast.p010SelectionFallback",
            {{L"width", L"1920"}, {L"height", L"1080"}, {L"fps", L"60"}}).find(L"1920x1080 @ 60") != std::wstring::npos,
            "German native placeholders are substituted");
+    localization.SetPreference("ko-KR");
+    Expect(localization.PreferenceName() == "ko-KR" && localization.LocaleName() == L"ko-KR" &&
+           std::wstring(localization.UiFontFamily()) == L"Malgun Gothic",
+           "Korean selects native locale and font");
+    Expect(localization.Format(L"toast.p010SelectionFallback",
+           {{L"width", L"1920"}, {L"height", L"1080"}, {L"fps", L"60"}}).find(L"1920x1080 @ 60") != std::wstring::npos,
+           "Korean native placeholders are substituted");
     localization.SetPreference("system");
     using namespace NitLink::WebViewPolicy;
     for (auto action : {L"ready", L"cycleNoSignalMode", L"chooseNoSignalImage",
@@ -129,6 +138,7 @@ int main() {
     for (auto valid : {
         LR"({"action":"setLanguage","value":"system"})", LR"({"action":"setLanguage","value":"en-US"})",
         LR"({"action":"setLanguage","value":"zh-CN"})", LR"({"action":"setLanguage","value":"de-DE"})",
+        LR"({"action":"setLanguage","value":"ko-KR"})",
         LR"({"action":"setLanguage","value":"zh-TW"})", LR"({"action":"setNoSignalMode","value":"image"})",
         LR"({"action":"setNoSignalMode","value":"default"})", LR"({"action":"setNoSignalFit","value":"contain"})",
         LR"({"action":"setNoSignalFit","value":"cover"})", LR"({"action":"setNoSignalFit","value":"stretch"})",
@@ -268,6 +278,7 @@ int main() {
          L"https://nitlink.invalid/assets/menu/menu.js?x", L"file:///C:/secret.txt"})
         Expect(!FindResource(bad), "unlisted resource");
     for (auto target : {L"https://tally.so/r/EkZjNr", L"https://ko-fi.com/klosed89", L"https://github.com/HolyBearTW",
+         L"https://github.com/CN115", L"https://github.com/Noka123", L"https://github.com/i0rph",
          L"https://store.steampowered.com/app/5346980"}) {
         Expect(CanOpenExternal(MenuUri, target, true), "user activated menu link");
         Expect(!CanOpenExternal(MenuUri, target, false), "script popup");
@@ -276,6 +287,8 @@ int main() {
     for (auto target : {L"file:///C:/run.exe", L"ms-settings:display", L"javascript:alert(1)",
          L"http://ko-fi.com/klosed89", L"https://ko-fi.com/klosed89?redirect=elsewhere",
          L"https://ko-fi.com@other.invalid/klosed89", L"https://other.invalid/",
+         L"https://github.com/i0rph?redirect=elsewhere", L"https://github.com/Noka123.evil.invalid",
+         L"https://github.com@other.invalid/CN115",
          L"http://store.steampowered.com/app/5346980", L"https://store.steampowered.com/app/5346980?x"})
         Expect(!CanOpenExternal(MenuUri, target, true), "unlisted shell target");
     Expect(IsLocalScreenshotPath(L"C:\\Users\\測試\\Pictures\\NitLink\\nitlink_1.png"), "local screenshot");

@@ -11,6 +11,7 @@
 #include "capture_output_policy.h"
 #include "display_refresh.h"
 #include "capture/elgato_hdr_control.h"
+#include "capture/elgato_4kx_source.h"
 #include "capture/elgato_device_identity.h"
 #include "capture/elgato_hid_4ks.h"
 #include <chrono>
@@ -569,6 +570,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     std::wstring chosenLower = chosen.name;
     std::transform(chosenLower.begin(), chosenLower.end(), chosenLower.begin(), ::towlower);
     m_is4KS = isElgato && chosenLower.find(L"4k s") != std::wstring::npos;
+    m_is4KX = isElgato && chosenLower.find(L"4k x") != std::wstring::npos;
     m_isGC553Pro = GetCaptureDevicePolicy(chosen.name).family ==
                    CaptureDeviceFamily::AverMediaGC553Pro;
     if (m_isGC553Pro) {
@@ -605,7 +607,12 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // vendor HID (e.g. PlayStation 5), the source identity becomes the
     // proxy for "user probably wants HDR". P010 negotiation can still fail
     // at the MF level, in which case the fallback path below catches it.
-    if (isElgato) {
+    if (m_is4KX) {
+        m_source4KProMode = {};
+        Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                          m_hdrDetectionAvailable);
+        AppLog(L"Initialize: 4K X HDR detection awaits the live source poller");
+    } else if (isElgato) {
         HDRSourceInfo srcInfo = ReadElgatoHDRSource(chosen.name);
         m_sourceIsHDR10        = srcInfo.isHDR10;
         m_hdrDetectionAvailable = srcInfo.propertyAccessible;
@@ -792,6 +799,11 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             AppLog(L"Initialize: " + warning);
             ShowToast(warning, std::chrono::milliseconds(8000));
         }
+    } else if (m_is4KX) {
+        useP010 = Decide4KXSourceCapturePolicy(
+            NegotiatedCaptureFormatKind::Other, false, userWantsHDR,
+            formatPreference, m_sourceIsHDR10, m_hdrDetectionAvailable,
+            false).desiredCaptureIsP010;
     } else if (m_is4KS) {
         useP010 = isElgato && m_sourceIsHDR10 && userWantsHDR;
     } else {
@@ -944,7 +956,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // edge so a source already live at launch needs no duplicate query.
     // Silent no-op on devices without the Elgato IKsPropertySet GUID
     // (4K S and non-Elgato sources).
-    if (isElgato && m_hdrDetectionAvailable && !m_is4KS) {
+    if (isElgato && m_hdrDetectionAvailable && !m_is4KS && !m_is4KX) {
         m_source4KProMode = Detect4KProSourceMode(chosen.name);
         m_prevSourceNoSignal = !m_source4KProMode.detected;
     }
@@ -955,7 +967,6 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // never the HID/processing path. The XU read needs a LIVE signal, so it
     // does not run at init: the device is flagged by name and Run() fires the
     // read on each no-signal to signal (re)lock edge.
-    m_is4KX = isElgato && (chosen.name.find(L"4K X") != std::wstring::npos);
 
     // Log every native format this device exposes. Pure diagnostic: does
     // NOT change the running pipeline. Useful when triaging: confirms
@@ -1228,11 +1239,12 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         }
         if (action == L"setLanguage" && m_config) {
             const std::wstring requested = message->text;
-            if (requested == L"system" || requested == L"en-US" || requested == L"zh-TW" || requested == L"zh-CN" || requested == L"de-DE") {
+            if (requested == L"system" || requested == L"en-US" || requested == L"zh-TW" || requested == L"zh-CN" || requested == L"de-DE" || requested == L"ko-KR") {
                 m_config->language = requested == L"en-US" ? "en-US"
                     : requested == L"zh-TW" ? "zh-TW"
                     : requested == L"zh-CN" ? "zh-CN"
-                    : requested == L"de-DE" ? "de-DE" : "system";
+                    : requested == L"de-DE" ? "de-DE"
+                    : requested == L"ko-KR" ? "ko-KR" : "system";
                 Localization::Instance().SetPreference(m_config->language);
                 if (m_overlay && !m_overlay->RefreshTextFormats()) {
                     AppLog(L"setLanguage: failed to refresh overlay text formats");
@@ -1905,11 +1917,16 @@ void Application::Run()
         // retry) would otherwise dereference a null renderer here. Skipping the
         // resize is safe: the pending rebuild recreates the swap chain at the
         // current client size, and any later resize event repeats this block.
-        if (m_window->WasResized() && m_renderer) {
-            auto [w, h] = m_window->GetClientSize();
-            AppLog(L"Resize event: handling resize");
+        // A resize the swap chain refused stays pending: WasResized() remains
+        // set and the block runs again once the retry time is reached.
+        const bool resizePending = m_window->WasResized() && m_renderer;
+        const auto [w, h] = resizePending ? m_window->GetClientSize() : std::pair<uint32_t, uint32_t>{};
+        const auto resizeNow = std::chrono::steady_clock::now();
+        if (resizePending && (m_resizeRetryCount == 0 || resizeNow >= m_resizeRetryAt
+                || w != m_resizeRetryWidth || h != m_resizeRetryHeight)) {
+            if (m_resizeRetryCount == 0) AppLog(L"Resize event: handling resize");
             if (m_overlay) m_overlay->OnResizeBegin();
-            m_renderer->Resize(w, h);
+            const bool resized = m_renderer->Resize(w, h);
             ApplyPresentCap();
             // Update the WebView2 child controller bounds so it stays
             // sized to the new client rect. The control is always sized
@@ -1924,8 +1941,28 @@ void Application::Run()
                 // overlay stays functional after window resize.
                 m_overlay->OnResizeEnd();
             }
-            m_window->AcknowledgeResize();
-            AppLog(L"Resize event: done");
+            if (resized) {
+                if (m_resizeRetryCount > 0) {
+                    AppLog(L"Resize event: swap chain resized after "
+                        + std::to_wstring(m_resizeRetryCount) + L" refused attempt(s)");
+                }
+                m_resizeRetryCount = 0;
+                m_window->AcknowledgeResize();
+                AppLog(L"Resize event: done");
+            } else {
+                // Rendering continues into the previous buffers, which DWM
+                // scales to the window, until a retry succeeds.
+                ++m_resizeRetryCount;
+                m_resizeRetryWidth = w;
+                m_resizeRetryHeight = h;
+                const int shift = static_cast<int>(std::min<uint32_t>(m_resizeRetryCount - 1, 3));
+                m_resizeRetryAt = resizeNow + std::chrono::milliseconds(250 << shift);
+                if (m_resizeRetryCount == 1 || m_resizeRetryCount % 30 == 0) {
+                    AppLog(L"Resize event: swap chain kept its previous buffers ("
+                        + std::to_wstring(w) + L"x" + std::to_wstring(h) + L" refused, attempt "
+                        + std::to_wstring(m_resizeRetryCount) + L"); rendering at the previous size and retrying");
+                }
+            }
         }
 
         // Refresh display metadata only on a display notification or monitor
@@ -1984,6 +2021,31 @@ void Application::Run()
                     // mismatch where the renderer thinks the capture is P010
                     // before the capture device has actually switched.
                 }
+            }
+        }
+
+        // 4K X: a background poller reads the live source mode off the render
+        // thread (Detect4KXSourceMode opens a DirectShow filter, ~50-100ms; too
+        // slow for this loop). Start is idempotent. On a source-mode change, force
+        // a reconcile so capture re-matches the source resolution/fps. A live PS5
+        // resolution change is too brief to trip the no-signal edge, so polling is
+        // what catches it.
+        if (m_is4KX) {
+            // 4K X source poller: opens the XU once and holds it (Start is
+            // idempotent), reads resolution/fps/HDR/source name off the render
+            // thread via the readiness-poll + paced sequence the Elgato app uses.
+            m_4kxPoller.Start(m_currentDeviceInfo.name, m_source4KProMode);
+            if (m_4kxPoller.AcceptUpdate(&m_source4KProMode)) {
+                Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                                  m_hdrDetectionAvailable);
+                m_4kxForceReconcile = true;
+                if (m_settingsVisible) PushSettingsState();
+                AppLog(L"4K X source mode: "
+                       + std::to_wstring(m_source4KProMode.width) + L"x"
+                       + std::to_wstring(m_source4KProMode.height) + L"@"
+                       + std::to_wstring(m_source4KProMode.fps)
+                       + (!m_source4KProMode.hdrValid ? L" HDR unknown"
+                          : m_source4KProMode.hdrActive ? L" HDR" : L" SDR"));
             }
         }
 
@@ -2549,27 +2611,6 @@ void Application::Run()
             }
         }
 
-        // 4K X: a background poller reads the live source mode off the render
-        // thread (Detect4KXSourceMode opens a DirectShow filter, ~50-100ms; too
-        // slow for this loop). Start is idempotent. On a source-mode change, force
-        // a reconcile so capture re-matches the source resolution/fps. A live PS5
-        // resolution change is too brief to trip the no-signal edge, so polling is
-        // what catches it.
-        if (m_is4KX) {
-            // 4K X source poller: opens the XU once and holds it (Start is
-            // idempotent), reads resolution/fps/HDR/source name off the render
-            // thread via the readiness-poll + paced sequence the Elgato app uses.
-            m_4kxPoller.Start(m_currentDeviceInfo.name, m_source4KProMode);
-            if (m_4kxPoller.AcceptUpdate(&m_source4KProMode)) {
-                m_4kxForceReconcile = true;
-                AppLog(L"4K X source mode: "
-                       + std::to_wstring(m_source4KProMode.width) + L"x"
-                       + std::to_wstring(m_source4KProMode.height) + L"@"
-                       + std::to_wstring(m_source4KProMode.fps)
-                       + (m_source4KProMode.hdrActive ? L" HDR" : L" SDR"));
-            }
-        }
-
         // =====================================================================
         // VRR PRESENT PACING: differ-driven Present
         // =====================================================================
@@ -2610,16 +2651,23 @@ void Application::Run()
         if (haveFreshFrame && freshFrameIsRealSource
             && m_frameDiffer && m_renderer->GetRawCaptureSRV()) {
             const auto differStart = std::chrono::steady_clock::now();
+            // Only "Source frame rate" presents from the classification, so
+            // only there may a starved readback wait for the GPU.
+            m_frameDiffer->SetReadbackWaitAllowed(pacing == kPacingUnique);
             m_frameDiffer->Process(m_renderer->GetContext(),
                                      m_renderer->GetRawCaptureSRV());
             m_loopDifferSumMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - differStart).count();
-            isNewFrame = m_frameDiffer->WasPreviousFrameNew();
-            m_sourceCadence.OnClassifiedFrame(isNewFrame);
+            const bool classifiedNew = m_frameDiffer->WasPreviousFrameNew();
+            isNewFrame = m_frameDiffer->ShouldPresentCurrentFrame();
             if (m_frameDiffer->HasFrameClassification()) {
+                if (m_frameDiffer->HasClassificationDiscontinuity()) m_sourceCadence.Reset();
+                m_sourceCadence.OnClassifiedFrame(classifiedNew);
                 ++m_contentClassificationsSinceSample;
-                if (isNewFrame) ++m_uniqueFrameCount;
+                if (classifiedNew) ++m_uniqueFrameCount;
+            } else {
+                m_sourceCadence.OnUnclassifiedFrame();
             }
-            if (isNewFrame) {
+            if (m_frameDiffer->HasFrameClassification() && classifiedNew) {
                 // Motion-recency gate: the differ saw a non-duplicate frame,
                 // so the HDMI source is producing fresh content. This is the
                 // motion half of the (motion OR content) gate consulted by
@@ -2721,6 +2769,8 @@ void Application::Run()
                            << L" readbackSkips=" << readbackSkips
                            << L" droppedDelta=" << (counterReset ? 0 : dropped - lastDropped)
                            << L" readbackSkipDelta=" << (counterReset ? 0 : readbackSkips - lastReadbackSkips)
+                           << L" readbackWaits=" << (m_frameDiffer ? m_frameDiffer->GetReadbackWaits() : 0)
+                           << L" readbackWaitTimeouts=" << (m_frameDiffer ? m_frameDiffer->GetReadbackWaitTimeouts() : 0)
                            << L" counterReset=" << counterReset
                            << L" sampleSeconds=" << std::chrono::duration<double>(now - lastDiffLog).count()
                            << L" presentOk=" << ph.presentOk
@@ -3677,7 +3727,12 @@ bool Application::ReconcileCaptureFormat(bool force)
     // keeps the structure consistent with the other call sites.
     const bool isElgato = IsElgatoDevice(m_currentDeviceInfo.name);
 
-    if (force && isElgato && m_hdrDetectionAvailable) {
+    if (m_is4KX) {
+        // The XU poller owns source reads; Pro properties and S HID probes
+        // cannot refresh a 4K X and must not replace its cached HDR state.
+        Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                          m_hdrDetectionAvailable);
+    } else if (force && isElgato && m_hdrDetectionAvailable) {
         bool titleDirty = false;
 
         // Try the 4K Pro IKsPropertySet path first. Cheap (no HID
@@ -3753,6 +3808,7 @@ bool Application::ReconcileCaptureFormat(bool force)
 
     bool wantP010;
     Gc553ProSourceCapturePolicy gc553ProPolicy{};
+    Elgato4KXCapturePolicy fourKXPolicy{};
     if (m_isGC553Pro) {
         if (!m_config->hdrAutoFromSource ||
             formatPreference != CaptureFormatPreference::Auto)
@@ -3774,6 +3830,12 @@ bool Application::ReconcileCaptureFormat(bool force)
             AppLog(L"Reconcile: " + warning);
             ShowToast(warning, std::chrono::milliseconds(8000));
         }
+    } else if (m_is4KX) {
+        fourKXPolicy = Decide4KXSourceCapturePolicy(
+            actualCaptureFormat, retainedFormatBelongsToCurrentDevice,
+            userWantsHDR, formatPreference, m_sourceIsHDR10,
+            m_hdrDetectionAvailable, !force && m_nonGcP010Fallback.Accepted());
+        wantP010 = fourKXPolicy.desiredCaptureIsP010;
     } else if (m_is4KS) {
         // Existing Elgato 4K S policy is intentionally unchanged.
         wantP010 = isElgato && m_sourceIsHDR10 && userWantsHDR;
@@ -3809,6 +3871,7 @@ bool Application::ReconcileCaptureFormat(bool force)
         wantP010, retainedFormatBelongsToCurrentDevice, force);
     const bool formatReopenNeeded = m_isGC553Pro
         ? gc553ProPolicy.reopenCapture
+        : m_is4KX ? fourKXPolicy.reopenCapture
         : ShouldReopenNonGcCapture(
               wantP010, actualCaptureFormat,
               retainedFormatBelongsToCurrentDevice,
@@ -4050,8 +4113,12 @@ bool Application::ReconcileCaptureFormat(bool force)
         }
         opened = m_captureDevice->Open(deviceToOpen);
         if (opened) {
-            AppLog(L"Reconcile: rolled back hdrEnabled, P010 unavailable for this source");
-            m_config->hdrEnabled = false;
+            if (m_is4KX) {
+                AppLog(L"Reconcile: 4K X P010 unavailable; retaining HDR output preference");
+            } else {
+                AppLog(L"Reconcile: rolled back hdrEnabled, P010 unavailable for this source");
+                m_config->hdrEnabled = false;
+            }
             if (m_isGC553Pro) {
                 if (m_config->hdrAutoFromSource &&
                     m_gc553ProSourceState == Gc553ProSourceHdrState::Hdr10Pq &&
@@ -4210,7 +4277,7 @@ bool Application::ReconcileCaptureFormat(bool force)
         // Without this sync, the swap chain stays HDR10 (from Alt+H ON)
         // while the renderer feeds 8-bit SDR luma through it. Bring
         // both flags down to match capture reality.
-        if (wantP010 && !captureIsP010 && m_config->hdrEnabled) {
+        if (!m_is4KX && wantP010 && !captureIsP010 && m_config->hdrEnabled) {
             AppLog(L"Reconcile: capture is non-P010 despite wantP010; "
                    L"disabling renderer HDR mode and rolling back hdrEnabled");
             m_config->hdrEnabled = false;
@@ -4800,6 +4867,9 @@ bool Application::SwitchCaptureDevice(const std::wstring& deviceName)
         m_gc553ProSourceState = probe.state;
         m_hdrDetectionAvailable = probe.state != Gc553ProSourceHdrState::Unknown;
         m_sourceIsHDR10 = probe.state == Gc553ProSourceHdrState::Hdr10Pq;
+    } else if (m_is4KX) {
+        Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                          m_hdrDetectionAvailable);
     } else if (IsElgatoDevice(newDevice.name)) {
         HDRSourceInfo srcInfo = ReadElgatoHDRSource(newDevice.name);
         m_hdrDetectionAvailable = srcInfo.propertyAccessible;

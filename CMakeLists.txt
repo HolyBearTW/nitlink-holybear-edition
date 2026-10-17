@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(NitLink VERSION 1.2.4 LANGUAGES CXX)
+project(NitLink VERSION 1.2.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,6 +50,7 @@ set(NITLINK_SOURCES
     src/capture/device_enumerator.h
     src/capture/elgato_hdr_control.cpp
     src/capture/elgato_hdr_control.h
+    src/capture/elgato_4kx_source.h
     src/capture/gc553pro_hdr_source.cpp
     src/capture/gc553pro_hdr_source.h
     src/capture/elgato_hid_4ks.cpp
@@ -58,6 +59,7 @@ set(NITLINK_SOURCES
     src/capture/frame_buffer.h
     src/capture/frame_differ.cpp
     src/capture/frame_differ.h
+    src/capture/frame_readback_queue.h
     src/capture/hdr_source_poller.cpp
     src/capture/hdr_source_poller.h
     src/capture/placeholder_detector.cpp
@@ -177,6 +179,9 @@ add_custom_target(NitLinkRuntimeResources
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/locales/de-DE.js
         $<TARGET_FILE_DIR:NitLink>/locales/de-DE.js
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/locales/ko-KR.js
+        $<TARGET_FILE_DIR:NitLink>/locales/ko-KR.js
 )
 add_dependencies(NitLink NitLinkRuntimeResources)
 
@@ -345,6 +350,10 @@ if(BUILD_TESTING)
     )
     add_test(NAME p010_native_negotiation COMMAND NitLinkP010NegotiationTests)
 
+    add_executable(NitLink4KXHdrTests tests/elgato_4kx_hdr_tests.cpp)
+    target_include_directories(NitLink4KXHdrTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME elgato_4kx_hdr COMMAND NitLink4KXHdrTests)
+
     add_executable(NitLinkConfigRateTests
         tests/config_rate_tests.cpp
         src/app/config.cpp
@@ -444,6 +453,11 @@ if(BUILD_TESTING)
     target_link_libraries(NitLinkPresentWaitTests PRIVATE d3d11 dxgi d3dcompiler windowscodecs)
     add_test(NAME present_wait_paths COMMAND NitLinkPresentWaitTests)
 
+    add_executable(NitLinkResizeRecoveryTests tests/resize_recovery_tests.cpp src/renderer/dx11_renderer.cpp)
+    target_include_directories(NitLinkResizeRecoveryTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkResizeRecoveryTests PRIVATE d3d11 dxgi d3dcompiler windowscodecs)
+    add_test(NAME swap_chain_resize_recovery COMMAND NitLinkResizeRecoveryTests)
+
     add_executable(NitLinkGc553ProHdrTests
         tests/gc553pro_hdr_source_tests.cpp
         src/capture/gc553pro_hdr_source.cpp
@@ -461,4 +475,33 @@ if(BUILD_TESTING)
         src/app/config.cpp src/app/settings_message.cpp src/app/game_database.cpp)
     target_include_directories(NitLinkManualHdmiSourceTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     add_test(NAME manual_hdmi_source COMMAND NitLinkManualHdmiSourceTests)
+
+    add_executable(NitLinkFrameReadbackQueueTests tests/frame_readback_queue_tests.cpp)
+    target_include_directories(NitLinkFrameReadbackQueueTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME frame_readback_queue COMMAND NitLinkFrameReadbackQueueTests)
+
+    add_executable(NitLinkFrameDifferOrderTests
+        tests/frame_differ_order_tests.cpp src/capture/frame_differ.cpp)
+    target_include_directories(NitLinkFrameDifferOrderTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkFrameDifferOrderTests PRIVATE d3d11 d3dcompiler)
+    add_test(NAME frame_differ_order COMMAND NitLinkFrameDifferOrderTests)
+
+    add_executable(NitLinkBoundedReadbackTests tests/bounded_readback_tests.cpp)
+    target_include_directories(NitLinkBoundedReadbackTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME bounded_readback COMMAND NitLinkBoundedReadbackTests)
+
+    add_executable(NitLinkCurrentFramePacingTests
+        tests/current_frame_pacing_tests.cpp src/capture/frame_differ.cpp)
+    target_include_directories(NitLinkCurrentFramePacingTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkCurrentFramePacingTests PRIVATE d3d11 d3dcompiler)
+    add_test(NAME current_frame_pacing COMMAND NitLinkCurrentFramePacingTests)
+
+    add_executable(NitLinkReadbackStarvationTests tests/readback_starvation_tests.cpp)
+    target_include_directories(NitLinkReadbackStarvationTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME readback_starvation COMMAND NitLinkReadbackStarvationTests)
+
+    add_executable(NitLinkDevicePickTests tests/device_pick_tests.cpp src/capture/device_enumerator.cpp)
+    target_include_directories(NitLinkDevicePickTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkDevicePickTests PRIVATE mf mfplat mfuuid ole32)
+    add_test(NAME device_pick COMMAND NitLinkDevicePickTests)
 endif()

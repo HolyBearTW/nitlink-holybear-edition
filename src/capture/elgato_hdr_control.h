@@ -121,6 +121,7 @@ struct Source4KProMode {
     uint32_t width     = 0;
     uint32_t height    = 0;
     uint32_t fps       = 0;
+    bool         hdrValid = false;  // A successful HDR read is independent of timing detection.
     bool         hdrActive = false;  // source HDR active (4K X: XU 0x22 DRM InfoFrame byte4==0x87)
     std::wstring sourceName;         // 4K X: SPD InfoFrame product string, e.g. "PS5" (empty if unknown)
 };

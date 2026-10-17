@@ -1653,10 +1653,10 @@ void DX11Renderer::UpdateCaptureTexture(const uint8_t* data, uint32_t size, uint
     m_hasFrame = true;
 }
 
-void DX11Renderer::Resize(uint32_t width, uint32_t height)
+bool DX11Renderer::Resize(uint32_t width, uint32_t height)
 {
-    if (width < 8 || height < 8) return;
-    if (width == m_windowWidth && height == m_windowHeight) return;
+    if (width < 8 || height < 8) return true;
+    if (width == m_windowWidth && height == m_windowHeight) return true;
 
     {
         std::wstringstream ss;
@@ -1665,6 +1665,8 @@ void DX11Renderer::Resize(uint32_t width, uint32_t height)
         OutputDebugStringW(ss.str().c_str());
     }
 
+    const uint32_t previousWidth = m_windowWidth;
+    const uint32_t previousHeight = m_windowHeight;
     m_windowWidth = width;
     m_windowHeight = height;
 
@@ -1687,12 +1689,22 @@ void DX11Renderer::Resize(uint32_t width, uint32_t height)
         // the run loop polls so recovery engages instead of leaving the swap
         // chain at its old size with no rebuild ever triggered.
         FlagIfDeviceLost(hr, L"Resize ResizeBuffers");
-        return;
+        // Any other failure keeps the old buffers. DXGI_ERROR_INVALID_CALL is
+        // typical when another component, such as an injected overlay, still
+        // holds a back buffer. Render into the old buffers at the old size so
+        // the picture keeps updating, and report the failure so the caller
+        // retries; without the RTV the picture would stay frozen until the
+        // window size changed again.
+        m_windowWidth = previousWidth;
+        m_windowHeight = previousHeight;
+        CreateRenderTarget();
+        return false;
     }
     OutputDebugStringW(L"[NitLink/Renderer] Resize: swap chain resized\n");
 
     CreateRenderTarget();
     OutputDebugStringW(L"[NitLink/Renderer] Resize: RTV recreated, done\n");
+    return true;
 }
 
 void DX11Renderer::UpdateAspectTransform()
@@ -2840,6 +2852,9 @@ bool DX11Renderer::RecreateSwapChainBuffer(DXGI_FORMAT newFormat)
         // than at Present. Route it into the same latch the run loop polls so
         // recovery engages instead of leaving the swap chain unrecreated.
         FlagIfDeviceLost(hr, L"RecreateSwapChainBuffer ResizeBuffers");
+        // The old buffers and format stay in place on failure; restore their
+        // RTV so frames keep presenting in the current format.
+        CreateRenderTarget();
         return false;
     }
 

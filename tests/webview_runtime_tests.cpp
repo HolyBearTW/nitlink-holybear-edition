@@ -1,5 +1,6 @@
 #include "app/WebViewSettings.h"
 #include "app/settings_message.h"
+#include "capture/elgato_4kx_source.h"
 #include "app/hdmi_source.h"
 #include "app/webview_lifecycle.h"
 #include "app/webview_policy.h"
@@ -97,7 +98,7 @@ void OtherEditorLocalesTest(WebViewSettings& host, ICoreWebView2* view,
         host.PostMessage(state.str());
     };
     const auto firstMessage = messages.size();
-    for (const auto locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+    for (const auto locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR"}) {
         pushOther(locale, L"Steam Deck");
         const auto ready = std::wstring(L"document.documentElement.lang === '") + locale +
             L"' && document.getElementById('meta-hdmi-source').textContent === 'Steam Deck'";
@@ -442,9 +443,43 @@ int main(int argc, char** argv) {
         host.PostMessage(LR"({"state":{"locale":"de-DE","languagePreference":"de-DE"}})");
         Check(PumpUntil([&] { return Script(view, L"document.documentElement.lang === 'de-DE' && document.querySelector('[data-i18n=\"nav.keys\"]').textContent === window.NitLinkLocales['de-DE']['nav.keys']") == L"true"; }),
               "German resource loads through the native resource allowlist");
+        host.PostMessage(LR"({"state":{"locale":"ko-KR","languagePreference":"ko-KR"}})");
+        Check(PumpUntil([&] { return Script(view, L"document.documentElement.lang === 'ko-KR' && document.querySelector('[data-i18n=\"nav.keys\"]').textContent === window.NitLinkLocales['ko-KR']['nav.keys']") == L"true"; }),
+              "Korean resource loads through the native resource allowlist");
         host.PostMessage(LR"({"state":{"locale":"zh-TW","languagePreference":"zh-TW","audioVolume":0.75}})");
         Check(PumpUntil([&] { return Script(view, L"document.documentElement.lang") == L"\"zh-TW\""; }),
               "native state reaches trusted page");
+        {
+            NitLink::Source4KProMode sourceMode;
+            const auto push4KXState = [&] {
+                bool sourceHDR = false, available = false;
+                NitLink::Apply4KXSourceHdr(sourceMode, sourceHDR, available);
+                std::wostringstream state;
+                state << L"{\"state\":{\"hdrEnabled\":false,\"hdrAutoDetectAvailable\":"
+                      << (available ? L"true" : L"false")
+                      << L",\"hdrAutoDetectSupported\":"
+                      << (available ? L"true" : L"false") << L"}}";
+                host.PostMessage(state.str());
+            };
+            push4KXState();
+            Check(PumpUntil([&] { return Script(view,
+                L"!document.getElementById('hdr-autodetect-notice').hidden") == L"true"; }),
+                  "4K X unavailable first read displays the detection notice");
+            sourceMode.detected = true;
+            sourceMode.width = 2560; sourceMode.height = 1440; sourceMode.fps = 60;
+            sourceMode.hdrValid = true; sourceMode.hdrActive = true;
+            push4KXState();
+            Check(PumpUntil([&] { return Script(view,
+                L"document.getElementById('hdr-autodetect-notice').hidden && !document.getElementById('toggle-hdr').classList.contains('on')") == L"true"; }),
+                  "first valid 4K X HDR clears the notice without enabling output HDR");
+            auto failedHDR = sourceMode;
+            failedHDR.hdrValid = false; failedHDR.hdrActive = false;
+            NitLink::Merge4KXSourceMode(sourceMode, failedHDR);
+            push4KXState();
+            Check(PumpUntil([&] { return Script(view,
+                L"document.getElementById('hdr-autodetect-notice').hidden") == L"true"; }),
+                  "transient 4K X HDR query failure retains availability in the menu");
+        }
         ManualSourcePickerTest(host, window, view, messages);
         host.PostMessage(LR"({"state":{"noSignalMode":"image","noSignalImage":"C:\\photo.png","noSignalImageAvailable":true}})");
         Check(PumpUntil([&] { return Script(view, L"document.getElementById('no-signal-mode-val').textContent === window.NitLinkLocales['zh-TW']['value.customImage']") == L"true"; }),
@@ -640,7 +675,7 @@ int main(int argc, char** argv) {
         const auto initialLocale = Script(recovered, L"document.documentElement.lang");
         std::wcout << L"Restart locale and browser languages: " <<
             Script(recovered, L"[document.documentElement.lang,navigator.languages]") << L'\n';
-        Check(initialLocale == L"\"en-US\"" || initialLocale == L"\"zh-TW\"" || initialLocale == L"\"de-DE\"",
+        Check(initialLocale == L"\"en-US\"" || initialLocale == L"\"zh-TW\"" || initialLocale == L"\"de-DE\"" || initialLocale == L"\"ko-KR\"",
               "restarted menu starts in a supported system locale");
         bool readyReceived = false;
         for (size_t i = messagesBeforeCrash; i < messages.size(); ++i) {

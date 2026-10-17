@@ -26,6 +26,34 @@ std::wstring ToLower(std::wstring s)
     return s;
 }
 
+// Lowercase name fragments of capture cards. The automatic pick prefers these.
+const wchar_t* const kCaptureCardNames[] = {
+    L"elgato", L"avermedia", L"live gamer", L"magewell", L"blackmagic", L"cam link",
+    L"razer ripsaw", L"evga xr1", L"startech", L"ugreen", L"capture", L"hdmi",
+};
+
+// Lowercase name fragments of cameras. Webcams, VR headset cameras and virtual
+// cameras enumerate as video capture devices too; the automatic pick skips them
+// while any other device is present.
+const wchar_t* const kCameraNames[] = {
+    L"camera", L"webcam", L"facecam", L"facetime", L"windows hello", L"brio",
+    L"c920", L"c922", L"c930", L"streamcam", L"logitech hd", L"oculus", L"rift",
+    L"quest", L"vive", L"etronvideo", L"pico", L"nvidia broadcast",
+};
+
+template <size_t N>
+bool NameContainsAny(const std::wstring& name, const wchar_t* const (&fragments)[N])
+{
+    const std::wstring lower = ToLower(name);
+    for (const wchar_t* fragment : fragments) {
+        if (lower.find(fragment) != std::wstring::npos) return true;
+    }
+    return false;
+}
+
+bool LooksLikeCamera(const std::wstring& name) { return NameContainsAny(name, kCameraNames); }
+bool LooksLikeCaptureCard(const std::wstring& name) { return NameContainsAny(name, kCaptureCardNames); }
+
 // Single Media Foundation enumeration pass. Split out from the public
 // FindCaptureDevices entry point so the wrapper can retry on a
 // transiently empty result without duplicating the COM walk.
@@ -138,20 +166,30 @@ int DeviceEnumerator::PickPreferredDevice(const std::vector<DeviceInfo>& devices
         }
     }
 
-    // Strategy 3: first device whose name contains "Elgato". The common
-    // failure mode without this bias is a laptop with both an integrated
-    // webcam and a connected Elgato capture card, where the webcam tends
-    // to win MF enumeration order and gets opened by default.
-    {
-        const std::wstring elgato = L"elgato";
-        for (size_t i = 0; i < devices.size(); ++i) {
-            if (ToLower(devices[i].name).find(elgato) != std::wstring::npos) {
-                return static_cast<int>(i);
-            }
+    // Strategy 3: first Elgato device that is not a camera, then the first
+    // other capture card by name that is not a camera. A webcam, a VR
+    // headset camera or a virtual camera tends to win MF enumeration order
+    // and would otherwise be opened by default.
+    for (size_t i = 0; i < devices.size(); ++i) {
+        const std::wstring& name = devices[i].name;
+        if (ToLower(name).find(L"elgato") != std::wstring::npos && !LooksLikeCamera(name)) {
+            return static_cast<int>(i);
+        }
+    }
+    for (size_t i = 0; i < devices.size(); ++i) {
+        if (LooksLikeCaptureCard(devices[i].name) && !LooksLikeCamera(devices[i].name)) {
+            return static_cast<int>(i);
         }
     }
 
-    // Strategy 4: fall back to the first device in MF enumeration order.
+    // Strategy 4: first device that does not look like a camera (a capture
+    // card with an unrecognized name).
+    for (size_t i = 0; i < devices.size(); ++i) {
+        if (!LooksLikeCamera(devices[i].name)) return static_cast<int>(i);
+    }
+
+    // Strategy 5: every device looks like a camera; the first one in MF
+    // enumeration order.
     return 0;
 }
 
@@ -159,32 +197,9 @@ std::vector<DeviceInfo> DeviceEnumerator::FindCaptureCards()
 {
     auto all = FindCaptureDevices();
 
-    // Known capture card identifiers in device names
-    static const std::wstring captureCardKeywords[] = {
-        L"Elgato", L"AVerMedia", L"Magewell", L"Blackmagic",
-        L"Game Capture", L"Live Gamer", L"4K", L"Cam Link",
-        L"Razer Ripsaw", L"EVGA XR1", L"Startech",
-    };
-
-    // Known webcam identifiers to exclude
-    static const std::wstring webcamKeywords[] = {
-        L"Webcam", L"FaceTime", L"Integrated Camera", L"IR Camera",
-        L"Windows Hello", L"Brio", L"C920", L"C922", L"C930",
-        L"StreamCam", L"Logitech HD",
-    };
-
     std::vector<DeviceInfo> filtered;
-    for (auto& dev : all) {
-        bool isWebcam = false;
-        for (const auto& kw : webcamKeywords) {
-            if (dev.name.find(kw) != std::wstring::npos) {
-                isWebcam = true;
-                break;
-            }
-        }
-        if (!isWebcam) {
-            filtered.push_back(std::move(dev));
-        }
+    for (const auto& dev : all) {
+        if (!LooksLikeCamera(dev.name)) filtered.push_back(dev);
     }
 
     // If filtering removed everything, return all devices

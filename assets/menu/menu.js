@@ -1181,10 +1181,12 @@
       };
       const officialCover=cover=>cover.isOfficial===true;
       const officialBadgeKey=cover=>cover.provider==='nintendo-tw'||(cover.languageVerified&&cover.language==='zh-TW')?'game.officialBadge':'game.officialArtwork';
-      const coverOrientation=entry=>{
+      const loadedCoverOrientation=entry=>{
+        if(entry?.art.dataset.imageState!=='ok')return '';
         const width=Number(entry.art.dataset.width),height=Number(entry.art.dataset.height);
-        return entry.art.dataset.imageState==='ok'&&width&&height?(width===height?'square':height>width?'portrait':'landscape'):entry.model.shape;
+        return width>0&&height>0?(width===height?'square':height>width?'portrait':'landscape'):'';
       };
+      const coverOrientation=entry=>loadedCoverOrientation(entry)||entry?.model?.shape||'';
       const sortCoverTiles=()=>{
         const shapeRank=cover=>{const entry=coverCards.get(cover.id),orientation=entry?coverOrientation(entry):cover.shape;return orientation==='square'?0:['portrait','landscape'].includes(orientation)?1:2;};
         const providerRank=cover=>cover.provider==='nintendo-tw'?0:cover.provider==='nintendo-hk-eshop'?1:cover.provider==='playstation-tw'?2:3;
@@ -1217,8 +1219,8 @@
         desired.forEach((node,index)=>{if(gallery.children[index]!==node)gallery.insertBefore(node,gallery.children[index]||null);});
       };
       const refreshCover=entry=>{
-        const orientation=coverOrientation(entry);
-        entry.tile.hidden=(shape!=='all'&&['square','portrait','landscape'].includes(orientation)&&orientation!==shape)||entry.art.dataset.imageState==='failed';
+        const actualOrientation=loadedCoverOrientation(entry),orientation=actualOrientation||entry.model.shape;
+        entry.tile.hidden=(shape!=='all'&&actualOrientation!==shape)||entry.art.dataset.imageState==='failed';
         entry.tile.dataset.shape=orientation||'';
         entry.tile.dataset.official=String(officialCover(entry.model));
         entry.card.disabled=entry.art.dataset.imageState!=='ok';
@@ -1301,10 +1303,11 @@
         el('game-search-empty').hidden = results.length > 0;
         el('game-search-empty').textContent = t(searchStatus === 'idle' ? 'game.searchIdle' : `game.status.${searchStatus}`);
         el('game-search-fallback').hidden = !(['empty', 'partial', ...failed].includes(searchStatus) || suggestions.length);
-        const matching=covers.filter(cover=>{const entry=coverCards.get(cover.id),orientation=entry&&coverOrientation(entry);return shape==='all'||!['square','portrait','landscape'].includes(orientation)||orientation===shape;});
+        const matching=covers.filter(cover=>{const entry=coverCards.get(cover.id);return shape==='all'||loadedCoverOrientation(entry)===shape||(entry?.art.dataset.imageState==='failed'&&cover.shape===shape);});
         const visible=matching.filter(cover=>coverCards.get(cover.id)?.art.dataset.imageState!=='failed');
         const imageFailures=matching.length-visible.length;
-        el('game-cover-status').textContent = t(`game.status.${coverStatus}`) + (visible.length ? ` · ${t('game.coverCount').replace('{count}',visible.length)}` : '')+
+        const waitingForShape=shape!=='all'&&covers.some(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='loading');
+        el('game-cover-status').textContent = t(waitingForShape?'game.status.loading':`game.status.${coverStatus}`) + (visible.length ? ` · ${t('game.coverCount').replace('{count}',visible.length)}` : '')+
           (!visible.length&&imageFailures?' · '+t('game.failedCoverCount').replace('{count}',imageFailures):'');
         el('game-query-trace').hidden = !window.NitLinkPreview || !queriedTerms.length;
         el('game-query-trace').textContent = `${t('game.queriedTerms')} · ${queriedTerms.join(' / ')}`;
@@ -1316,7 +1319,7 @@
         el('game-cover-status').dataset.error = String(failed.includes(coverStatus)||(!visible.length&&imageFailures>0));
         el('game-cover-empty').hidden = visible.length > 0;
         el('game-cover-empty').textContent = t(imageFailures&&!visible.length?'game.noUsableCovers':covers.length&&!visible.length&&['ok','partial'].includes(coverStatus)?'game.noShapeCovers':coverStatus === 'idle' ? 'game.coverIdle' : `game.status.${coverStatus}`);
-        el('game-gallery').setAttribute('aria-busy', String(coverStatus === 'loading'));
+        el('game-gallery').setAttribute('aria-busy', String(coverStatus === 'loading'||waitingForShape));
         el('game-cover-prev').disabled = !current.id || !coverPage || coverStatus === 'loading';
         el('game-cover-next').disabled = !current.id || !coverHasMore || coverStatus === 'loading';
         el('game-cover-page').textContent = current.id ? t('game.pageCount').replace('{page}',coverPage+1).replace('{total}',coverTotal) : '';

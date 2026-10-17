@@ -336,6 +336,25 @@ void GameResultBridgeTest(WebViewSettings& host, ICoreWebView2* view,
     Check(defaultSgdbLanguage==L"\"英文\""&&defaultCommunityLanguage==L"\"英文\""&&
           sourcedCommunityLanguage==L"\"簡中\""&&taiwanMetadata==L"\"台灣任天堂\"|\"繁體中文\"|\"官方主視覺\"",
           "community artwork defaults to English unless a source verifies its language; Taiwan official metadata stays localized and uses key-art type");
+    const auto beforeLandscapeRequest=messages.size();
+    Script(view,L"document.getElementById('game-shape-landscape').click(); true");
+    uint32_t landscapeRequest=0;
+    Check(PumpUntil([&]{
+        for(size_t i=beforeLandscapeRequest;i<messages.size();++i){
+            const auto message=NitLink::ParseSettingsMessage(messages[i]);
+            if(message&&message->action==L"getGameCovers"){landscapeRequest=message->request;return true;}
+        }
+        return false;
+    }),"landscape filtering requests a fresh cover batch");
+    Check(Script(view,L"document.querySelector('#game-gallery [data-cover-id=\"9004\"]').closest('.game-cover-tile').hidden") == L"true",
+          "unloaded covers stay hidden during landscape filtering instead of flashing using advertised shape");
+    NitLink::Games::Result landscapeImage;
+    landscapeImage.operation=NitLink::Games::Operation::Image;landscapeImage.request=landscapeRequest;
+    landscapeImage.gameId=5303117;landscapeImage.coverId=9004;landscapeImage.locale=L"zh-TW";
+    landscapeImage.imageUri=L"assets/nitlink.svg";landscapeImage.imageStatus=L"ok";landscapeImage.reply.status=L"ok";
+    Check(host.PostMessage(NitLink::SerializeGameResult(landscapeImage)),"native image result reaches the filtered cover gallery");
+    Check(PumpUntil([&]{return Script(view,L"(()=>{const tile=document.querySelector('#game-gallery [data-cover-id=\"9004\"]').closest('.game-cover-tile'),art=tile.querySelector('.game-art');return art.dataset.imageState==='ok'&&tile.dataset.shape==='square'&&art.dataset.width===art.dataset.height&&tile.hidden})()") == L"true"; }),
+          "loaded square image stays hidden from landscape results after its actual dimensions replace advertised metadata");
     Script(view, LR"JS((() => {
         if(document.getElementById('game-cover-details').open)document.getElementById('game-cover-details').close();
         window._updateGameState({id:0,key:'',name:'',displayName:'',locale:'zh-TW',artworkPlatform:'unknown',coverId:0,

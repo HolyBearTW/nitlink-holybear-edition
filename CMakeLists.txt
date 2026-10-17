@@ -50,6 +50,7 @@ set(NITLINK_SOURCES
     src/capture/device_enumerator.h
     src/capture/elgato_hdr_control.cpp
     src/capture/elgato_hdr_control.h
+    src/capture/elgato_4kx_source.h
     src/capture/gc553pro_hdr_source.cpp
     src/capture/gc553pro_hdr_source.h
     src/capture/elgato_hid_4ks.cpp
@@ -345,6 +346,10 @@ if(BUILD_TESTING)
         mf mfplat mfreadwrite mfuuid ole32 oleaut32 strmiids uuid avrt
     )
     add_test(NAME p010_native_negotiation COMMAND NitLinkP010NegotiationTests)
+
+    add_executable(NitLink4KXHdrTests tests/elgato_4kx_hdr_tests.cpp)
+    target_include_directories(NitLink4KXHdrTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME elgato_4kx_hdr COMMAND NitLink4KXHdrTests)
 
     add_executable(NitLinkConfigRateTests
         tests/config_rate_tests.cpp

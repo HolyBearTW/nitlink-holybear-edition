@@ -11,6 +11,7 @@
 #include "capture_output_policy.h"
 #include "display_refresh.h"
 #include "capture/elgato_hdr_control.h"
+#include "capture/elgato_4kx_source.h"
 #include "capture/elgato_device_identity.h"
 #include "capture/elgato_hid_4ks.h"
 #include <chrono>
@@ -569,6 +570,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     std::wstring chosenLower = chosen.name;
     std::transform(chosenLower.begin(), chosenLower.end(), chosenLower.begin(), ::towlower);
     m_is4KS = isElgato && chosenLower.find(L"4k s") != std::wstring::npos;
+    m_is4KX = isElgato && chosenLower.find(L"4k x") != std::wstring::npos;
     m_isGC553Pro = GetCaptureDevicePolicy(chosen.name).family ==
                    CaptureDeviceFamily::AverMediaGC553Pro;
     if (m_isGC553Pro) {
@@ -605,7 +607,12 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // vendor HID (e.g. PlayStation 5), the source identity becomes the
     // proxy for "user probably wants HDR". P010 negotiation can still fail
     // at the MF level, in which case the fallback path below catches it.
-    if (isElgato) {
+    if (m_is4KX) {
+        m_source4KProMode = {};
+        Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                          m_hdrDetectionAvailable);
+        AppLog(L"Initialize: 4K X HDR detection awaits the live source poller");
+    } else if (isElgato) {
         HDRSourceInfo srcInfo = ReadElgatoHDRSource(chosen.name);
         m_sourceIsHDR10        = srcInfo.isHDR10;
         m_hdrDetectionAvailable = srcInfo.propertyAccessible;
@@ -792,6 +799,11 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             AppLog(L"Initialize: " + warning);
             ShowToast(warning, std::chrono::milliseconds(8000));
         }
+    } else if (m_is4KX) {
+        useP010 = Decide4KXSourceCapturePolicy(
+            NegotiatedCaptureFormatKind::Other, false, userWantsHDR,
+            formatPreference, m_sourceIsHDR10, m_hdrDetectionAvailable,
+            false).desiredCaptureIsP010;
     } else if (m_is4KS) {
         useP010 = isElgato && m_sourceIsHDR10 && userWantsHDR;
     } else {
@@ -944,7 +956,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // edge so a source already live at launch needs no duplicate query.
     // Silent no-op on devices without the Elgato IKsPropertySet GUID
     // (4K S and non-Elgato sources).
-    if (isElgato && m_hdrDetectionAvailable && !m_is4KS) {
+    if (isElgato && m_hdrDetectionAvailable && !m_is4KS && !m_is4KX) {
         m_source4KProMode = Detect4KProSourceMode(chosen.name);
         m_prevSourceNoSignal = !m_source4KProMode.detected;
     }
@@ -955,7 +967,6 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // never the HID/processing path. The XU read needs a LIVE signal, so it
     // does not run at init: the device is flagged by name and Run() fires the
     // read on each no-signal to signal (re)lock edge.
-    m_is4KX = isElgato && (chosen.name.find(L"4K X") != std::wstring::npos);
 
     // Log every native format this device exposes. Pure diagnostic: does
     // NOT change the running pipeline. Useful when triaging: confirms
@@ -2012,6 +2023,31 @@ void Application::Run()
             }
         }
 
+        // 4K X: a background poller reads the live source mode off the render
+        // thread (Detect4KXSourceMode opens a DirectShow filter, ~50-100ms; too
+        // slow for this loop). Start is idempotent. On a source-mode change, force
+        // a reconcile so capture re-matches the source resolution/fps. A live PS5
+        // resolution change is too brief to trip the no-signal edge, so polling is
+        // what catches it.
+        if (m_is4KX) {
+            // 4K X source poller: opens the XU once and holds it (Start is
+            // idempotent), reads resolution/fps/HDR/source name off the render
+            // thread via the readiness-poll + paced sequence the Elgato app uses.
+            m_4kxPoller.Start(m_currentDeviceInfo.name, m_source4KProMode);
+            if (m_4kxPoller.AcceptUpdate(&m_source4KProMode)) {
+                Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                                  m_hdrDetectionAvailable);
+                m_4kxForceReconcile = true;
+                if (m_settingsVisible) PushSettingsState();
+                AppLog(L"4K X source mode: "
+                       + std::to_wstring(m_source4KProMode.width) + L"x"
+                       + std::to_wstring(m_source4KProMode.height) + L"@"
+                       + std::to_wstring(m_source4KProMode.fps)
+                       + (!m_source4KProMode.hdrValid ? L" HDR unknown"
+                          : m_source4KProMode.hdrActive ? L" HDR" : L" SDR"));
+            }
+        }
+
         // Capture-side HDR reconcile. Runs every iteration; fast no-op when
         // the device is already in the right format. When Alt+H flipped
         // m_config->hdrEnabled, or the HDR poller's drain above flipped
@@ -2571,27 +2607,6 @@ void Application::Run()
             if (!m_is4KS && !m_is4KX && IsElgatoDevice(m_currentDeviceInfo.name)) {
                 m_source4KProMode = Detect4KProSourceMode(m_currentDeviceInfo.name);
                 UpdateWindowTitle();
-            }
-        }
-
-        // 4K X: a background poller reads the live source mode off the render
-        // thread (Detect4KXSourceMode opens a DirectShow filter, ~50-100ms; too
-        // slow for this loop). Start is idempotent. On a source-mode change, force
-        // a reconcile so capture re-matches the source resolution/fps. A live PS5
-        // resolution change is too brief to trip the no-signal edge, so polling is
-        // what catches it.
-        if (m_is4KX) {
-            // 4K X source poller: opens the XU once and holds it (Start is
-            // idempotent), reads resolution/fps/HDR/source name off the render
-            // thread via the readiness-poll + paced sequence the Elgato app uses.
-            m_4kxPoller.Start(m_currentDeviceInfo.name, m_source4KProMode);
-            if (m_4kxPoller.AcceptUpdate(&m_source4KProMode)) {
-                m_4kxForceReconcile = true;
-                AppLog(L"4K X source mode: "
-                       + std::to_wstring(m_source4KProMode.width) + L"x"
-                       + std::to_wstring(m_source4KProMode.height) + L"@"
-                       + std::to_wstring(m_source4KProMode.fps)
-                       + (m_source4KProMode.hdrActive ? L" HDR" : L" SDR"));
             }
         }
 
@@ -3711,7 +3726,12 @@ bool Application::ReconcileCaptureFormat(bool force)
     // keeps the structure consistent with the other call sites.
     const bool isElgato = IsElgatoDevice(m_currentDeviceInfo.name);
 
-    if (force && isElgato && m_hdrDetectionAvailable) {
+    if (m_is4KX) {
+        // The XU poller owns source reads; Pro properties and S HID probes
+        // cannot refresh a 4K X and must not replace its cached HDR state.
+        Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                          m_hdrDetectionAvailable);
+    } else if (force && isElgato && m_hdrDetectionAvailable) {
         bool titleDirty = false;
 
         // Try the 4K Pro IKsPropertySet path first. Cheap (no HID
@@ -3787,6 +3807,7 @@ bool Application::ReconcileCaptureFormat(bool force)
 
     bool wantP010;
     Gc553ProSourceCapturePolicy gc553ProPolicy{};
+    Elgato4KXCapturePolicy fourKXPolicy{};
     if (m_isGC553Pro) {
         if (!m_config->hdrAutoFromSource ||
             formatPreference != CaptureFormatPreference::Auto)
@@ -3808,6 +3829,12 @@ bool Application::ReconcileCaptureFormat(bool force)
             AppLog(L"Reconcile: " + warning);
             ShowToast(warning, std::chrono::milliseconds(8000));
         }
+    } else if (m_is4KX) {
+        fourKXPolicy = Decide4KXSourceCapturePolicy(
+            actualCaptureFormat, retainedFormatBelongsToCurrentDevice,
+            userWantsHDR, formatPreference, m_sourceIsHDR10,
+            m_hdrDetectionAvailable, !force && m_nonGcP010Fallback.Accepted());
+        wantP010 = fourKXPolicy.desiredCaptureIsP010;
     } else if (m_is4KS) {
         // Existing Elgato 4K S policy is intentionally unchanged.
         wantP010 = isElgato && m_sourceIsHDR10 && userWantsHDR;
@@ -3843,6 +3870,7 @@ bool Application::ReconcileCaptureFormat(bool force)
         wantP010, retainedFormatBelongsToCurrentDevice, force);
     const bool formatReopenNeeded = m_isGC553Pro
         ? gc553ProPolicy.reopenCapture
+        : m_is4KX ? fourKXPolicy.reopenCapture
         : ShouldReopenNonGcCapture(
               wantP010, actualCaptureFormat,
               retainedFormatBelongsToCurrentDevice,
@@ -4084,8 +4112,12 @@ bool Application::ReconcileCaptureFormat(bool force)
         }
         opened = m_captureDevice->Open(deviceToOpen);
         if (opened) {
-            AppLog(L"Reconcile: rolled back hdrEnabled, P010 unavailable for this source");
-            m_config->hdrEnabled = false;
+            if (m_is4KX) {
+                AppLog(L"Reconcile: 4K X P010 unavailable; retaining HDR output preference");
+            } else {
+                AppLog(L"Reconcile: rolled back hdrEnabled, P010 unavailable for this source");
+                m_config->hdrEnabled = false;
+            }
             if (m_isGC553Pro) {
                 if (m_config->hdrAutoFromSource &&
                     m_gc553ProSourceState == Gc553ProSourceHdrState::Hdr10Pq &&
@@ -4244,7 +4276,7 @@ bool Application::ReconcileCaptureFormat(bool force)
         // Without this sync, the swap chain stays HDR10 (from Alt+H ON)
         // while the renderer feeds 8-bit SDR luma through it. Bring
         // both flags down to match capture reality.
-        if (wantP010 && !captureIsP010 && m_config->hdrEnabled) {
+        if (!m_is4KX && wantP010 && !captureIsP010 && m_config->hdrEnabled) {
             AppLog(L"Reconcile: capture is non-P010 despite wantP010; "
                    L"disabling renderer HDR mode and rolling back hdrEnabled");
             m_config->hdrEnabled = false;
@@ -4834,6 +4866,9 @@ bool Application::SwitchCaptureDevice(const std::wstring& deviceName)
         m_gc553ProSourceState = probe.state;
         m_hdrDetectionAvailable = probe.state != Gc553ProSourceHdrState::Unknown;
         m_sourceIsHDR10 = probe.state == Gc553ProSourceHdrState::Hdr10Pq;
+    } else if (m_is4KX) {
+        Apply4KXSourceHdr(m_source4KProMode, m_sourceIsHDR10,
+                          m_hdrDetectionAvailable);
     } else if (IsElgatoDevice(newDevice.name)) {
         HDRSourceInfo srcInfo = ReadElgatoHDRSource(newDevice.name);
         m_hdrDetectionAvailable = srcInfo.propertyAccessible;

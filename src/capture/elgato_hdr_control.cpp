@@ -1,4 +1,5 @@
 #include "elgato_hdr_control.h"
+#include "elgato_4kx_source.h"
 
 #include <windows.h>
 #include <dshow.h>
@@ -570,8 +571,8 @@ static bool ReadXuBlocks(IKsControlLocal* ctrl, LONG node, Source4KProMode& resu
     static const uint8_t kReqHdr[9] =
         { 0xA1,0x06,0x00,0x00,0x65,0x00,0x00,0x00,0xF4 };
     std::vector<uint8_t> hb;
-    if (readBlock(kReqHdr, 9, hb) && hb.size() >= 5 && hb[1] == 0x22) {
-        result.hdrActive = (hb[4] == 0x87);
+    if (readBlock(kReqHdr, 9, hb)) {
+        Decode4KXHdrInfoFrame(result, hb);
     }
 
     // Source device: request 0x4b -> 0x1E SPD InfoFrame. The product description
@@ -668,12 +669,7 @@ void Source4KXPoller::PollerThreadMain(std::wstring deviceName) {
                 bool changed = false;
                 {
                     std::lock_guard<std::mutex> lk(m_mutex);
-                    changed = m.width      != m_mode.width  ||
-                              m.height     != m_mode.height ||
-                              m.fps        != m_mode.fps    ||
-                              m.hdrActive  != m_mode.hdrActive ||
-                              m.sourceName != m_mode.sourceName;
-                    if (changed) m_mode = m;
+                    changed = Merge4KXSourceMode(m_mode, m);
                 }
                 if (changed) m_hasUpdate.store(true, std::memory_order_release);
             }

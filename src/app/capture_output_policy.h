@@ -111,6 +111,31 @@ constexpr bool ShouldReopenNonGcCapture(
     return acceptedAutoFallback ? false : desiredP010 != actualP010;
 }
 
+struct Elgato4KXCapturePolicy {
+    bool desiredCaptureIsP010 = false;
+    bool reopenCapture = false;
+};
+
+// A known HDMI source selects Auto capture independently of output HDR.
+// An unavailable first read retains the manual startup fallback. A running
+// P010 fallback is accepted until a source change or explicit reopen retries it.
+constexpr Elgato4KXCapturePolicy Decide4KXSourceCapturePolicy(
+    NegotiatedCaptureFormatKind actualFormat,
+    bool actualFormatKnown,
+    bool hdrOutputEnabled,
+    CaptureFormatPreference preference,
+    bool sourceIsHDR10,
+    bool detectionAvailable,
+    bool acceptedP010Fallback) noexcept
+{
+    const bool desiredP010 = ApplyManualFormatPreferenceToNonGcPolicy(
+        sourceIsHDR10 || (hdrOutputEnabled && !detectionAvailable), preference);
+    const bool actualP010 = actualFormat == NegotiatedCaptureFormatKind::P010;
+    const bool fallbackRunning = actualFormatKnown && acceptedP010Fallback &&
+                                 desiredP010 && !actualP010;
+    return {desiredP010, !fallbackRunning && desiredP010 != actualP010};
+}
+
 struct Gc553ProOutputPolicy {
     bool desiredCaptureIsP010 = false;
     bool reopenCapture = false;

@@ -1,26 +1,32 @@
 # NitLink 1.2.5
 
-German and Korean interfaces, custom HDMI source names, improved Source frame rate pacing, 4K X HDR detection updates, and fixes for fullscreen freezes and unwanted camera selection.
+German and Korean interfaces, custom HDMI source names, improved Source frame rate pacing and capture-device selection, and fullscreen resize recovery.
 
 ## Changes
 
-- **German interface** with automatic system-language selection. By Noka123.
-- **Korean interface** with automatic system-language selection and Korean fonts in the menu and HUD. By iorph (@i0rph).
-- **Custom HDMI source names.** Pick or type a name for what is plugged into the card; it shows in the title bar and in Discord. By HolyBearTW.
-- **Improved Source frame rate pacing.** Each duplicate comparison is consumed once. Source-paced presentation uses the current picture's result, with a bounded readback wait and conservative presentation if that result is unavailable.
-- **4K X HDR detection.** Valid live source reports now update capture format selection and HDR detection availability, including HDR/SDR changes at unchanged resolution and frame rate. Transient failed HDR reads preserve the last valid state. Manual capture choices and the HDR output preference stay independent.
-- **Fullscreen no longer freezes the picture** when another program, such as an overlay, still holds it while the window changes size. NitLink keeps drawing and retries (#29).
-- **Capture cards before cameras.** On first launch, or when the saved device is unplugged, NitLink picks a capture card over a webcam, a VR headset camera or a virtual camera.
-- **Simplified Chinese HUD labels** completed. By HolyBearTW.
+- **German and Korean interfaces**, including automatic system-language selection and Korean menu/HUD fonts.
+- **Custom HDMI source names.** Pick or type a name for the device connected to the card; NitLink also uses it in Discord.
+- **Improved Source frame rate pacing.** Duplicate decisions stay aligned with the captured picture, improving presentation timing when a 30 fps game arrives through a 60 fps capture stream.
+- **Improved 4K X HDR detection and capture-format selection.** Valid source HDR reports reach capture selection and settings. Failed HDR reads retain the last valid state. Manual capture choices and the HDR output preference remain independent.
+- **Improved fullscreen resize recovery (#29).** NitLink keeps drawing and retries when another application or overlay prevents a resize.
+- **Capture cards before cameras.** Automatic device selection prefers capture cards and skips obvious webcams, VR headset cameras and virtual cameras.
+- **Simplified Chinese HUD labels** completed, and all four translators listed in About and the README.
 
-## Credits
+## Contributors
 
-- HolyBearTW: custom HDMI source names with their Discord identity, Simplified Chinese HUD labels (#25).
-- Noka123 (github.com/Noka123): German translation (#35).
-- iorph (github.com/i0rph): Korean translation and localization review (#37).
+- [HolyBearTW](https://github.com/HolyBearTW): Traditional Chinese, custom HDMI source names and Simplified Chinese HUD labels.
+- [CN_115](https://github.com/CN115): Simplified Chinese.
+- [Noka123](https://github.com/Noka123): German.
+- [iorph (@i0rph)](https://github.com/i0rph): Korean.
+
+Full contributor and research credits are in ACKNOWLEDGMENTS.md.
 
 ## Install
 
-Unzip and run NitLink.exe from the new NitLink-1.2.5-win64 folder. To keep your settings, copy nitlink.json from your old NitLink folder into it.
+Extract NitLink-1.2.5-win64.zip into a new writable folder and run NitLink.exe. To keep existing settings, copy nitlink.json from the previous NitLink folder into the new one.
 
-NitLink with built-in frame generation is in development for Steam: https://store.steampowered.com/app/5346980.
+## Hardware confirmation
+
+The 4K X HDR correction still awaits confirmation on the reported Switch 2 setup. Issue #36 remains open for that check.
+
+NitLink with built-in frame generation is in development for [Steam](https://store.steampowered.com/app/5346980/).

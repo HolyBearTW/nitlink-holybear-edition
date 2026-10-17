@@ -58,6 +58,7 @@ set(NITLINK_SOURCES
     src/capture/frame_buffer.h
     src/capture/frame_differ.cpp
     src/capture/frame_differ.h
+    src/capture/frame_readback_queue.h
     src/capture/hdr_source_poller.cpp
     src/capture/hdr_source_poller.h
     src/capture/placeholder_detector.cpp
@@ -466,6 +467,16 @@ if(BUILD_TESTING)
         src/app/config.cpp src/app/settings_message.cpp src/app/game_database.cpp)
     target_include_directories(NitLinkManualHdmiSourceTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     add_test(NAME manual_hdmi_source COMMAND NitLinkManualHdmiSourceTests)
+
+    add_executable(NitLinkFrameReadbackQueueTests tests/frame_readback_queue_tests.cpp)
+    target_include_directories(NitLinkFrameReadbackQueueTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME frame_readback_queue COMMAND NitLinkFrameReadbackQueueTests)
+
+    add_executable(NitLinkFrameDifferOrderTests
+        tests/frame_differ_order_tests.cpp src/capture/frame_differ.cpp)
+    target_include_directories(NitLinkFrameDifferOrderTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkFrameDifferOrderTests PRIVATE d3d11 d3dcompiler)
+    add_test(NAME frame_differ_order COMMAND NitLinkFrameDifferOrderTests)
 
     add_executable(NitLinkReadbackStarvationTests tests/readback_starvation_tests.cpp)
     target_include_directories(NitLinkReadbackStarvationTests PRIVATE ${CMAKE_SOURCE_DIR}/src)

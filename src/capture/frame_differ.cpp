@@ -272,8 +272,8 @@ bool FrameDiffer::CreateResultBuffers(ID3D11Device* device)
         hr = device->CreateTexture2D(&sd, nullptr, &m_resultStaging[i]);
         if (FAILED(hr)) { FDLogHr(L"staging CreateTexture2D failed", hr); return false; }
     }
-    m_stagingWrite   = 0;
-    m_stagingWritten = 0;
+    m_readbacks.Reset();
+    m_frameIndex = 0;
     return true;
 }
 
@@ -281,6 +281,7 @@ bool FrameDiffer::Initialize(ID3D11Device* device)
 {
     if (!device) return false;
     FDLog(L"Initialize");
+    Reset();
     if (!CompileShaders(device))        return false;
     if (!CreateLumaQuad(device))        return false;
     if (!CreateWorkingTextures(device)) return false;
@@ -304,8 +305,8 @@ void FrameDiffer::Reset()
     // D3D commands on this context stay ordered; only copies submitted after
     // Reset are eligible, so keeping the GPU allocations does not make old
     // readbacks eligible for the new stream's classification.
-    m_stagingWrite = 0;
-    m_stagingWritten = 0;
+    m_readbacks.Reset();
+    m_frameIndex = 0;
     m_starvation.Reset();
     m_noiseFloor.Reset();
     m_loggedFloor = -1.0f;
@@ -317,6 +318,7 @@ void FrameDiffer::Reset()
     m_firstFrame  = true;
     m_wasNew      = true;
     m_classificationAvailable = false;
+    m_classificationDiscontinuity = false;
     m_lastDiff    = 0.0f;
     m_recentIdx   = 0;
     m_recentCount = 0;
@@ -327,9 +329,10 @@ void FrameDiffer::Reset()
 void FrameDiffer::Shutdown()
 {
     m_classificationAvailable = false;
+    m_classificationDiscontinuity = false;
     for (auto& slot : m_resultStaging) slot.Reset();
-    m_stagingWrite   = 0;
-    m_stagingWritten = 0;
+    m_readbacks.Reset();
+    m_frameIndex = 0;
     m_resultUAV.Reset();
     m_resultTex.Reset();
     m_prevSRV.Reset();
@@ -348,27 +351,18 @@ void FrameDiffer::Shutdown()
 void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* inputSRV)
 {
     m_classificationAvailable = false;
+    m_classificationDiscontinuity = false;
     if (!m_diffCS || !inputSRV) return;
 
-    // ---- Read back the previous frame's diff result, if any ----
-    // The value here was computed two Process() calls ago: diff(N-1, N-2).
-    // It establishes whether frame N-1 was new. By picking it up here
-    // (one frame later than its dispatch), the GPU has long since written
-    // it and the Map call is free.
-    // Prefer the slot written one frame ago; when its copy is still in
-    // flight, fall back to the slot written two frames ago. DO_NOT_WAIT keeps
-    // a busy GPU from stalling the present loop: if neither copy is done the
-    // previous classification stands and the readback is retried next frame.
-    if (m_stagingWritten >= 1) {
-        uint32_t readSlot = (m_stagingWrite + kStagingRing - 1) % kStagingRing;
+    ++m_frameIndex;
+
+    // The oldest unread copy preserves consecutive classifier inputs.
+    // A busy copy stays queued instead of reusing a consumed slot.
+    if (!m_readbacks.Empty()) {
+        const uint32_t readSlot = m_readbacks.ReadSlot();
         D3D11_MAPPED_SUBRESOURCE mapped{};
         HRESULT hr = ctx->Map(m_resultStaging[readSlot].Get(), 0, D3D11_MAP_READ,
                               D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped);
-        if (hr == DXGI_ERROR_WAS_STILL_DRAWING && m_stagingWritten >= 2) {
-            readSlot = (m_stagingWrite + kStagingRing - 2) % kStagingRing;
-            hr = ctx->Map(m_resultStaging[readSlot].Get(), 0, D3D11_MAP_READ,
-                          D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped);
-        }
         // Sustained starvation (readback_starvation.h): wait a bounded time for
         // the oldest copy, which readSlot names at this point.
         bool waited = false;
@@ -401,6 +395,13 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
             if (m_starvation.starved && !waited) FDLog(L"readback keeping up again");
             m_starvation.OnRead(waited);
             m_classificationAvailable = true;
+            m_classificationDiscontinuity = m_readbacks.FrontHasGap();
+            if (m_classificationDiscontinuity) {
+                m_noiseFloor.ResetHistory();
+                m_recentIdx = 0;
+                m_recentCount = 0;
+                for (int i = 0; i < kSmoothWindow; ++i) m_recentNew[i] = true;
+            }
             // Read the kTilesX x kTilesY grid of per-tile mean SADs. Take the
             // max (localized-motion rescue signal) and the average. Because the
             // tiles are equal-size, the average IS the old frame-global mean,
@@ -420,6 +421,7 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
                 }
             }
             ctx->Unmap(m_resultStaging[readSlot].Get(), 0);
+            m_readbacks.Consume();
 
             m_lastMaxTile = maxTile;
             m_lastDiff    = sumTiles / static_cast<float>(kTilesX * kTilesY);
@@ -546,6 +548,9 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
                     m_wasNew = (trueVotes * 2 > kSmoothWindow);
                 }
             }
+        } else {
+            FDLogHr(L"comparison readback Map failed", hr);
+            m_readbacks.Discard();
         }
     }
 
@@ -583,7 +588,7 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
     ctx->Draw(4, 0);
 
     // ---- Pass 2: compute diff between m_curSRV and m_prevSRV ----
-    if (m_havePrev) {
+    if (m_havePrev && !m_readbacks.Full()) {
         // Unbind RTV first to avoid hazard if curRTV's texture is also being
         // read as curSRV. (curRTV writes to m_curTex; curSRV reads m_curTex.
         // Same resource! Need to break the binding.)
@@ -602,10 +607,10 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
         ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
         ctx->CSSetShaderResources(0, 2, nullSRVs);
 
-        // Copy result to staging for CPU readback NEXT frame.
-        ctx->CopyResource(m_resultStaging[m_stagingWrite].Get(), m_resultTex.Get());
-        m_stagingWrite = (m_stagingWrite + 1) % kStagingRing;
-        m_stagingWritten++;
+        // A full queue keeps its unread copies; the next submitted frame index
+        // exposes any missing comparison before classifier history is reused.
+        ctx->CopyResource(m_resultStaging[m_readbacks.WriteSlot()].Get(), m_resultTex.Get());
+        m_readbacks.Submit(m_frameIndex);
     }
 
     // ---- Copy current to previous for next frame's diff ----

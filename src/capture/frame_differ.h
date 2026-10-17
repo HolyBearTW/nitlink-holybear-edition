@@ -5,6 +5,7 @@
 #include <cstdint>
 #include "noise_floor.h"
 #include "readback_starvation.h"
+#include "frame_readback_queue.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -69,6 +70,10 @@ public:
     // Startup/reset and busy/failed readbacks are Unknown for FPS telemetry;
     // the conservative WasPreviousFrameNew pacing verdict is unchanged.
     bool HasFrameClassification() const { return m_classificationAvailable; }
+    uint64_t GetClassifiedFrameIndex() const {
+        return m_classificationAvailable ? m_readbacks.LastConsumedFrame() : 0;
+    }
+    bool HasClassificationDiscontinuity() const { return m_classificationDiscontinuity; }
     // Readbacks that found the GPU still busy and kept the previous
     // classification instead of waiting. Cumulative; a steadily growing
     // count means the GPU is contended by other work.
@@ -149,17 +154,12 @@ private:
     // + a staging copy read back on the CPU one frame later.
     ComPtr<ID3D11Texture2D>            m_resultTex;
     ComPtr<ID3D11UnorderedAccessView>  m_resultUAV;
-    // Readback ring. Each frame's result is copied into the next slot and
-    // read back with a non-blocking Map from the slot written one frame
-    // earlier, falling back to the slot written two frames earlier. A single
-    // slot read with a blocking Map stalls the whole present loop whenever
-    // the GPU is busy elsewhere (another process, or the compositor
-    // composing this window), which held the loop in the 40s while the
-    // source ran at 60.
-    static constexpr uint32_t          kStagingRing = 3;
+    // Unread copies remain queued so changing GPU completion timing cannot
+    // repeat a comparison or pass a newer result ahead of an older one.
+    static constexpr uint32_t          kStagingRing = FrameReadbackQueue::kCapacity;
     ComPtr<ID3D11Texture2D>            m_resultStaging[kStagingRing];
-    uint32_t                           m_stagingWrite   = 0;
-    uint32_t                           m_stagingWritten = 0;
+    FrameReadbackQueue                 m_readbacks;
+    uint64_t                           m_frameIndex = 0;
     uint32_t                           m_readbackSkips  = 0;
     // Bounded wait once readbacks starve (readback_starvation.h): per frame,
     // at most kStarvedWaitMs, half a frame at 60 Hz.
@@ -171,6 +171,7 @@ private:
 
     bool   m_wasNew    = true;
     bool   m_classificationAvailable = false;
+    bool   m_classificationDiscontinuity = false;
     float  m_lastDiff  = 0.0f;     // frame-global mean SAD (= average of tiles)
     float  m_lastMaxTile = 0.0f;   // max per-tile mean SAD (localized motion)
     // Threshold tuned empirically with VRR present pacing on real HDR content

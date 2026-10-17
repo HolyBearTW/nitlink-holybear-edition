@@ -59,6 +59,12 @@ public:
     float Floor() const { return m_floor; }
     uint32_t Updates() const { return m_updates; }
 
+    // Missing comparisons break the alternating window without invalidating
+    // a noise floor already measured from consecutive comparisons.
+    void ResetHistory() {
+        m_idx = m_count = m_sinceUpdate = 0;
+    }
+
     void Reset() {
         m_idx = m_count = m_sinceUpdate = 0;
         m_floor = 0.0f;

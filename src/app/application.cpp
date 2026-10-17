@@ -2642,12 +2642,15 @@ void Application::Run()
                                      m_renderer->GetRawCaptureSRV());
             m_loopDifferSumMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - differStart).count();
             isNewFrame = m_frameDiffer->WasPreviousFrameNew();
-            m_sourceCadence.OnClassifiedFrame(isNewFrame);
             if (m_frameDiffer->HasFrameClassification()) {
+                if (m_frameDiffer->HasClassificationDiscontinuity()) m_sourceCadence.Reset();
+                m_sourceCadence.OnClassifiedFrame(isNewFrame);
                 ++m_contentClassificationsSinceSample;
                 if (isNewFrame) ++m_uniqueFrameCount;
+            } else {
+                m_sourceCadence.OnUnclassifiedFrame();
             }
-            if (isNewFrame) {
+            if (m_frameDiffer->HasFrameClassification() && isNewFrame) {
                 // Motion-recency gate: the differ saw a non-duplicate frame,
                 // so the HDMI source is producing fresh content. This is the
                 // motion half of the (motion OR content) gate consulted by

@@ -134,7 +134,7 @@ int main() {
     for (auto action : {L"ready", L"cycleNoSignalMode", L"chooseNoSignalImage",
          L"clearNoSignalImage", L"cycleNoSignalFit", L"cycleNoSignalDimImage",
          L"cyclePresentPacing", L"cycleAspect", L"cyclePanelSide", L"cycleScaler",
-         L"clearGame", L"saveGameSettings", L"getDeviceList", L"refreshDevices",
+         L"clearGame", L"resetGameSettings", L"saveGameSettings", L"getDeviceList", L"refreshDevices",
          L"openScreenshotFolder"}) {
         const auto prefix = L"{\"action\":\"" + std::wstring(action) + L"\"";
         Expect(ParseSettingsMessage(prefix + L"}").has_value(), "action without value");
@@ -319,7 +319,7 @@ int main() {
     }
     for (const auto& resource : Resources) Expect(FindResource(resource.uri) == &resource, "packaged resource");
     Expect(FindResource(L"https://nitlink.invalid/locales/de-DE.js") != nullptr,"German locale resource is allowlisted");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261018-game-artwork-metadata2")!=nullptr,"fixed script revision maps to packaged editor");
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261018-game-page-reset1")!=nullptr,"fixed script revision maps to packaged editor");
     Expect(!FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=other"),"unapproved revision rejected");
     Expect(ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":0.2,"y":0.8,"zoom":1.5}})").has_value(),"bounded artwork recipe bridge");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":-1,"y":0.8,"zoom":1.5}})"),"negative crop rejected");

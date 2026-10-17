@@ -226,6 +226,14 @@
       selectArtwork(record,cover);record.image=cover.image;record.sourceImage=cover.image;
       push();await saveRecord(record.key);return;
     }
+    if(action==='resetGameSettings'){
+      cancel();const sequence=++activationSequence,selectedMode=mode;activationPending=false;
+      if(location.protocol==='http:'){activationWrites=activationWrites.catch(()=>{}).then(()=>api('library',{mode:selectedMode,action:'reset'}));const reply=await activationWrites;if(reply.status!=='ok'){emit({gameNotice:'saveFailed'});return;}}
+      if(sequence!==activationSequence||mode!==selectedMode)return;
+      records={};current={key:'',id:0,coverId:0,manualCover:false,startUnix:now(),libraryRestored:true};
+      if(location.protocol!=='http:')await saveCurrent();
+      push();emit({gamePageReset:true});emit({gameNotice:'gameSettingsReset'});return;
+    }
     if(action==='getGameCovers'){
       cancel();const token=generation,locale=state.locale;let reply;
       const liveCovers=mode==='real'||value.provider==='nintendo';

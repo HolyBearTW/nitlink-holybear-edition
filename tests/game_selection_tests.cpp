@@ -185,6 +185,19 @@ int main() {
           found->second.coverId == 694138 && found->second.DisplayName(L"zh-TW") == game.displayNames[L"zh-TW"], "manual art and locale roundtrip");
     Check(restored.gameSettings["spider-man-2"].nisEnabled && !restored.gameSettings[saved.currentGameId].colorExpansion,
           "old and dynamic quality profiles coexist");
+    Config reset;
+    reset.currentGameId = "sgdb-5303117";
+    reset.onlineGames[reset.currentGameId] = game;
+    reset.gameSettings[reset.currentGameId] = {true, true};
+    reset.nisEnabled = true;
+    reset.colorExpansion = true;
+    reset.audioFifoMs = 12;
+    reset.manualHdmiSource = "ps5";
+    reset.ResetGamePageSettings();
+    Check(reset.currentGameId.empty() && reset.onlineGames.empty() && reset.gameSettings.empty() &&
+          reset.nisEnabled && reset.colorExpansion, "game-page reset clears saved game profiles without changing live video controls");
+    Check(reset.audioFifoMs == 12 && reset.manualHdmiSource == "ps5",
+          "game-page reset preserves audio and HDMI settings");
     auto& officialGame=restored.onlineGames[saved.currentGameId];officialGame.coverUrl=official;officialGame.coverThumb=official;
     officialGame.coverId=4200000002u;officialGame.provider=L"nintendo-tw";officialGame.sourceLabel=L"Official Nintendo Taiwan";
     officialGame.language=L"zh-TW";officialGame.region=L"TW";officialGame.kind=L"boxArt";officialGame.isOfficial=true;officialGame.favorite=true;

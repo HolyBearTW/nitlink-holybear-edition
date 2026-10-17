@@ -352,7 +352,7 @@
       document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); });
     })();
 
-    // Small help buttons support pointer hover, keyboard focus and touch/click.
+    // Contextual help supports pointer hover, keyboard focus and touch/click.
     // A fixed tooltip stays inside the viewport even in the narrow side panel.
     (() => {
       const tip = document.getElementById('audio-tooltip');
@@ -362,7 +362,7 @@
       const show = button => {
         clearTimeout(hideTimer);
         anchor = button;
-        tip.textContent = t(button.dataset.audioHelp);
+        tip.textContent = t(button.dataset.audioHelp || button.dataset.gameHelp);
         tip.hidden = false;
         const rect = button.getBoundingClientRect();
         const left = Math.max(12, Math.min(rect.left, window.innerWidth-tip.offsetWidth-12));
@@ -370,7 +370,7 @@
         const top = below+tip.offsetHeight <= window.innerHeight-12 ? below : Math.max(12,rect.top-tip.offsetHeight-8);
         tip.style.left = `${left}px`; tip.style.top = `${top}px`;
       };
-      document.querySelectorAll('[data-audio-help]').forEach(button => {
+      document.querySelectorAll('[data-audio-help], [data-game-help]').forEach(button => {
         button.addEventListener('mouseenter', () => show(button));
         button.addEventListener('mouseleave', e => {
           if (document.activeElement !== button && e.relatedTarget !== tip) hideSoon();
@@ -1374,6 +1374,15 @@
       el('game-clear').addEventListener('click', () => {
         stopSearch(); stopCovers(); post('clearGame');
       });
+      const resetDialog = el('game-reset-dialog');
+      el('game-reset-all').addEventListener('click', () => { if (!resetDialog.open) resetDialog.showModal(); });
+      el('game-reset-no').addEventListener('click', () => resetDialog.close());
+      el('game-reset-yes').addEventListener('click', () => {
+        resetDialog.close();
+        stopSearch(); stopCovers();
+        post('cancelGameSearch');
+        post('resetGameSettings');
+      });
       el('game-auto').addEventListener('click', () => { shape='all';coverPage=0;post('restoreAutoCover');renderGameUI();loadCovers(); });
       el('game-save-quality').addEventListener('click', () => {
         post('saveGameSettings');
@@ -1472,7 +1481,9 @@
           ? `${live.negotiatedWidth}×${live.negotiatedHeight} · ${live.negotiatedFps} FPS` : '');
         el('game-clear').disabled = !current.key; el('game-save-quality').disabled = !current.key;
         el('game-current-favorite').disabled=!current.key;el('game-current-rename').disabled=!current.key;
-        el('game-current-favorite').textContent=t(library.favorites.some(game=>game.key===current.key)?'game.removeFavorite':'game.addFavorite');
+        const isFavorite=library.favorites.some(game=>game.key===current.key);
+        el('game-current-favorite').textContent=t(isFavorite?'game.removeFavorite':'game.addFavorite');
+        el('game-current-favorite').dataset.gameHelp=isFavorite?'game.help.favoriteRemove':'game.help.favoriteAdd';
         el('game-auto').disabled = !current.id; el('game-cover-retry').disabled = !current.id;
         ['square', 'portrait', 'landscape', 'all'].forEach(value => {
           el(`game-shape-${value}`).setAttribute('aria-pressed', String(shape === value));
@@ -1559,6 +1570,17 @@
         }
       };
       window._gameNotice = key => { notice = key; updateStatus();window.NitLinkArtworkEditor?.notice(key); };
+      window._resetGamePage = () => {
+        stopSearch(); stopCovers();
+        query.value = '';
+        results = []; suggestions = []; queriedTerms = []; covers = [];
+        searchStatus = 'idle'; coverStatus = 'idle'; notice = '';
+        coverProvider = 'all'; shape = 'all'; coverPage = 0; coverHasMore = false; coverTotal = 0;
+        officialStatus = 'idle'; officialProvider = '';
+        el('game-suggestions').replaceChildren();
+        el('game-rename-editor').hidden = true;
+        renderResults(); renderCovers(); renderGameUI();
+      };
       setInterval(elapsed, 1000);
       renderGameUI();
     })();
@@ -1782,6 +1804,7 @@
         if (msg && msg.gameLibrary) window._updateGameLibrary(msg.gameLibrary);
         if (msg && msg.gameEvent) window._gameEvent(msg.gameEvent);
         if (msg && msg.gameNotice) window._gameNotice(msg.gameNotice);
+        if (msg && msg.gamePageReset) window._resetGamePage();
         if (msg && typeof msg.pipOpacity === 'number') setPiPOpacityVisual(msg.pipOpacity);
       });
       post('ready');

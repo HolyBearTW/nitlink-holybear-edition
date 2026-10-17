@@ -313,7 +313,7 @@ def dispatch(params):
 
 def library(params):
     mode=params.get('mode',[''])[0]; action=params.get('action',[''])[0]
-    if mode not in ('real','fixture') or action not in ('load','current','upsert','activate'):
+    if mode not in ('real','fixture') or action not in ('load','current','upsert','activate','reset'):
         return {'status':'invalid'}
     folder=ROOT/'out/game-preview-api'; folder.mkdir(parents=True,exist_ok=True)
     profile_name=params.get('profile',['default'])[0]
@@ -331,6 +331,11 @@ def library(params):
                 if isinstance(record,dict) and text(record.get('name')) and isinstance(record.get('displayNames'),dict):
                     record['displayNames']={locale:localized_game_name(record['name'],name,locale) for locale,name in record['displayNames'].items() if text(name)}
             return {'status':'ok',**profile}
+        if action=='reset':
+            profile={'records':{},'currentKey':'','currentStartUnix':int(time.time())}
+            contents=json.dumps(profile,ensure_ascii=False,allow_nan=False,indent=2)
+            temporary=path.with_suffix('.tmp');temporary.write_text(contents,encoding='utf-8');temporary.replace(path)
+            return {'status':'ok'}
         key=params.get('key',[''])[0]
         if key and not re.fullmatch(r'[a-z0-9_-]{1,64}',key): return {'status':'invalid'}
         if action=='current':

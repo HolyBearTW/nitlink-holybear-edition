@@ -184,7 +184,7 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
     } else if (OneOf(action, {L"ready", L"cycleNoSignalMode", L"chooseNoSignalImage",
         L"clearNoSignalImage", L"cycleNoSignalFit", L"cycleNoSignalDimImage",
         L"cyclePresentPacing", L"cycleAspect", L"cyclePanelSide", L"cycleScaler",
-        L"clearGame", L"saveGameSettings", L"getDeviceList", L"refreshDevices",
+        L"clearGame", L"resetGameSettings", L"saveGameSettings", L"getDeviceList", L"refreshDevices",
         L"openScreenshotFolder", L"checkHolyBearUpdate", L"markHolyBearUpdateSeen"})) {
         if (value) return std::nullopt;
     } else if (action == L"restoreAutoCover" || action == L"cancelGameSearch") {

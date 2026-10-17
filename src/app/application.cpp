@@ -5178,36 +5178,17 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
         js << L"\"latencyText\":\"" << lat.str() << L"\",";
     }
 
-    // ===== Game selector state =====
+    // ===== Current game identity =====
     //
-    // currentGameId: the selected game's id, or "" if none. JS reads this
-    // to highlight the current selection in the dropdown.
-    //
-    // gameList: array of { id, title } for every entry in the built-in
-    // catalog. JS uses it to populate the search dropdown.
+    // The game page now selects games through online search and My Games.
+    // Keep the current id in settings state for compatibility with existing
+    // saved game profiles; the retired built-in picker is no longer sent.
     {
         std::wstring wcur;
         wcur.reserve(m_config->currentGameId.size());
         for (char c : m_config->currentGameId) wcur.push_back(static_cast<wchar_t>(c));
         js << L"\"currentGameId\":\"" << wcur << L"\",";
-        js << L"\"discordSignal\":\"" << JsonEscapeWide(GetDiscordSignalLabel()) << L"\",";
-
-        js << L"\"gameList\":[";
-        const auto& games = GetGameDatabase();
-        for (size_t i = 0; i < games.size(); ++i) {
-            const auto& g = games[i];
-            // ASCII-safe widening of id; titles may need escaping for the
-            // few that contain apostrophes or quotes.
-            std::wstring wid;
-            wid.reserve(g.id.size());
-            for (char c : g.id) wid.push_back(static_cast<wchar_t>(c));
-
-            const auto wtitle = JsonEscapeWide(GameTitleWide(g.title));
-
-            js << L"{\"id\":\"" << wid << L"\",\"title\":\"" << wtitle << L"\"}";
-            if (i + 1 < games.size()) js << L",";
-        }
-        js << L"]";
+        js << L"\"discordSignal\":\"" << JsonEscapeWide(GetDiscordSignalLabel()) << L"\"";
     }
 
     js << L"}}";
@@ -5360,6 +5341,30 @@ bool Application::HandleGameMessage(const SettingsMessage& message)
         UpdateDiscordForCurrentGame(!changed);
         if (!m_config->Save("nitlink.json")) notice(L"saveFailed");
         PushSettingsState();
+        return true;
+    }
+    if (action == L"resetGameSettings") {
+        const bool changed = !m_config->currentGameId.empty();
+        m_gameService->Cancel();
+        m_gameService->PinImage({});
+        m_config->ResetGamePageSettings();
+        m_searchGames.clear();
+        m_searchDefaultCovers.clear();
+        m_gameCovers.clear();
+        m_coverImages.clear();
+        m_coverGameId = 0;
+        m_discordTaiwanFallbacks.clear();
+        m_currentGameImage.clear();
+        m_currentGameSourceImage.clear();
+        m_libraryImages.clear();
+        m_librarySourceImages.clear();
+        m_gameFromLibrary = true;
+        UpdateWindowTitle(false);
+        UpdateDiscordForCurrentGame(!changed);
+        const bool saved = m_config->Save("nitlink.json");
+        PushSettingsState();
+        if (m_webviewSettings) m_webviewSettings->PostMessage(L"{\"gamePageReset\":true}");
+        notice(saved ? L"gameSettingsReset" : L"saveFailed");
         return true;
     }
     if(action==L"renderGameArtwork"){

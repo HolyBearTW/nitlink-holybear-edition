@@ -261,6 +261,14 @@ struct Config {
     // flat keys: "game.spider-man-2.nis_enabled = true", etc.
     std::map<std::string, GameSettings> gameSettings;
 
+    // Reset the Game page's saved choices. Live NIS/color controls remain
+    // untouched because they are also user settings on the Video page.
+    void ResetGamePageSettings() {
+        currentGameId.clear();
+        onlineGames.clear();
+        gameSettings.clear();
+    }
+
     bool Load(const std::string& path);
     bool Save(const std::string& path);
     enum class LoadIssue { None, ReadFailed, FolderNotWritable, RecoveryRequired };

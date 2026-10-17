@@ -43,7 +43,8 @@
 - `Verification.zip` 包含 SHA256 校驗清單及 GPG 簽章，供需要驗證下載檔案完整性與來源的使用者使用，一般安裝不需要下載。
 - 正式封裝會附上該次實際建置與測試結果；這份更新日誌不預填測試數字。
 - NitLink 不會把本機圖片交給 Discord，也不會自動上傳使用者圖片。自訂裁切圖可在 NitLink 預覽；沒有公開圖片來源時，不會顯示成 Discord 已套用。
-- Discord 活動能送出，不代表 Discord 桌面程式一定顯示了封面；GC553Pro／Switch 2 等硬體仍須實際測試。
+- Discord 活動能送出，不代表每個 Discord 桌面程式版本都會以相同方式顯示封面。
+- 1.2.5 已完成發版前實機驗收；Discord 封面的實際呈現仍會受桌面客戶端與圖片代理影響。
 - 歷史硬體紀錄使用既有 1.2.4 安裝版，不代表 1.2.4.1 正式產物，也不代表本次 1.2.5 實機驗收。
 
 ## 已知限制
@@ -51,7 +52,6 @@
 - 本次沒有新增 PS5 官方封面搜尋；目前的 PS5 封面範圍不變。
 - Nintendo Taiwan 的圖片只會在有對應素材時出現；圖片來源為官方網站，不代表每張圖都含繁體中文標題。
 - Discord 主要封面顯示仍受 Discord 圖片代理與桌面程式實際讀取結果影響。NitLink 會顯示目前能確認的圖片狀態，不把本機預覽當成 Discord 已顯示。
-- GC553Pro、Switch 2、HDR／VRR、音訊切換及 Discord 桌面圖片仍待使用者實機驗收。
 - Content FPS 顯示的是畫面內容變化速度，不是遊戲內部 FPS。本版本沒有提供 Steam Frame Generation。
 
 ## 來源、授權與致謝
@@ -63,4 +63,4 @@
 
 ## English Summary
 
-This unofficial update adds a multilingual game library, localized titles, cover selection, a game-settings reset with confirmation, and clearer update notices. It improves Discord activity previews and includes selected upstream v1.2.4 fixes while preserving HolyBear capture, FPS and audio features. Discord client artwork and capture hardware still require hands-on validation.
+This unofficial update adds a multilingual game library, localized titles, cover selection, a game-settings reset with confirmation, and clearer update notices. It improves Discord activity previews and includes selected upstream v1.2.4 fixes while preserving HolyBear capture, FPS and audio features. Pre-release hands-on acceptance is complete; Discord artwork can still vary with the desktop client and image proxy.

@@ -1,4 +1,5 @@
 #include "frame_differ.h"
+#include "bounded_readback.h"
 
 #include <d3dcompiler.h>
 #include <debugapi.h>
@@ -307,7 +308,6 @@ void FrameDiffer::Reset()
     // readbacks eligible for the new stream's classification.
     m_readbacks.Reset();
     m_frameIndex = 0;
-    m_starvation.Reset();
     m_noiseFloor.Reset();
     m_loggedFloor = -1.0f;
     // Per-stream state only; GPU resources stay alive. The next Process()
@@ -356,44 +356,112 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
 
     ++m_frameIndex;
 
+    if (m_readbackWaitAllowed) {
+        // A late comparison cannot select the latest picture. Retiring it
+        // leaves an explicit gap before the next current-picture result.
+        while (!m_readbacks.Empty()) m_readbacks.Discard();
+    } else {
+        ReadResult(ctx, false);
+    }
+
+    // ---- Save D3D state about to be clobbered ----
+    // The renderer might be mid-frame; this code should not permanently
+    // change its bindings. The bare minimum to preserve: render targets,
+    // viewport, input layout, primitive topology.
+    ComPtr<ID3D11RenderTargetView> savedRTV;
+    ComPtr<ID3D11DepthStencilView> savedDSV;
+    ctx->OMGetRenderTargets(1, &savedRTV, &savedDSV);
+    D3D11_VIEWPORT savedVP{};
+    UINT vpCount = 1;
+    ctx->RSGetViewports(&vpCount, &savedVP);
+    ComPtr<ID3D11InputLayout> savedLayout;
+    ctx->IAGetInputLayout(&savedLayout);
+    D3D11_PRIMITIVE_TOPOLOGY savedTopo;
+    ctx->IAGetPrimitiveTopology(&savedTopo);
+
+    // ---- Pass 1: render input -> R8 luma working texture ----
+    ID3D11RenderTargetView* nullRTV = nullptr;
+    ctx->OMSetRenderTargets(1, &nullRTV, nullptr); // clear binding first
+
+    ctx->OMSetRenderTargets(1, m_curRTV.GetAddressOf(), nullptr);
+    D3D11_VIEWPORT vp{ 0, 0, (float)kWorkW, (float)kWorkH, 0, 1 };
+    ctx->RSSetViewports(1, &vp);
+
+    ctx->VSSetShader(m_quadVS.Get(), nullptr, 0);
+    ctx->PSSetShader(m_lumaPS.Get(), nullptr, 0);
+    ctx->PSSetShaderResources(0, 1, &inputSRV);
+    ctx->PSSetSamplers(0, 1, m_sampler.GetAddressOf());
+    UINT stride = sizeof(float) * 4, offset = 0;
+    ctx->IASetVertexBuffers(0, 1, m_quadVB.GetAddressOf(), &stride, &offset);
+    ctx->IASetInputLayout(m_quadLayout.Get());
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    ctx->Draw(4, 0);
+
+    // ---- Pass 2: compute diff between m_curSRV and m_prevSRV ----
+    if (m_havePrev && !m_readbacks.Full()) {
+        // Unbind RTV first to avoid hazard if curRTV's texture is also being
+        // read as curSRV. (curRTV writes to m_curTex; curSRV reads m_curTex.
+        // Same resource! Need to break the binding.)
+        ctx->OMSetRenderTargets(1, &nullRTV, nullptr);
+
+        ctx->CSSetShader(m_diffCS.Get(), nullptr, 0);
+        ID3D11ShaderResourceView* srvs[2] = { m_curSRV.Get(), m_prevSRV.Get() };
+        ctx->CSSetShaderResources(0, 2, srvs);
+        UINT initCount = 0;
+        ctx->CSSetUnorderedAccessViews(0, 1, m_resultUAV.GetAddressOf(), &initCount);
+        ctx->Dispatch(kTilesX, kTilesY, 1); // one thread group per tile
+
+        // Unbind compute resources
+        ID3D11UnorderedAccessView* nullUAV = nullptr;
+        ctx->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+        ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
+        ctx->CSSetShaderResources(0, 2, nullSRVs);
+
+        // A full queue keeps its unread copies; the next submitted frame index
+        // exposes any missing comparison before classifier history is reused.
+        ctx->CopyResource(m_resultStaging[m_readbacks.WriteSlot()].Get(), m_resultTex.Get());
+        m_readbacks.Submit(m_frameIndex);
+    }
+
+    // ---- Copy current to previous for next frame's diff ----
+    ctx->CopyResource(m_prevTex.Get(), m_curTex.Get());
+    m_havePrev = true;
+
+    // ---- Restore the caller's D3D state ----
+    ctx->OMSetRenderTargets(1, savedRTV.GetAddressOf(), savedDSV.Get());
+    ctx->RSSetViewports(1, &savedVP);
+    if (savedLayout) ctx->IASetInputLayout(savedLayout.Get());
+    ctx->IASetPrimitiveTopology(savedTopo);
+
+    // PS resources just bound: clear them since the caller may not re-set them.
+    ID3D11ShaderResourceView* nullPSRes = nullptr;
+    ctx->PSSetShaderResources(0, 1, &nullPSRes);
+
+    if (m_firstFrame) m_firstFrame = false;
+    if (m_readbackWaitAllowed) ReadResult(ctx, true);
+}
+
+void FrameDiffer::ReadResult(ID3D11DeviceContext* ctx, bool currentFrame)
+{
     // The oldest unread copy preserves consecutive classifier inputs.
     // A busy copy stays queued instead of reusing a consumed slot.
     if (!m_readbacks.Empty()) {
         const uint32_t readSlot = m_readbacks.ReadSlot();
         D3D11_MAPPED_SUBRESOURCE mapped{};
-        HRESULT hr = ctx->Map(m_resultStaging[readSlot].Get(), 0, D3D11_MAP_READ,
-                              D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped);
-        // Sustained starvation (readback_starvation.h): wait a bounded time for
-        // the oldest copy, which readSlot names at this point.
-        bool waited = false;
-        if (hr == DXGI_ERROR_WAS_STILL_DRAWING) {
-            const bool wasStarved = m_starvation.starved;
-            if (m_starvation.OnBusy(m_readbackWaitAllowed)) {
-                if (!wasStarved) {
-                    FDLog(L"readback busy for " + std::to_wstring(m_starvation.consecutiveBusy) +
-                          L" frames: waiting up to " + std::to_wstring(kStarvedWaitMs) +
-                          L" ms per frame until the GPU keeps up");
-                }
-                ctx->Flush();
-                const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kStarvedWaitMs);
-                do {
-                    std::this_thread::yield();
-                    hr = ctx->Map(m_resultStaging[readSlot].Get(), 0, D3D11_MAP_READ,
-                                  D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped);
-                } while (hr == DXGI_ERROR_WAS_STILL_DRAWING && std::chrono::steady_clock::now() < deadline);
-                if (hr == DXGI_ERROR_WAS_STILL_DRAWING) {
-                    m_readbackWaitTimeouts++;
-                } else if (SUCCEEDED(hr)) {
-                    waited = true;
-                    m_readbackWaits++;
-                }
-            }
-        }
+        const auto attempt = PollReadback(
+            [&] { return ctx->Map(m_resultStaging[readSlot].Get(), 0, D3D11_MAP_READ,
+                                  D3D11_MAP_FLAG_DO_NOT_WAIT, &mapped); },
+            [&] { ctx->Flush(); },
+            [] { return std::chrono::steady_clock::now(); },
+            [] { std::this_thread::yield(); },
+            std::chrono::milliseconds(currentFrame ? kStarvedWaitMs : 0));
+        const HRESULT hr = attempt.status;
+        if (attempt.timedOut) ++m_readbackWaitTimeouts;
+        if (attempt.waited && SUCCEEDED(hr)) ++m_readbackWaits;
         if (hr == DXGI_ERROR_WAS_STILL_DRAWING) {
             m_readbackSkips++;
+            if (currentFrame) m_readbacks.Discard();
         } else if (SUCCEEDED(hr)) {
-            if (m_starvation.starved && !waited) FDLog(L"readback keeping up again");
-            m_starvation.OnRead(waited);
             m_classificationAvailable = true;
             m_classificationDiscontinuity = m_readbacks.FrontHasGap();
             if (m_classificationDiscontinuity) {
@@ -554,80 +622,6 @@ void FrameDiffer::Process(ID3D11DeviceContext* ctx, ID3D11ShaderResourceView* in
         }
     }
 
-    // ---- Save D3D state about to be clobbered ----
-    // The renderer might be mid-frame; this code should not permanently
-    // change its bindings. The bare minimum to preserve: render targets,
-    // viewport, input layout, primitive topology.
-    ComPtr<ID3D11RenderTargetView> savedRTV;
-    ComPtr<ID3D11DepthStencilView> savedDSV;
-    ctx->OMGetRenderTargets(1, &savedRTV, &savedDSV);
-    D3D11_VIEWPORT savedVP{};
-    UINT vpCount = 1;
-    ctx->RSGetViewports(&vpCount, &savedVP);
-    ComPtr<ID3D11InputLayout> savedLayout;
-    ctx->IAGetInputLayout(&savedLayout);
-    D3D11_PRIMITIVE_TOPOLOGY savedTopo;
-    ctx->IAGetPrimitiveTopology(&savedTopo);
-
-    // ---- Pass 1: render input -> R8 luma working texture ----
-    ID3D11RenderTargetView* nullRTV = nullptr;
-    ctx->OMSetRenderTargets(1, &nullRTV, nullptr); // clear binding first
-
-    ctx->OMSetRenderTargets(1, m_curRTV.GetAddressOf(), nullptr);
-    D3D11_VIEWPORT vp{ 0, 0, (float)kWorkW, (float)kWorkH, 0, 1 };
-    ctx->RSSetViewports(1, &vp);
-
-    ctx->VSSetShader(m_quadVS.Get(), nullptr, 0);
-    ctx->PSSetShader(m_lumaPS.Get(), nullptr, 0);
-    ctx->PSSetShaderResources(0, 1, &inputSRV);
-    ctx->PSSetSamplers(0, 1, m_sampler.GetAddressOf());
-    UINT stride = sizeof(float) * 4, offset = 0;
-    ctx->IASetVertexBuffers(0, 1, m_quadVB.GetAddressOf(), &stride, &offset);
-    ctx->IASetInputLayout(m_quadLayout.Get());
-    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    ctx->Draw(4, 0);
-
-    // ---- Pass 2: compute diff between m_curSRV and m_prevSRV ----
-    if (m_havePrev && !m_readbacks.Full()) {
-        // Unbind RTV first to avoid hazard if curRTV's texture is also being
-        // read as curSRV. (curRTV writes to m_curTex; curSRV reads m_curTex.
-        // Same resource! Need to break the binding.)
-        ctx->OMSetRenderTargets(1, &nullRTV, nullptr);
-
-        ctx->CSSetShader(m_diffCS.Get(), nullptr, 0);
-        ID3D11ShaderResourceView* srvs[2] = { m_curSRV.Get(), m_prevSRV.Get() };
-        ctx->CSSetShaderResources(0, 2, srvs);
-        UINT initCount = 0;
-        ctx->CSSetUnorderedAccessViews(0, 1, m_resultUAV.GetAddressOf(), &initCount);
-        ctx->Dispatch(kTilesX, kTilesY, 1); // one thread group per tile
-
-        // Unbind compute resources
-        ID3D11UnorderedAccessView* nullUAV = nullptr;
-        ctx->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
-        ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
-        ctx->CSSetShaderResources(0, 2, nullSRVs);
-
-        // A full queue keeps its unread copies; the next submitted frame index
-        // exposes any missing comparison before classifier history is reused.
-        ctx->CopyResource(m_resultStaging[m_readbacks.WriteSlot()].Get(), m_resultTex.Get());
-        m_readbacks.Submit(m_frameIndex);
-    }
-
-    // ---- Copy current to previous for next frame's diff ----
-    ctx->CopyResource(m_prevTex.Get(), m_curTex.Get());
-    m_havePrev = true;
-
-    // ---- Restore the caller's D3D state ----
-    ctx->OMSetRenderTargets(1, savedRTV.GetAddressOf(), savedDSV.Get());
-    ctx->RSSetViewports(1, &savedVP);
-    if (savedLayout) ctx->IASetInputLayout(savedLayout.Get());
-    ctx->IASetPrimitiveTopology(savedTopo);
-
-    // PS resources just bound: clear them since the caller may not re-set them.
-    ID3D11ShaderResourceView* nullPSRes = nullptr;
-    ctx->PSSetShaderResources(0, 1, &nullPSRes);
-
-    if (m_firstFrame) m_firstFrame = false;
 }
 
 } // namespace NitLink

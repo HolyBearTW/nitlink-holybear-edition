@@ -4,7 +4,6 @@
 #include <wrl/client.h>
 #include <cstdint>
 #include "noise_floor.h"
-#include "readback_starvation.h"
 #include "frame_readback_queue.h"
 
 using Microsoft::WRL::ComPtr;
@@ -70,6 +69,11 @@ public:
     // Startup/reset and busy/failed readbacks are Unknown for FPS telemetry;
     // the conservative WasPreviousFrameNew pacing verdict is unchanged.
     bool HasFrameClassification() const { return m_classificationAvailable; }
+    // Delayed or unavailable telemetry cannot suppress the current picture.
+    bool ShouldPresentCurrentFrame() const {
+        return !m_classificationAvailable ||
+               m_readbacks.LastConsumedFrame() != m_frameIndex || m_wasNew;
+    }
     uint64_t GetClassifiedFrameIndex() const {
         return m_classificationAvailable ? m_readbacks.LastConsumedFrame() : 0;
     }
@@ -81,6 +85,8 @@ public:
     // Allow a bounded wait for a starved readback (readback_starvation.h).
     // Set when the classification drives presentation ("Source frame rate");
     // otherwise readbacks never wait.
+    // Source pacing obtains the current comparison within the bounded wait;
+    // asynchronous readbacks remain available for other presentation modes.
     void SetReadbackWaitAllowed(bool allowed) { m_readbackWaitAllowed = allowed; }
     // Readbacks that waited for the GPU and got a result, and waits that ran
     // out of time. Cumulative.
@@ -107,6 +113,7 @@ private:
     bool CreateWorkingTextures(ID3D11Device* device);
     bool CreateResultBuffers(ID3D11Device* device);
     bool CreateLumaQuad(ID3D11Device* device);
+    void ReadResult(ID3D11DeviceContext* ctx, bool currentFrame);
 
     // Working resolution: much smaller than full capture, so per-pixel noise
     // gets averaged out by the bilinear downsample. 640x360 = 230400 pixels,
@@ -164,7 +171,6 @@ private:
     // Bounded wait once readbacks starve (readback_starvation.h): per frame,
     // at most kStarvedWaitMs, half a frame at 60 Hz.
     static constexpr int               kStarvedWaitMs = 8;
-    ReadbackStarvation                 m_starvation;
     bool                               m_readbackWaitAllowed = false;
     uint32_t                           m_readbackWaits = 0;
     uint32_t                           m_readbackWaitTimeouts = 0;

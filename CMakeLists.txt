@@ -478,6 +478,16 @@ if(BUILD_TESTING)
     target_link_libraries(NitLinkFrameDifferOrderTests PRIVATE d3d11 d3dcompiler)
     add_test(NAME frame_differ_order COMMAND NitLinkFrameDifferOrderTests)
 
+    add_executable(NitLinkBoundedReadbackTests tests/bounded_readback_tests.cpp)
+    target_include_directories(NitLinkBoundedReadbackTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME bounded_readback COMMAND NitLinkBoundedReadbackTests)
+
+    add_executable(NitLinkCurrentFramePacingTests
+        tests/current_frame_pacing_tests.cpp src/capture/frame_differ.cpp)
+    target_include_directories(NitLinkCurrentFramePacingTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkCurrentFramePacingTests PRIVATE d3d11 d3dcompiler)
+    add_test(NAME current_frame_pacing COMMAND NitLinkCurrentFramePacingTests)
+
     add_executable(NitLinkReadbackStarvationTests tests/readback_starvation_tests.cpp)
     target_include_directories(NitLinkReadbackStarvationTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     add_test(NAME readback_starvation COMMAND NitLinkReadbackStarvationTests)

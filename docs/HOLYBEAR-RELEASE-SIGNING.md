@@ -65,9 +65,12 @@ gpg --import ./HOLYBEAR-RELEASE-PUBLIC-KEY.asc
 
 ## Verify downloaded artifacts
 
-Download ZIP, Setup.exe, SHA256SUMS.txt and each matching `.asc` from the same
-Release. Each `.asc` is an ASCII-armored **detached OpenPGP signature** over the
-exact final file. It is not a renamed checksum or an embedded Windows signature.
+Download the portable ZIP, Setup.exe and `Verification.zip` from the same
+Release. Extract `Verification.zip` beside the two downloads. It contains the
+original `SHA256SUMS.txt` and three unchanged `.asc` files, one for each
+download and one for the checksum list. Each `.asc` is an ASCII-armored
+**detached OpenPGP signature** over the exact final file. It is not a renamed
+checksum or an embedded Windows signature.
 
 ```powershell
 gpg --verify `

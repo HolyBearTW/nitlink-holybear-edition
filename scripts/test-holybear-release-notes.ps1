@@ -106,6 +106,11 @@ Assert-Notes ($script:publications -eq 1) 'mismatched mock never reaches publica
 
 $package = Get-Content -LiteralPath "$PSScriptRoot/package-holybear.ps1" -Raw
 $publisher = Get-Content -LiteralPath "$PSScriptRoot/publish-holybear.ps1" -Raw
+Assert-Notes ($publisher.Contains('$expectedAssets = @($info.ZipName, $info.SetupName, ''Verification.zip'')') -and
+    $publisher.IndexOf('check-bundle --assets $assetRoot', [StringComparison]::Ordinal) -lt
+    $publisher.IndexOf('& gh release create $Tag', [StringComparison]::Ordinal) -and
+    $publisher.Contains('extract-bundle --assets $download') -and
+    $publisher.Contains('extract-bundle --assets $publicDownload')) 'public release contains only the two downloads and verified signature bundle'
 Assert-Notes ($package.IndexOf('Assert-HolyBearSignedTag $Tag $commit', [StringComparison]::Ordinal) -gt 0 -and
     $package.IndexOf('Assert-HolyBearSignedTag $Tag $commit', [StringComparison]::Ordinal) -lt
     $package.IndexOf('Get-HolyBearReleaseNotes -Notes', [StringComparison]::Ordinal) -and

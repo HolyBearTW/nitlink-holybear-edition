@@ -131,6 +131,8 @@ off. No updater downloads or runs an installer.
 
 After Windows validation, one protected Windows signing/publication job creates three mandatory
 GPG detached signatures over the final ZIP, Setup and outer SHA256SUMS.txt.
+It places the unchanged signatures and checksum list in `Verification.zip`;
+the public Release has only Setup, portable ZIP and Verification.zip as uploaded assets.
 See [signing key, Secrets and verification](HOLYBEAR-RELEASE-SIGNING.md). No
 private material enters artifacts; missing Secrets/signature/hash failures block
 publication. Normal branch previews are unsigned and cannot be published.

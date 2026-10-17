@@ -14,10 +14,12 @@ import shutil
 import subprocess
 import tempfile
 import time
+import zipfile
 from holybear_repository import is_authorized_actions_repository
 
 ROOT = Path(__file__).resolve().parents[1]
 SECRET_NAMES = ("HOLYBEAR_GPG_PRIVATE_KEY", "HOLYBEAR_GPG_PASSPHRASE", "HOLYBEAR_GPG_FINGERPRINT")
+VERIFICATION_ARCHIVE = "Verification.zip"
 
 
 def require(condition, message):
@@ -33,6 +35,72 @@ def identity(tag):
     numeric = match[1]
     return [f"NitLink-{numeric}-HolyBear-Win64.zip",
             f"NitLink-{numeric}-HolyBear-Setup-x64.exe", "SHA256SUMS.txt"]
+
+
+def verification_names(names):
+    return [names[0] + ".asc", names[1] + ".asc", names[2], names[2] + ".asc"]
+
+
+def read_verification_archive(path, names):
+    require(path.is_file() and not path.is_symlink() and path.stat().st_size <= 2 * 1024 * 1024,
+            "Missing or oversized verification archive.")
+    expected = verification_names(names)
+    with zipfile.ZipFile(path) as archive:
+        entries = archive.infolist()
+        require([entry.filename for entry in entries] == expected,
+                "Verification archive must contain only the four expected files.")
+        result = {}
+        for entry in entries:
+            mode = (entry.external_attr >> 16) & 0o170000
+            require(not entry.is_dir() and mode in (0, 0o100000) and
+                    entry.compress_type == zipfile.ZIP_STORED and not (entry.flag_bits & 1) and
+                    entry.file_size <= 1024 * 1024,
+                    "Unsafe verification archive entry.")
+            result[entry.filename] = archive.read(entry)
+        return result
+
+
+def bundle_verification(assets, names):
+    files = {}
+    for name in verification_names(names):
+        path = assets / name
+        require(path.is_file() and not path.is_symlink() and path.stat().st_size <= 1024 * 1024,
+                "Missing or oversized verification file.")
+        files[name] = path.read_bytes()
+    destination = assets / VERIFICATION_ARCHIVE
+    require(not destination.exists(), "Verification.zip already exists; refusing to overwrite it.")
+    created = False
+    try:
+        with destination.open("xb") as output, zipfile.ZipFile(output, "w") as archive:
+            created = True
+            for name, content in files.items():
+                entry = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                entry.compress_type = zipfile.ZIP_STORED
+                entry.external_attr = 0o100600 << 16
+                archive.writestr(entry, content)
+        require(read_verification_archive(destination, names) == files,
+                "Verification archive changed the signed files.")
+    except Exception:
+        if created:
+            destination.unlink(missing_ok=True)
+        raise
+
+
+def check_verification(assets, names):
+    files = read_verification_archive(assets / VERIFICATION_ARCHIVE, names)
+    for name, content in files.items():
+        path = assets / name
+        require(path.is_file() and not path.is_symlink() and path.read_bytes() == content,
+                "Verification archive differs from the signed source files.")
+
+
+def extract_verification(assets, names):
+    files = read_verification_archive(assets / VERIFICATION_ARCHIVE, names)
+    require(all(not (assets / name).exists() for name in files),
+            "Refusing to overwrite a downloaded verification file.")
+    for name, content in files.items():
+        with (assets / name).open("xb") as output:
+            output.write(content)
 
 
 def pinned_key():
@@ -190,14 +258,26 @@ def verify(home, assets, names, config):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("sign", "verify"))
+    parser.add_argument("mode", choices=("sign", "verify", "bundle", "check-bundle", "extract-bundle"))
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--validation-only", action="store_true", help="Explicit trusted signing check; publication is forbidden")
     args = parser.parse_args()
     names = identity(args.tag)
-    config, public = pinned_key()
     assets = args.assets.resolve(strict=True)
+    if args.mode == "bundle":
+        bundle_verification(assets, names)
+        print("Verification.zip contains the unchanged checksum list and three detached signatures.")
+        return
+    if args.mode == "check-bundle":
+        check_verification(assets, names)
+        print("Verification.zip matches the locally verified signature files.")
+        return
+    if args.mode == "extract-bundle":
+        extract_verification(assets, names)
+        print("Downloaded verification files extracted for pinned-key GPG checks.")
+        return
+    config, public = pinned_key()
     verify_hashes(assets, names)
     private = passphrase = None
     if args.mode == "sign":

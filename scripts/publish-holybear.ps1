@@ -26,6 +26,8 @@ function Test-SignedRelease([string]$Folder) {
     if ($LASTEXITCODE -ne 0) { throw 'Signatures or SHA-256 failed; release rejected.' }
 }
 Test-SignedRelease $assetRoot
+& python "$PSScriptRoot/release-signing.py" check-bundle --assets $assetRoot --tag $Tag
+if ($LASTEXITCODE -ne 0) { throw 'Verification.zip differs from the signed release files.' }
 & "$PSScriptRoot/verify-holybear-package.ps1" -Zip (Join-Path $assetRoot $info.ZipName) -ExpectedCommit $commit -ExpectedTag $Tag -RequireTag
 $portable = Join-Path $assetRoot ('publish-payload-' + [guid]::NewGuid().ToString('N'))
 Expand-Archive -LiteralPath (Join-Path $assetRoot $info.ZipName) -DestinationPath $portable
@@ -36,7 +38,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot check existing releases.' }
 if (@(($existingJson -join "`n" | ConvertFrom-Json) | Where-Object tagName -eq $Tag).Count) {
     throw 'Release already exists; refusing to overwrite it.'
 }
-$expectedAssets = @($info.ZipName, "$($info.ZipName).asc", $info.SetupName, "$($info.SetupName).asc", 'SHA256SUMS.txt', 'SHA256SUMS.txt.asc', 'RELEASE-NOTES.md')
+$expectedAssets = @($info.ZipName, $info.SetupName, 'Verification.zip')
 $payload = $expectedAssets | ForEach-Object { Join-Path $assetRoot $_ }
 & gh release create $Tag @payload --repo $repo --verify-tag --draft --prerelease=false --title $info.Title --notes-file (Join-Path $assetRoot 'RELEASE-NOTES.md')
 if ($LASTEXITCODE -ne 0) { throw 'Draft creation/upload failed; nothing will be published.' }
@@ -56,6 +58,9 @@ foreach ($name in $expectedAssets) {
     if ((Get-FileHash -LiteralPath (Join-Path $download $name)).Hash -ne
         (Get-FileHash -LiteralPath (Join-Path $assetRoot $name)).Hash) { throw "Uploaded draft mismatch: $name" }
 }
+Copy-Item -LiteralPath (Join-Path $assetRoot 'RELEASE-NOTES.md') -Destination $download
+& python "$PSScriptRoot/release-signing.py" extract-bundle --assets $download --tag $Tag
+if ($LASTEXITCODE -ne 0) { throw 'Downloaded Verification.zip is unsafe or incomplete.' }
 Test-SignedRelease $download
 & gh release edit $Tag --repo $repo --draft=false --prerelease=false --latest=true
 if ($LASTEXITCODE -ne 0) { throw 'Verified draft publication failed.' }
@@ -74,6 +79,9 @@ foreach ($name in $expectedAssets) {
     if ((Get-FileHash -LiteralPath (Join-Path $publicDownload $name)).Hash -ne
         (Get-FileHash -LiteralPath (Join-Path $assetRoot $name)).Hash) { throw "Public download mismatch: $name" }
 }
+Copy-Item -LiteralPath (Join-Path $assetRoot 'RELEASE-NOTES.md') -Destination $publicDownload
+& python "$PSScriptRoot/release-signing.py" extract-bundle --assets $publicDownload --tag $Tag
+if ($LASTEXITCODE -ne 0) { throw 'Public Verification.zip is unsafe or incomplete.' }
 Test-SignedRelease $publicDownload
 Write-Output "Published verified official HolyBear Release (Latest): $($published.url)"
 $global:LASTEXITCODE = 0

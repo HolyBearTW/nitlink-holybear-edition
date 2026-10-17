@@ -149,7 +149,7 @@ jobs:
         with:
           name: holy-bear-portable
           path: release-assets
-      - name: Unlock the selected subkey, sign and verify all three final files
+      - name: Unlock the selected subkey, verify signatures and bundle verification files
         shell: pwsh
         env:
           HOLYBEAR_GPG_PRIVATE_KEY: ${{ secrets.HOLYBEAR_GPG_PRIVATE_KEY }}
@@ -163,6 +163,8 @@ jobs:
           if ($env:SIGNING_VALIDATION -eq 'true') { $options += '--validation-only' }
           & python @options
           if ($LASTEXITCODE -ne 0) { throw 'GPG unlock, signature or hash verification failed; publication blocked.' }
+          & python scripts/release-signing.py bundle --assets release-assets --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) { throw 'Verification.zip could not be created from the signed files; publication blocked.' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: holy-bear-signed

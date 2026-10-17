@@ -28,7 +28,7 @@
 
 ### 介面與更新
 
-- 設定介面加入德文，關於頁以帳號列出貢獻者與翻譯者。
+- 設定介面加入德文，關於頁以帳號列出貢獻者與翻譯者。（德文由 @Noka123 提供）
 - 關於頁找到新版本時會醒目提示，並提供對應的正式版本頁面連結。
 
 ### 保留的 HolyBear Edition 功能
@@ -56,9 +56,9 @@
 
 ## 來源、授權與致謝
 
-- 原始專案：[nitlink-dev/nitlink](https://github.com/nitlink-dev/nitlink)，本次上游修正來源為 [v1.2.4](https://github.com/nitlink-dev/nitlink/tree/0a093cc8e41fd04ffe13196122dc1a03dc9a0d6a)。
+- 原始專案：@nitlink-dev，[nitlink-dev/nitlink](https://github.com/nitlink-dev/nitlink)，本次上游修正來源為 [v1.2.4](https://github.com/nitlink-dev/nitlink/tree/0a093cc8e41fd04ffe13196122dc1a03dc9a0d6a)。
 - 保留 [#23](https://github.com/nitlink-dev/nitlink/pull/23)、[#25](https://github.com/nitlink-dev/nitlink/pull/25)、[#31](https://github.com/nitlink-dev/nitlink/pull/31) 的 HDMI／VRR、手動來源與 FPS 顯示修改。
-- 低延遲音訊與簡中：[CN_115（@CN115）](https://github.com/CN115/nitlink-lowlatency/tree/v0.1.2)。整合與維護：[聖小熊（@HolyBearTW）](https://github.com/HolyBearTW)，並保留 Nathan K.（@n810K）等既有貢獻者資訊。
+- 低延遲音訊與簡中：CN_115（@CN115）。整合與維護：聖小熊（@HolyBearTW），並保留 Nathan K.（@n810K）等既有貢獻者資訊。
 - [MIT 授權](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE)、[第三方授權](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md)、[致謝](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/ACKNOWLEDGMENTS.md)與[來源紀錄](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/HOLYBEAR-SOURCES.json)均保留。圖片來源與署名可在封面資訊中查看。
 
 ## English Summary

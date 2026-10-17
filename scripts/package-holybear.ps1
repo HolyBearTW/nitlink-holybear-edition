@@ -17,7 +17,8 @@ $build = [IO.Path]::GetFullPath((Join-Path $HolyBearRoot $BuildDirectory))
 $output = [IO.Path]::GetFullPath((Join-Path $HolyBearRoot $OutputDirectory))
 if (Test-Path -LiteralPath $output) { throw 'Output directory already exists; refusing to overwrite a package.' }
 $summary = Get-Content -LiteralPath (Join-Path $build 'test-summary.json') -Raw | ConvertFrom-Json
-if ($summary.skipped -ne 0 -or $summary.tests -lt 1 -or $summary.failures -notin @(0, 1)) { throw 'Missing validated test summary.' }
+if ($summary.skipped -ne 0 -or $summary.tests -lt 1 -or $summary.failures -ne 0 -or
+    $summary.passed -ne $summary.tests -or $summary.knownFailure) { throw 'Missing validated test summary.' }
 Initialize-HolyBearToolchain
 New-Item -ItemType Directory -Path $output | Out-Null
 $install = Join-Path $output 'install'

@@ -23,6 +23,10 @@ Assert-Notes ($notes.Contains('非官方社群整合版') -and $notes.Contains('
 Assert-Notes ($notes -notmatch '審閱草稿|預計納入|final release validation is pending|41/41|38155376483') 'no draft or obsolete build results'
 Assert-Notes ($notes.Contains('既有 1.2.4 安裝版') -and $notes.Contains('不代表 1.2.4.1 正式產物')) 'older hardware evidence is identified honestly'
 Assert-Notes ($notes.Contains('自動模式無法取得更新率') -and $notes.Contains('30 Hz fallback')) 'conservative fallback is scoped to Auto'
+$handles = @('nitlink-dev', 'CN115', 'HolyBearTW', 'n810K', 'Noka123')
+$allHandlesPlain = @($handles | Where-Object { -not $notes.Contains('@' + $_) }).Count -eq 0
+Assert-Notes ($allHandlesPlain -and
+    -not [regex]::IsMatch($notes, '\[[^\]\r\n]*@[^\]\r\n]*\]\([^)]+\)')) 'contributor mentions are plain @handles, not explicit Markdown links'
 $links = @([regex]::Matches($notes, '\[[^\]\r\n]+\]\(([^)\s]+)\)'))
 Assert-Notes ($links.Count -gt 0) 'Markdown contains attribution and verification links'
 foreach ($link in $links) {
@@ -45,10 +49,12 @@ $notesBody = ($notes -split '\r?\n', 2)[1] -replace '^\r?\n', ''
 Assert-Notes ($preview.StartsWith($notesBody, [StringComparison]::Ordinal) -and
     -not $preview.StartsWith("# $($info.Title)", [StringComparison]::Ordinal) -and
     $preview.Contains('## 此發布套件的建置驗證結果')) 'generated notes retain the complete body without repeating the product title'
-$formal = Get-HolyBearReleaseNotes -Notes $notes -Title $info.Title -Commit $otherCommit -Tag $info.Tag -Summary $baseline -TagSourceVerified $true
+$formal = Get-HolyBearReleaseNotes -Notes $notes -Title $info.Title -Commit $otherCommit -Tag $info.Tag -Summary $passed -TagSourceVerified $true
 Assert-Notes ($formal.Contains('已驗證的正式 Git 標籤') -and -not $formal.Contains('預定版本標籤')) 'verified formal tag fixture has distinct wording'
-Assert-Notes ($formal.Contains($otherCommit) -and $formal.Contains('6/7') -and $formal.Contains($baseline.knownFailure) -and
-    -not $formal.Contains($actions)) 'formal fixture retains exact baseline failure and optional Actions URL'
+Assert-Notes ($formal.Contains($otherCommit) -and $formal.Contains('7/7') -and
+    $formal.Contains('此建置環境的所有 CTest 測試均通過。') -and
+    -not $formal.Contains('既有本機 WebView 重新啟動問題') -and
+    -not $formal.Contains($actions)) 'formal fixture reports only passing tests and omits obsolete limitation'
 # Exercise the structural source-tag guard using only a scoped git mock.
 function Get-FormalTagFixture([string]$Tag, [string]$Resolved, [int]$ExitCode) {
     $script:fixtureResolved = $Resolved
@@ -66,6 +72,7 @@ Assert-Rejected { Get-FormalTagFixture $info.Tag $otherCommit 0 } 'formal source
 Assert-Rejected { Get-FormalTagFixture $info.Tag '' 1 } 'formal source-tag guard rejects an absent mock tag'
 Assert-Rejected { Get-FormalTagFixture 'v9.9.9-holybear' $commit 0 } 'formal source-tag guard rejects the wrong version tag'
 foreach ($bad in @(
+    $baseline,
     [pscustomobject]@{tests = 7; passed = 6; failures = 0; skipped = 1; knownFailure = $null},
     [pscustomobject]@{tests = 7; passed = 7; failures = 1; skipped = 0; knownFailure = $baseline.knownFailure},
     [pscustomobject]@{tests = 7; passed = 5; failures = 2; skipped = 0; knownFailure = $baseline.knownFailure},
@@ -75,6 +82,31 @@ foreach ($bad in @(
     [pscustomobject]@{tests = 7; failures = 0; skipped = 0; knownFailure = $null}
 )) {
     Assert-Rejected { Get-HolyBearReleaseNotes -Notes $notes -Title $info.Title -Commit $commit -Tag $info.Tag -Summary $bad } 'invalid/incomplete test summary rejected'
+}
+$report = New-TemporaryFile
+$summaryPath = Join-Path ([IO.Path]::GetTempPath()) ('nitlink-test-summary-' + [guid]::NewGuid().ToString('N') + '.json')
+try {
+    @'
+<testsuite tests="1" failures="0" skipped="0">
+  <testcase name="webview_runtime_security" status="run" />
+</testsuite>
+'@ | Set-Content -LiteralPath $report.FullName -Encoding utf8
+    & "$PSScriptRoot/validate-holybear-tests.ps1" -Report $report.FullName -ExpectedTests 1 -CtestExitCode 0 -Summary $summaryPath | Out-Null
+    $validated = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+    Assert-Notes ($validated.passed -eq 1 -and $validated.failures -eq 0 -and -not $validated.knownFailure) 'complete passing CTest report accepted'
+    Assert-Rejected { & "$PSScriptRoot/validate-holybear-tests.ps1" -Report $report.FullName -ExpectedTests 1 -CtestExitCode 8 -Summary $summaryPath } 'nonzero CTest exit rejected despite passing report'
+    @'
+<testsuite tests="1" failures="1" skipped="0">
+  <testcase name="webview_runtime_security" status="fail">
+    <failure message="Failed">Restart assertion failed</failure>
+    <system-out>FAIL restarted host reloads the packaged menu</system-out>
+  </testcase>
+</testsuite>
+'@ | Set-Content -LiteralPath $report.FullName -Encoding utf8
+    Assert-Rejected { & "$PSScriptRoot/validate-holybear-tests.ps1" -Report $report.FullName -ExpectedTests 1 -CtestExitCode 8 -Summary $summaryPath } 'obsolete WebView restart failure rejected'
+} finally {
+    Remove-Item -LiteralPath $report.FullName -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $summaryPath -ErrorAction SilentlyContinue
 }
 Assert-Rejected { Get-HolyBearReleaseNotes -Notes ($notes.Replace("# $($info.Title)", '# Wrong title')) -Title $info.Title -Commit $commit -Tag $info.Tag -Summary $passed } 'wrong title rejected'
 Assert-Rejected { Get-HolyBearReleaseNotes -Notes $notes -Title $info.Title -Commit 'short' -Tag $info.Tag -Summary $passed } 'invalid Commit rejected'
@@ -106,6 +138,9 @@ Assert-Notes ($script:publications -eq 1) 'mismatched mock never reaches publica
 
 $package = Get-Content -LiteralPath "$PSScriptRoot/package-holybear.ps1" -Raw
 $publisher = Get-Content -LiteralPath "$PSScriptRoot/publish-holybear.ps1" -Raw
+Assert-Notes ($package.Contains('$summary.failures -ne 0') -and
+    $package.Contains('$summary.passed -ne $summary.tests') -and
+    $package.Contains('$summary.knownFailure')) 'packaging rejects failed or stale CTest summaries'
 Assert-Notes ($publisher.Contains('$expectedAssets = @($info.ZipName, $info.SetupName, ''Verification.zip'')') -and
     $publisher.IndexOf('check-bundle --assets $assetRoot', [StringComparison]::Ordinal) -lt
     $publisher.IndexOf('& gh release create $Tag', [StringComparison]::Ordinal) -and

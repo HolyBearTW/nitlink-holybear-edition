@@ -20,22 +20,11 @@ foreach ($case in $cases) {
     elseif ($case.status -ne 'run') { throw "Inconsistent test status: $($case.name)" }
 }
 if ([int]$suite.failures -ne $failures.Count) { throw 'Inconsistent JUnit failure count.' }
-$known = 'FAIL restarted host reloads the packaged menu'
-if ($failures.Count -eq 0) {
-    if ($CtestExitCode -ne 0) { throw 'CTest returned a failure without a complete failure report.' }
-} elseif ($failures.Count -eq 1) {
-    $case = $failures[0]
-    $lines = @([regex]::Matches([string]$case.'system-out', '(?m)^FAIL[^\r\n]*') | ForEach-Object Value)
-    if ($CtestExitCode -ne 8 -or $case.name -ne 'webview_runtime_security' -or
-        $case.failure.message -ne 'Failed' -or $lines.Count -ne 1 -or $lines[0] -cne $known) {
-        throw 'Failure is not the exact permitted upstream WebView restart assertion.'
-    }
-    Write-Warning $known
-} else { throw 'New CTest failures; release rejected.' }
+if ($failures.Count -ne 0) { throw 'CTest failures; release rejected.' }
+if ($CtestExitCode -ne 0) { throw 'CTest returned a failure without a complete failure report.' }
 $result = [ordered]@{
-    tests = $ExpectedTests; passed = $ExpectedTests - $failures.Count
-    failures = $failures.Count; skipped = 0
-    knownFailure = if ($failures.Count) { $known } else { $null }
+    tests = $ExpectedTests; passed = $ExpectedTests
+    failures = 0; skipped = 0; knownFailure = $null
 }
 $result | ConvertTo-Json | Set-Content -LiteralPath $Summary -Encoding utf8
-Write-Output "CTest: $($result.passed)/$ExpectedTests; known baseline failures=$($result.failures); skipped=0."
+Write-Output "CTest: $($result.passed)/$ExpectedTests; failures=0; skipped=0."

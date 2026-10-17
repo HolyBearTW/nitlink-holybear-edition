@@ -27,6 +27,10 @@ Release subset: ctest --test-dir out/release-x64-20261017 -C Release -L "^releas
 - Documentation-only changes, Git commits, and fast-forward operations do not by themselves require a full CTest run.
 - Do not run all 51 tests automatically for every small code change; use the affected tests and Smoke according to the scope above.
 
+## Contributor attribution
+
+- In project Markdown and release notes, write contributor handles as plain `@username` text. Keep project, pull request, license, and source URLs as ordinary Markdown links; do not wrap an `@username` mention in an explicit profile link.
+
 ## Packaged settings readiness gate
 
 - When settings HTML, script URLs, WebView policy or packaged UI resources change, build the isolated test hosts first and require settings_security, webview_runtime_security, webview_settings_layout, webview_f1_visibility and webview_missing_assets to pass before building or handing over the acceptance application.

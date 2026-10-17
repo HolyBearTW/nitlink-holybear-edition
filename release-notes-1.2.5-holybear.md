@@ -11,7 +11,10 @@
 - 新增「遊戲與 Discord」頁面，可以依介面語言搜尋遊戲、收藏遊戲，並快速切換最近遊玩的作品。
 - 收藏會保存在本機。重開 NitLink 後，遊戲名稱、封面和畫質設定都會保留；移除收藏不會刪除該遊戲的畫質設定。
 - 封面會等候本頁圖片載入後再自動挑選：有合適官方圖片時優先使用，否則選擇方形圖片。英文、簡中或德文介面不會自動套用台灣封面；仍可自行選取。
-- 封面圖庫會把官方圖片、方形圖片和其他圖片分開排列。圖片資訊可按開查看；台灣任天堂素材會標示「台灣任天堂」與「繁體中文」，社群圖片會以英文標示語言。
+- 封面圖庫會把官方圖片、方形圖片和其他圖片分開排列。切換圖片形狀時會先確認圖片比例，避免封面短暫閃現。
+- 圖片資訊可按開查看；台灣任天堂素材會標示「台灣任天堂」與「繁體中文」，完整封面不再誤標為 Logo。社群圖片沒有標明語言時會顯示英文。
+- 移除重複的內建遊戲清單；常用操作按鈕加入簡短說明。中日文等遊戲名稱的封面快取與選圖識別也更穩定。
+- 「儲存此遊戲畫質」會記住影像頁目前的 NIS 與色彩範圍，之後切回該遊戲時套用。「重置所有設定」會先詢問，再清除遊戲頁的選擇、收藏、最近遊玩、封面與專屬畫質設定；其他頁面的設定不受影響。
 - Discord 活動預覽會跟隨目前選定的遊戲封面與 Discord 可取得的圖片。只更換封面、語言或 HDMI 來源時，遊玩時間會繼續累計。
 - 遊戲名稱會依介面語言顯示，支援繁中、簡中、英文和德文；自訂名稱仍會優先顯示。
 - 主視窗標題會顯示目前遊戲、訊號來源與已確認的訊號資訊，切換遊戲或訊號時同步更新。
@@ -22,6 +25,11 @@
 - 修正 Elgato 4K X 在不同擷取格式下的 HDR 色彩處理，讓 HDR 與 SDR 輸出依實際使用的格式選擇處理方式。
 - 修正關閉 F1 設定畫面後偶爾殘留在遊戲畫面上的問題，並保留 Full、Docked Left、Docked Right 和 Full Wide 使用方式。
 - 關閉 F1 設定後即可返回遊戲；再次開啟時仍會使用原本的設定與安全檢查。
+
+### 介面與更新
+
+- 設定介面加入德文，關於頁以帳號列出貢獻者與翻譯者。
+- 關於頁找到新版本時會醒目提示，並提供對應的正式版本頁面連結。
 
 ### 保留的 HolyBear Edition 功能
 
@@ -55,4 +63,4 @@
 
 ## English Summary
 
-This unofficial update adds a multilingual game library, localized titles, cover selection and Discord activity preview improvements. It also includes selected upstream v1.2.4 fixes while preserving HolyBear capture, FPS and audio features. Discord client artwork and capture hardware still require hands-on validation. No release was created by this change.
+This unofficial update adds a multilingual game library, localized titles, cover selection, a game-settings reset with confirmation, and clearer update notices. It improves Discord activity previews and includes selected upstream v1.2.4 fixes while preserving HolyBear capture, FPS and audio features. Discord client artwork and capture hardware still require hands-on validation.

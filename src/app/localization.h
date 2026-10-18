@@ -15,6 +15,8 @@ enum class LanguagePreference {
     TraditionalChinese,
     SimplifiedChinese,
     German,
+    Korean,
+    Japanese,
 };
 
 class Localization {
@@ -39,7 +41,8 @@ public:
         std::initializer_list<std::pair<std::wstring, std::wstring>> values) const;
 
     // Native text uses Microsoft YaHei UI for Simplified Chinese and
-    // Microsoft JhengHei UI for Traditional Chinese;
+    // Microsoft JhengHei UI for Traditional Chinese, Malgun Gothic for Korean,
+    // and Yu Gothic UI for Japanese;
     // DirectWrite still applies its normal fallback chain for other glyphs.
     const wchar_t* UiFontFamily(const wchar_t* fallback = L"Segoe UI") const;
 
@@ -53,6 +56,8 @@ private:
     static bool IsTraditionalChineseLocale(const std::wstring& locale);
     static bool IsSimplifiedChineseLocale(const std::wstring& locale);
     static bool IsGermanLocale(const std::wstring& locale);
+    static bool IsKoreanLocale(const std::wstring& locale);
+    static bool IsJapaneseLocale(const std::wstring& locale);
 
     LanguagePreference m_preference = LanguagePreference::System;
     std::string m_preferenceName = "system";

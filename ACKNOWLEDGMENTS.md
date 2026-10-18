@@ -71,6 +71,11 @@ project authorship or maintainership.
   validation.
 - **German (de-DE):** [Noka123](https://github.com/Noka123) — interface translation
   contributed in [upstream PR #35](https://github.com/nitlink-dev/nitlink/pull/35).
+- **Korean (ko-KR):** @i0rph — upstream interface translation in
+  [PR #37](https://github.com/nitlink-dev/nitlink/pull/37); HolyBear Edition
+  additionally translates the game library, artwork, Discord and update UI.
+- **Japanese (ja-JP):** HolyBear Edition — new interface, game and Discord
+  localization.
 
 ## About contributor cards
 

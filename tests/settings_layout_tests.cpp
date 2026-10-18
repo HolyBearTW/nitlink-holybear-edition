@@ -313,7 +313,7 @@ void CaptureLayouts(WebViewSettings& host, HWND window, const std::filesystem::p
         L"v1.2.4-holybear", false, L"", 2560, 1440, WebViewSettings::Dock::Full);
     // Render the production source controls through the native host. The saved
     // one-character name is a fixture; no capture hardware or user config is used.
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
         Resize(host, window, 1920, 1080, WebViewSettings::Dock::Full);
         PushState(host, L"Full", locale);
         std::wstring sourceState = LR"({"state":{"manualHdmiSource":"other",
@@ -555,7 +555,7 @@ void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstri
             const auto dock = std::wstring_view(side) == L"Full" ? WebViewSettings::Dock::Full
                 : std::wstring_view(side) == L"Left" ? WebViewSettings::Dock::Left : WebViewSettings::Dock::Right;
             Resize(host, window, size.first, size.second, dock);
-            for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+            for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
                 PushState(host, side, locale);
                 Script(view, LR"JS((() => {
                     document.querySelector('.rail-item[data-tab="pane-audio"]').click();
@@ -632,7 +632,7 @@ void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstri
     Check(busy(), "old response cannot acknowledge retry");
     pushAudio(retry, 12.34);
     Check(!busy(), "retry completes with its own fresh response");
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
         PushState(host, L"Left", locale);
         Check(Script(view, LR"JS((() => {
             const b=document.getElementById('audio-refresh'), original=chrome.webview.postMessage;
@@ -745,7 +745,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         {L"rateLimited", L"rateLimited"}, {L"notFound", L"notFound"},
         {L"serverUnavailable", L"serverUnavailable"}, {L"apiUnavailable", L"apiUnavailable"},
         {L"invalid", L"invalid"}, {L"never", L"never"}}};
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
         for (const auto& [status, key] : statuses) {
             const auto latest = std::wstring_view(status) == L"never" ? L"" : L"v1.2.4-holybear";
             PushAboutUpdate(host, L"Right", locale, status, latest, false,
@@ -839,9 +839,11 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             text.includes(window.NitLinkLocales['zh-TW']['about.holyBearDisclaimer']) &&
             !text.includes('1.2.4-holybear') && !text.includes('v1.2.5-holybear') &&
             contributors.includes('CN_115 (@CN115)') && contributors.includes('聖小熊 (@HolyBearTW)') && contributors.includes('Noka123 (@Noka123)') &&
+            contributors.includes('i0rph (@i0rph)') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/HolyBearTW"]') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/CN115"]') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/Noka123"]') &&
+            !!document.querySelector('#about-contributors-body a[href="https://github.com/i0rph"]') &&
             !!document.querySelector('#about-details-body a[href="https://github.com/nitlink-dev/nitlink"]') &&
             !!document.querySelector('#about-details-body a[href="https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE"]') &&
             !!document.querySelector('#about-details-body a[href="https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md"]') &&
@@ -875,7 +877,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         const auto dock = std::wstring_view(side) == L"Full" ? WebViewSettings::Dock::Full
             : std::wstring_view(side) == L"Left" ? WebViewSettings::Dock::Left : WebViewSettings::Dock::Right;
         Resize(host, window, size.first, size.second, dock);
-        for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+        for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
           PushAboutUpdate(host, side, locale, L"available", L"v1.2.4.1-holybear",
               true, true, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.4.1-holybear");
           Script(view, L"document.querySelectorAll('.about-details').forEach(details => details.open = true)");
@@ -912,7 +914,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     }
 
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Full);
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
         PushAboutUpdate(host, L"Full", locale, L"available", L"v1.2.5-holybear",
             true, false, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear",
             1791691200, NitLink::HolyBear::Version);

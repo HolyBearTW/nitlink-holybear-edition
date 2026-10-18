@@ -90,7 +90,7 @@ function check(name,value){assert(value,name);evidence.checks.push(name);}
   await page.locator('[data-cover-provider="nintendo"]').click();await officialLoaded('nintendo-tw');
   await page.locator('#pane-games').evaluate(el=>el.scrollTop=0);
   await page.screenshot({path:path.join(output,'taiwan-priority-full.png')});
-  for(const locale of ['zh-TW','zh-CN','en-US','de-DE']){
+  for(const locale of ['zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP']){
    await page.selectOption('#game-preview-language',locale);await page.waitForFunction(locale=>document.documentElement.lang===locale,locale);
    for(const layout of ['full','left','right']){
     await page.selectOption('#game-preview-layout',layout);

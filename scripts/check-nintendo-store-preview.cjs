@@ -67,10 +67,11 @@ const root=path.resolve(__dirname,'..'),profile=path.join(root,'out/game-preview
     }
    }
   }
-  for(const locale of ['zh-TW','zh-CN','en-US','de-DE']){
+  for(const locale of ['zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP']){
    await page.selectOption('#game-preview-language',locale);await page.waitForFunction(locale=>document.documentElement.lang===locale,locale);
-   assert.equal(await page.locator('[data-cover-provider="nintendo"]').textContent(),locale==='en-US'?'Official artwork':locale==='de-DE'?'Offizielle Artworks':'官方素材');
-   assert.equal(await page.locator('#game-shape-landscape').textContent(),{ 'zh-TW':'橫式','zh-CN':'横式','en-US':'Landscape','de-DE':'Querformat' }[locale]);
+   const strings=await page.evaluate(()=>window.NitLinkLocales[document.documentElement.lang]);
+   assert.equal(await page.locator('[data-cover-provider="nintendo"]').textContent(),strings['game.sourcesOfficial']);
+   assert.equal(await page.locator('#game-shape-landscape').textContent(),strings['game.landscape']);
    await page.selectOption('#game-preview-layout','right');assert.equal(await page.locator('#pane-games').evaluate(el=>el.scrollWidth>el.clientWidth),false);
   }
   await page.selectOption('#game-preview-language','zh-TW');await page.selectOption('#game-preview-layout','full');
@@ -88,7 +89,7 @@ const root=path.resolve(__dirname,'..'),profile=path.join(root,'out/game-preview
   assert.equal(png.readUInt32BE(16),512);assert.equal(png.readUInt32BE(20),512);evidence.generatedFit=generated;
   await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(key=>document.querySelector('#game-current-art img')?.getAttribute('src')?.includes(key)&&document.querySelector('#game-current-art img')?.naturalWidth>0,generated,{timeout:20000});
   saved=JSON.parse(fs.readFileSync(profile));assert.equal(saved.currentStartUnix,stamp);assert.equal(saved.records[saved.currentKey].provider,'nintendo-tw');
-  assert.deepEqual(errors,[]);evidence.errors=errors;evidence.checks=['live Nintendo Taiwan directory, no per-game cover seeds','landscape artwork uses landscape card frame','Taiwan source priority with Hong Kong fallback','third-party games','real pagination','actual-image shape filters','source and unknown-language details','manual selection and restart persistence','unchanged game title and timer','four languages and Docked'];
+  assert.deepEqual(errors,[]);evidence.errors=errors;evidence.checks=['live Nintendo Taiwan directory, no per-game cover seeds','landscape artwork uses landscape card frame','Taiwan source priority with Hong Kong fallback','third-party games','real pagination','actual-image shape filters','source and unknown-language details','manual selection and restart persistence','unchanged game title and timer','six languages and Docked'];
   fs.writeFileSync(path.join(evidenceDir,'nintendo-tw-checks.json'),JSON.stringify(evidence,null,2));console.log(JSON.stringify(evidence,null,2));
  }finally{await browser.close();if(backup)fs.writeFileSync(profile,backup);}
 })().catch(error=>{console.error(error);process.exitCode=1;});

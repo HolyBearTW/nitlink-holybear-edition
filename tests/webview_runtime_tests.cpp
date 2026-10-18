@@ -131,7 +131,7 @@ void OtherEditorLocalesTest(WebViewSettings& host, ICoreWebView2* view,
         host.PostMessage(state.str());
     };
     const auto firstMessage = messages.size();
-    for (const auto locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+    for (const auto locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
         pushOther(locale, L"Steam Deck");
         const auto ready = std::wstring(L"document.documentElement.lang === '") + locale +
             L"' && document.getElementById('meta-hdmi-source').textContent === 'Steam Deck'";
@@ -770,7 +770,7 @@ int main(int argc, char** argv) {
         Check(Script(view, L"!window.__injected && __violations.some(x=>x.startsWith('script-src')) && __violations.includes('frame-src') && __violations.includes('connect-src') && __violations.includes('worker-src')") == L"true",
               "CSP blocks inline injection, frames, connections and workers");
         host.PostMessage(LR"({"state":{"locale":"zh-CN","languagePreference":"zh-CN"}})");
-        for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE"}) {
+        for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
             const std::wstring state = std::wstring(L"{\"state\":{\"locale\":\"") + locale +
                 L"\",\"holyBearUpdate\":{\"current\":\"1.2.4-holybear\",\"latest\":\"v1.2.5-holybear\","
                 L"\"lastCheckUtc\":1791730000,\"automatic\":false,\"busy\":false,\"status\":\"available\","
@@ -785,7 +785,7 @@ int main(int argc, char** argv) {
         host.PostMessage(LR"({"state":{"locale":"zh-TW","languagePreference":"zh-TW","audioVolume":0.75}})");
         Check(PumpUntil([&] { return Script(view, L"document.documentElement.lang") == L"\"zh-TW\""; }),
               "native state reaches trusted page");
-        for (const auto* locale : {L"en-US", L"zh-TW", L"de-DE"}) {
+        for (const auto* locale : {L"en-US", L"zh-TW", L"de-DE", L"ko-KR", L"ja-JP"}) {
             const std::wstring prefix = std::wstring(L"{\"state\":{\"locale\":\"") + locale +
                 L"\",\"negotiatedWidth\":1920,\"negotiatedHeight\":1080,";
             host.PostMessage((prefix + L"\"negotiatedFps\":120,\"negotiatedFpsNumerator\":120,"
@@ -976,11 +976,13 @@ int main(int argc, char** argv) {
                 L"document.readyState === 'complete' && !!document.querySelector('h1') && "
                 L"!!document.getElementById('pane-about') && "
                 L"!!(window.NitLinkLocales && window.NitLinkLocales['en-US'] && "
-                L"window.NitLinkLocales['zh-TW'] && window.NitLinkLocales['zh-CN'] && window.NitLinkLocales['de-DE']) && "
+                L"window.NitLinkLocales['zh-TW'] && window.NitLinkLocales['zh-CN'] && window.NitLinkLocales['de-DE'] && "
+                L"window.NitLinkLocales['ko-KR'] && window.NitLinkLocales['ja-JP']) && "
                 L"!!(window.chrome && window.chrome.webview && window.chrome.webview.postMessage)") == L"true";
         }), "restarted packaged DOM, locale resources and JavaScript bridge finish loading");
         const std::wstring readyLocale = Script(recovered, L"document.documentElement.lang");
-        Check(readyLocale == L"\"en-US\"" || readyLocale == L"\"zh-TW\"" || readyLocale == L"\"zh-CN\"" || readyLocale == L"\"de-DE\"",
+        Check(readyLocale == L"\"en-US\"" || readyLocale == L"\"zh-TW\"" || readyLocale == L"\"zh-CN\"" || readyLocale == L"\"de-DE\"" ||
+              readyLocale == L"\"ko-KR\"" || readyLocale == L"\"ja-JP\"",
               "restarted menu begins in a supported system locale");
         bool restartedReadyMessage = false;
         for (size_t i = messagesBeforeCrash; i < messages.size(); ++i) {
@@ -995,7 +997,7 @@ int main(int argc, char** argv) {
         // The application responds to every ready message with its persisted
         // state. Mirror that native response here and verify all supported
         // preferences are applied to the recovered document.
-        for (const auto* locale : {L"zh-TW", L"en-US", L"zh-CN", L"de-DE"}) {
+        for (const auto* locale : {L"zh-TW", L"en-US", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
             const std::wstring state = std::wstring(L"{\"state\":{\"locale\":\"") + locale +
                 L"\",\"languagePreference\":\"" + locale + L"\"}}";
             host.PostMessage(state);
@@ -1007,7 +1009,9 @@ int main(int argc, char** argv) {
                   locale == std::wstring_view(L"zh-TW") ? "restart bridge applies Traditional Chinese" :
                   locale == std::wstring_view(L"en-US") ? "restart bridge applies English" :
                   locale == std::wstring_view(L"zh-CN") ? "restart bridge applies Simplified Chinese" :
-                                                           "restart bridge applies German");
+                  locale == std::wstring_view(L"de-DE") ? "restart bridge applies German" :
+                  locale == std::wstring_view(L"ko-KR") ? "restart bridge applies Korean" :
+                                                           "restart bridge applies Japanese");
         }
         wil::com_ptr<ICoreWebView2Settings> recoveredSettings;
         Hr(recovered->get_Settings(&recoveredSettings));

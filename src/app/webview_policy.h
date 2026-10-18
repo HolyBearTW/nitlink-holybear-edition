@@ -28,6 +28,8 @@ inline constexpr Resource Resources[] = {
     {L"https://nitlink.invalid/locales/zh-CN.js", L"locales/zh-CN.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/locales/zh-TW.js", L"locales/zh-TW.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/locales/de-DE.js", L"locales/de-DE.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
+    {L"https://nitlink.invalid/locales/ko-KR.js", L"locales/ko-KR.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
+    {L"https://nitlink.invalid/locales/ja-JP.js", L"locales/ja-JP.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/menu.js", L"assets/menu/menu.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/artwork-editor.js", L"assets/menu/artwork-editor.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/preview-host.js", L"assets/menu/preview-host.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
@@ -49,7 +51,7 @@ inline bool CanReceiveMessage(std::wstring_view source, std::wstring_view curren
 }
 inline const Resource* FindResource(std::wstring_view uri) {
     for (const auto& resource : Resources) if (resource.uri == uri) return &resource;
-    constexpr std::wstring_view revision=L"?v=20261018-game-page-reset3";
+    constexpr std::wstring_view revision=L"?v=20261018-ko-ja";
     if(uri.ends_with(revision)){
         uri.remove_suffix(revision.size());
         for(const auto& resource:Resources)if(resource.kind==ResourceKind::Script&&resource.uri==uri)return &resource;
@@ -62,6 +64,7 @@ inline bool CanOpenExternal(std::wstring_view current, std::wstring_view target,
          target == L"https://ko-fi.com/klosed89" ||
          target == L"https://github.com/HolyBearTW" || target == L"https://github.com/CN115" ||
          target == L"https://github.com/n810K" || target == L"https://github.com/Noka123" ||
+         target == L"https://github.com/i0rph" ||
          target == L"https://github.com/nitlink-dev/nitlink" ||
          target == L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE" ||
          target == L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md" ||

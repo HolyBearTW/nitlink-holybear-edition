@@ -7,11 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title data-i18n="page.settings">NitLink · Settings</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
-  <script src="locales/en-US.js?v=20261018-game-page-reset3"></script>
-  <script src="locales/zh-TW.js?v=20261018-game-page-reset3"></script>
-  <script src="locales/zh-CN.js?v=20261018-game-page-reset3"></script>
-  <script src="locales/de-DE.js?v=20261018-game-page-reset3"></script>
-  <script src="assets/menu/preview-host.js?v=20261018-game-page-reset3"></script>
+  <script src="locales/en-US.js?v=20261018-ko-ja"></script>
+  <script src="locales/zh-TW.js?v=20261018-ko-ja"></script>
+  <script src="locales/zh-CN.js?v=20261018-ko-ja"></script>
+  <script src="locales/de-DE.js?v=20261018-ko-ja"></script>
+  <script src="locales/ko-KR.js?v=20261018-ko-ja"></script>
+  <script src="locales/ja-JP.js?v=20261018-ko-ja"></script>
+  <script src="assets/menu/preview-host.js?v=20261018-ko-ja"></script>
   <style>
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400; font-display: swap; src: url('assets/menu/Archivo-400.ttf') format('truetype'); }
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500; font-display: swap; src: url('assets/menu/Archivo-500.ttf') format('truetype'); }
@@ -65,6 +67,8 @@
       user-select: text;
     }
     :lang(zh-CN) { --sans: "Archivo", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif; }
+    :lang(ko-KR) { --sans: "Archivo", "Malgun Gothic", sans-serif; }
+    :lang(ja-JP) { --sans: "Archivo", "Yu Gothic UI", "Meiryo", sans-serif; }
     button, select { font: inherit; }
     ::-webkit-scrollbar { width: 12px; }
     ::-webkit-scrollbar-track { background: #191919; }
@@ -695,7 +699,7 @@
             <div class="game-preview-controls">
               <label><span data-i18n="game.dataMode"></span><select id="game-preview-data-mode"><option value="fixture">Fixture</option><option value="real">Real API</option></select></label>
               <label><span data-i18n="game.previewLayout"></span><select id="game-preview-layout"><option value="full">Full</option><option value="left">Docked Left · 420px</option><option value="right">Docked Right · 420px</option></select></label>
-              <label><span data-i18n="game.previewLanguage"></span><select id="game-preview-language"><option value="zh-TW">繁體中文</option><option value="zh-CN">简体中文</option><option value="en-US">English</option><option value="de-DE">Deutsch</option></select></label>
+              <label><span data-i18n="game.previewLanguage"></span><select id="game-preview-language"><option value="en-US">English</option><option value="de-DE">Deutsch</option><option value="zh-CN">简体中文</option><option value="zh-TW">繁體中文</option><option value="ko-KR">한국어</option><option value="ja-JP">日本語</option></select></label>
               <label><span data-i18n="game.previewScenario"></span><select id="game-preview-scenario"><option value="ok" data-i18n="game.scenarioOk"></option><option value="empty" data-i18n="game.scenarioEmpty"></option><option value="upstreamUnavailable" data-i18n="game.scenarioUpstream"></option><option value="timeout" data-i18n="game.scenarioTimeout"></option><option value="imageFailure" data-i18n="game.scenarioImage"></option></select></label>
               <label id="game-preview-synthetic-control" hidden><span data-i18n="game.showSynthetic"></span><input id="game-preview-synthetic" type="checkbox"></label>
             </div>
@@ -936,9 +940,11 @@
                 <select class="language-select" id="language-select">
                   <option value="system" data-i18n="language.system"></option>
                   <option value="en-US" data-i18n="language.english"></option>
+                  <option value="de-DE" data-i18n="language.german"></option>
                   <option value="zh-CN" data-i18n="language.simplifiedChinese"></option>
                   <option value="zh-TW" data-i18n="language.traditionalChinese"></option>
-                  <option value="de-DE" data-i18n="language.german"></option>
+                  <option value="ko-KR" data-i18n="language.korean"></option>
+                  <option value="ja-JP" data-i18n="language.japanese"></option>
                 </select>
               </div>
             </div>
@@ -1077,6 +1083,7 @@
               <div class="about-contributor"><a href="https://github.com/CN115" target="_blank" rel="noopener noreferrer" data-contributor="CN115" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">CN_115</span></a> <span data-i18n="about.cn115Handle"></span></div>
               <div class="about-contributor"><a href="https://github.com/n810K" target="_blank" rel="noopener noreferrer" data-contributor="n810K" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">Nathan K.</span></a> <span data-i18n="about.n810kHandle"></span></div>
               <div class="about-contributor"><a href="https://github.com/Noka123" target="_blank" rel="noopener noreferrer" data-contributor="Noka123" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">Noka123</span></a> <span>(@Noka123)</span></div>
+              <div class="about-contributor"><a href="https://github.com/i0rph" target="_blank" rel="noopener noreferrer" data-contributor="i0rph" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">i0rph</span></a> <span>(@i0rph)</span></div>
             </div>
           </details>
         </section>
@@ -1109,8 +1116,8 @@
     </div>
   </aside>
   <div id="audio-tooltip" role="tooltip" hidden></div>
-  <script src="assets/menu/artwork-editor.js?v=20261018-game-page-reset3"></script>
-  <script src="assets/menu/menu.js?v=20261018-game-page-reset3"></script>
+  <script src="assets/menu/artwork-editor.js?v=20261018-ko-ja"></script>
+  <script src="assets/menu/menu.js?v=20261018-ko-ja"></script>
 </body>
 
 </html>

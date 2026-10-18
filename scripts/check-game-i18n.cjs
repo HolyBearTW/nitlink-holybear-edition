@@ -2,7 +2,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
 const {chromium}=require('../out/ui-preview-runtime/node_modules/playwright-core');
 const {installExactDocument}=require('./preview-browser.cjs');
-const root=path.resolve(__dirname,'..'),locales=['zh-TW','zh-CN','en-US','de-DE'],comparisonLocales=['zh-TW','en-US','de-DE'],context={window:{}},evidencePath=process.env.NITLINK_I18N_EVIDENCE||path.join(root,'out/game-preview/i18n-checks.json');
+const root=path.resolve(__dirname,'..'),locales=['zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP'],comparisonLocales=['zh-TW','en-US','de-DE'],context={window:{}},evidencePath=process.env.NITLINK_I18N_EVIDENCE||path.join(root,'out/game-preview/i18n-checks.json');
 for(const locale of locales)vm.runInNewContext(fs.readFileSync(path.join(root,'locales',locale+'.js'),'utf8'),context);
 const resources=context.window.NitLinkLocales;
 const keys=[...new Set(locales.flatMap(locale=>Object.keys(resources[locale]).filter(key=>key.startsWith('game.'))))];

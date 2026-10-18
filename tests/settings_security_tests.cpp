@@ -93,6 +93,12 @@ int main() {
     for (const auto* locale : {L"de", L"de-DE", L"de-AT", L"de-CH"})
         Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(locale) == L"de-DE",
                "German system locales resolve to de-DE");
+    for (const auto* locale : {L"ko", L"ko-KR"})
+        Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(locale) == L"ko-KR",
+               "Korean system locales resolve to ko-KR");
+    for (const auto* locale : {L"ja", L"ja-JP"})
+        Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(locale) == L"ja-JP",
+               "Japanese system locales resolve to ja-JP");
     Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(L"fr-FR") == L"en-US",
            "unsupported system locales retain English fallback");
     for (const auto* key : {L"toast.configFolderNotWritable", L"toast.configLoadFailed",
@@ -109,8 +115,14 @@ int main() {
         const auto simplified = localization.Get(key);
         localization.SetPreference("de-DE");
         const auto german = localization.Get(key);
+        localization.SetPreference("ko-KR");
+        const auto korean = localization.Get(key);
+        localization.SetPreference("ja-JP");
+        const auto japanese = localization.Get(key);
         Expect(english != key && chinese != key && simplified != key && german != key &&
-               english != chinese && english != simplified && english != german,
+               korean != key && japanese != key &&
+               english != chinese && english != simplified && english != german &&
+               english != korean && english != japanese,
                "all native locale tables define each settings/config warning");
     }
     localization.SetPreference("zh-CN");
@@ -122,6 +134,16 @@ int main() {
            localization.PreferenceName() == "de-DE" && localization.LocaleName() == L"de-DE" &&
            std::wstring(localization.UiFontFamily()) == L"Segoe UI",
            "German preference selects the German native table");
+    localization.SetPreference("ko-KR");
+    Expect(localization.Preference() == NitLink::LanguagePreference::Korean &&
+           localization.LocaleName() == L"ko-KR" &&
+           std::wstring(localization.UiFontFamily()) == L"Malgun Gothic",
+           "Korean preference selects the Korean native table and font");
+    localization.SetPreference("ja-JP");
+    Expect(localization.Preference() == NitLink::LanguagePreference::Japanese &&
+           localization.LocaleName() == L"ja-JP" &&
+           std::wstring(localization.UiFontFamily()) == L"Yu Gothic UI",
+           "Japanese preference selects the Japanese native table and font");
     localization.SetPreference("zh-CN");
     const auto simplifiedPlaceholder = localization.Format(L"toast.p010SelectionFallback",
            {{L"width", L"1920"}, {L"height", L"1080"}, {L"fps", L"60"}});
@@ -319,7 +341,9 @@ int main() {
     }
     for (const auto& resource : Resources) Expect(FindResource(resource.uri) == &resource, "packaged resource");
     Expect(FindResource(L"https://nitlink.invalid/locales/de-DE.js") != nullptr,"German locale resource is allowlisted");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261018-game-page-reset3")!=nullptr,"fixed script revision maps to packaged editor");
+    Expect(FindResource(L"https://nitlink.invalid/locales/ko-KR.js") != nullptr,"Korean locale resource is allowlisted");
+    Expect(FindResource(L"https://nitlink.invalid/locales/ja-JP.js") != nullptr,"Japanese locale resource is allowlisted");
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261018-ko-ja")!=nullptr,"fixed script revision maps to packaged editor");
     Expect(!FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=other"),"unapproved revision rejected");
     Expect(ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":0.2,"y":0.8,"zoom":1.5}})").has_value(),"bounded artwork recipe bridge");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":-1,"y":0.8,"zoom":1.5}})"),"negative crop rejected");
@@ -330,6 +354,7 @@ int main() {
     Expect(!ParseSettingsMessage(LR"({"action":"checkHolyBearUpdate","value":"https://evil"})"), "caller cannot supply URL");
     Expect(CanOpenExternal(MenuUri, L"https://github.com/CN115", true), "contributor profile link");
     Expect(CanOpenExternal(MenuUri, L"https://github.com/Noka123", true), "German contributor profile link");
+    Expect(CanOpenExternal(MenuUri, L"https://github.com/i0rph", true), "Korean contributor profile link");
     Expect(CanOpenExternal(MenuUri, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear", true), "validated HolyBear release link");
     Expect(!CanOpenExternal(MenuUri, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear", false), "no automatic release popup");
     Expect(!CanOpenExternal(MenuUri, L"https://github.com/HolyBearTW/nitlink/releases/tag/v1.2.5-holybear", true), "old repository release link rejected after canonical rename");

@@ -215,6 +215,12 @@ add_custom_target(NitLinkRuntimeResources
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/locales/de-DE.js
         $<TARGET_FILE_DIR:NitLink>/locales/de-DE.js
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/locales/ko-KR.js
+        $<TARGET_FILE_DIR:NitLink>/locales/ko-KR.js
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/locales/ja-JP.js
+        $<TARGET_FILE_DIR:NitLink>/locales/ja-JP.js
 )
 add_dependencies(NitLink NitLinkRuntimeResources)
 

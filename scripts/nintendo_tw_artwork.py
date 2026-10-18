@@ -56,7 +56,7 @@ class NintendoTaiwanArtworkProvider:
             for entry in raw['games']:
                 game_id=entry.get('id');name=entry.get('name');names=entry.get('displayNames',{})
                 if type(game_id)!=int or not 0<game_id<=0xffffffff or game_id in game_ids or not valid_text(name) or not name:continue
-                if not isinstance(names,dict) or len(names)>4 or any(key not in ('zh-TW','zh-CN','en-US','de-DE') or not valid_text(value) for key,value in names.items()):continue
+                if not isinstance(names,dict) or len(names)>6 or any(key not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP') or not valid_text(value) for key,value in names.items()):continue
                 sources=entry.get('artworkSources',[])
                 if not isinstance(sources,list) or len(sources)>8:continue
                 covers=[]
@@ -65,7 +65,7 @@ class NintendoTaiwanArtworkProvider:
                     if (type(cover_id)!=int or not 4200000000<=cover_id<=0xffffffff or cover_id in cover_ids
                         or not (playstation_url(url) if source.get('provider')=='playstation-tw' else nintendo_url(url)) or (source.get('provider'),source.get('sourceLabel'),source.get('region')) not in
                            ((self.provider,self.source_label,'TW'),('nintendo-hk-eshop','Official Nintendo eShop CDN','HK'),('playstation-tw','Official PlayStation Taiwan','TW'))
-                        or source.get('language') not in ('zh-TW','zh-CN','en-US','de-DE','ja-JP','zxx',None) or source.get('isOfficial') is not True
+                        or source.get('language') not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','zxx',None) or source.get('isOfficial') is not True
                         or source.get('kind') not in ('boxArt','logo','keyArt','squareIcon') or source.get('shape') not in ('square','portrait','landscape')
                         or not valid_text(page) or not page.startswith(('https://www.playstation.com/zh-hant-tw/games/',) if source.get('provider')=='playstation-tw' else ('https://www.nintendo.com/tw/','https://www.nintendo.com.tw/','https://img-eshop.cdn.nintendo.net/i/'))):continue
                     cover_ids.add(cover_id)

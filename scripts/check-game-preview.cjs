@@ -29,7 +29,7 @@ const {installExactDocument}=require('./preview-browser.cjs');
   assert.match(await page.locator('#game-cover-mode').textContent(),/手動/);
   assert.equal(Math.round((await page.locator('#game-discord-art').boundingBox()).width),84,'Discord activity artwork remains 84px wide');
   await page.screenshot({path:path.join(output,'full-zh-TW.png')});
-  const geometry = [], locales = ['zh-TW','zh-CN','en-US','de-DE'];
+  const geometry = [], locales = ['zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP'];
   for (const locale of locales) {
     await page.selectOption('#game-preview-language',locale);
     await page.waitForFunction(locale=>document.documentElement.lang===locale,locale);
@@ -139,7 +139,7 @@ const {installExactDocument}=require('./preview-browser.cjs');
   await filePage.waitForSelector('.game-result');
   assert.equal(await filePage.locator('#game-fixture-banner').isVisible(),true);
   assert.equal(errors.filter(e=>!e.includes('ERR_FILE_NOT_FOUND')&&!e.includes('Failed to load resource')).length,0,errors.join('\n'));
-  fs.writeFileSync(path.join(output,'browser-checks.json'),JSON.stringify({geometry,aboutGeometry,checks:['game and cover selection','84px Discord artwork','four-language About and shortcut labels','automatic/manual covers','four languages','Full/left/right layouts','failure and empty scenarios','latest query wins','persistent manual fixture choice','existing panes/source format controls','native bridge precedence','direct file entry'],errors,start},null,2));
+  fs.writeFileSync(path.join(output,'browser-checks.json'),JSON.stringify({geometry,aboutGeometry,checks:['game and cover selection','84px Discord artwork','six-language About and shortcut labels','automatic/manual covers','six languages','Full/left/right layouts','failure and empty scenarios','latest query wins','persistent manual fixture choice','existing panes/source format controls','native bridge precedence','direct file entry'],errors,start},null,2));
   console.log('Browser preview checks passed:',geometry.length,'language/layout combinations. Evidence:',output);
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

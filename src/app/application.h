@@ -316,6 +316,14 @@ private:
     // successful (non-PiP-blocked) ToggleFullscreen call.
     bool m_pipFullscreenBlockedLogged = false;
 
+    // Pending swap chain resize after ResizeBuffers kept the previous buffers
+    // (DX11Renderer::Resize returned false). Retries back off from 250 ms to
+    // 2 s; a different client size retries at once.
+    std::chrono::steady_clock::time_point m_resizeRetryAt{};
+    uint32_t m_resizeRetryCount = 0;
+    uint32_t m_resizeRetryWidth = 0;
+    uint32_t m_resizeRetryHeight = 0;
+
     // Transient toast notification. ShowToast() sets these; the run loop
     // draws Overlay::DrawToast while now < m_toastExpiry. Single-slot: a
     // new ShowToast() supersedes any previous toast. Used for short user-

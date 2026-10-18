@@ -71,6 +71,9 @@ set(NITLINK_SOURCES
     src/capture/frame_buffer.h
     src/capture/frame_differ.cpp
     src/capture/frame_differ.h
+    src/capture/frame_readback_queue.h
+    src/capture/readback_starvation.h
+    src/capture/bounded_readback.h
     src/capture/noise_floor.h
     src/capture/hdr_source_poller.cpp
     src/capture/hdr_source_poller.h
@@ -594,6 +597,41 @@ if(BUILD_TESTING)
     add_test(NAME gc553pro_source_metadata_poller COMMAND NitLinkGc553ProSourceMetadataTests)
     set_tests_properties(gc553pro_source_metadata_poller PROPERTIES TIMEOUT 30)
 
+    add_executable(NitLinkFrameReadbackQueueTests tests/frame_readback_queue_tests.cpp)
+    target_include_directories(NitLinkFrameReadbackQueueTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME frame_readback_queue COMMAND NitLinkFrameReadbackQueueTests)
+
+    add_executable(NitLinkFrameDifferOrderTests
+        tests/frame_differ_order_tests.cpp src/capture/frame_differ.cpp)
+    target_include_directories(NitLinkFrameDifferOrderTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkFrameDifferOrderTests PRIVATE d3d11 d3dcompiler)
+    add_test(NAME frame_differ_order COMMAND NitLinkFrameDifferOrderTests)
+
+    add_executable(NitLinkBoundedReadbackTests tests/bounded_readback_tests.cpp)
+    target_include_directories(NitLinkBoundedReadbackTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME bounded_readback COMMAND NitLinkBoundedReadbackTests)
+
+    add_executable(NitLinkCurrentFramePacingTests
+        tests/current_frame_pacing_tests.cpp src/capture/frame_differ.cpp)
+    target_include_directories(NitLinkCurrentFramePacingTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkCurrentFramePacingTests PRIVATE d3d11 d3dcompiler)
+    add_test(NAME current_frame_pacing COMMAND NitLinkCurrentFramePacingTests)
+
+    add_executable(NitLinkReadbackStarvationTests tests/readback_starvation_tests.cpp)
+    target_include_directories(NitLinkReadbackStarvationTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME readback_starvation COMMAND NitLinkReadbackStarvationTests)
+
+    add_executable(NitLinkResizeRecoveryTests
+        tests/resize_recovery_tests.cpp src/renderer/dx11_renderer.cpp)
+    target_include_directories(NitLinkResizeRecoveryTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkResizeRecoveryTests PRIVATE d3d11 dxgi d3dcompiler windowscodecs)
+    add_test(NAME swap_chain_resize_recovery COMMAND NitLinkResizeRecoveryTests)
+
+    add_executable(NitLinkDevicePickTests
+        tests/device_pick_tests.cpp src/capture/device_enumerator.cpp)
+    target_include_directories(NitLinkDevicePickTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkDevicePickTests PRIVATE mf mfplat mfuuid ole32)
+    add_test(NAME device_pick COMMAND NitLinkDevicePickTests)
     # Full labels every registered test; Smoke and Release are focused subsets.
     get_property(_nitlink_all_tests DIRECTORY PROPERTY TESTS)
     if(_nitlink_all_tests)

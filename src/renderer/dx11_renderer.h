@@ -19,7 +19,9 @@ public:
     ~DX11Renderer();
 
     bool Initialize(HWND hwnd, uint32_t width, uint32_t height);
-    void Resize(uint32_t width, uint32_t height);
+    // Returns false when the swap chain kept its previous buffers; rendering
+    // continues at the previous size and the caller retries the resize.
+    bool Resize(uint32_t width, uint32_t height);
 
     // doWait=true (default): BeginFrame applies the cap or DXGI frame-latency
     // wait at its start -- the VRR/"Smooth" path. doWait=false: the caller

@@ -35,3 +35,18 @@ Release subset: ctest --test-dir out/release-x64-20261017 -C Release -L "^releas
 
 - When settings HTML, script URLs, WebView policy or packaged UI resources change, build the isolated test hosts first and require settings_security, webview_runtime_security, webview_settings_layout, webview_f1_visibility and webview_missing_assets to pass before building or handing over the acceptance application.
 - Check the actual packaged HTML script URLs against the native resource allowlist. A browser preview cannot establish native Ready bridge or F1 readiness. Never bypass the Ready guard or relax the allowlist to make this gate pass.
+
+## Git branch and worktree policy
+
+- `main` is the intentionally retained upstream NitLink tracking branch. It may be synchronized with upstream, but it is not for ordinary HolyBear Edition feature development.
+- `holybear/integrated` is the sole formal integration branch for HolyBear Edition.
+- For sequential work, prefer an existing local working directory checked out to `holybear/integrated`; do not create a new worktree for every task.
+- Create a worktree only when parallel development, an isolated experiment, or avoiding concurrent edits requires it.
+- Base every new HolyBear feature branch on the latest `holybear/integrated`, unless the user explicitly names a different source.
+- Selectively port official functionality from `main` or `upstream/main` into a HolyBear feature branch. Never merge the entire upstream mainline into the community edition.
+- At the start of each task, confirm the current directory, branch, HEAD, Git status, and any feature branch that still needs integration.
+- Never delete, clean, or overwrite another worktree or its changes without explicit authorization.
+- After implementing a feature, run the necessary build, CTest, and regression checks. If work remains on a feature branch, explain the integration path; do not call an isolated branch fully integrated.
+- Continue follow-up changes on the existing feature branch or working directory for that feature when practical, instead of creating duplicate branches.
+- Do not rebase, rewrite formal history, or force a merge because branches diverged.
+- Do not push, publish a Release, create a tag, or alter formal branch history unless the user explicitly authorizes that action.

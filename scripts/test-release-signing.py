@@ -15,8 +15,19 @@ spec.loader.exec_module(signing)
 
 
 class ReleaseSigningTests(unittest.TestCase):
+    @staticmethod
+    def current_tag():
+        return "v" + (signing.ROOT / "VERSION").read_text(encoding="utf-8").strip()
+
+    def test_current_version_asset_names_include_the_fourth_component(self):
+        self.assertEqual(signing.identity(self.current_tag()), [
+            "NitLink-1.2.5.1-HolyBear-Win64.zip",
+            "NitLink-1.2.5.1-HolyBear-Setup-x64.exe",
+            "SHA256SUMS.txt",
+        ])
+
     def test_verification_archive_preserves_only_the_existing_signature_bytes(self):
-        names = signing.identity("v1.2.5-holybear")
+        names = signing.identity(self.current_tag())
         with tempfile.TemporaryDirectory() as folder, tempfile.TemporaryDirectory() as download:
             source, extracted = Path(folder), Path(download)
             originals = {name: ("test bytes: " + name).encode("ascii")
@@ -38,7 +49,7 @@ class ReleaseSigningTests(unittest.TestCase):
                 signing.bundle_verification(source, names)
 
     def test_verification_archive_rejects_extra_paths_and_oversized_entries(self):
-        names = signing.identity("v1.2.5-holybear")
+        names = signing.identity(self.current_tag())
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "Verification.zip"
             for replacement, content in (("../escaped.asc", b"x"),

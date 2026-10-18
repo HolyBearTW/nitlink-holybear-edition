@@ -201,7 +201,7 @@ void Capture(ICoreWebView2* view, const std::filesystem::path& path) {
 void PushAboutUpdate(WebViewSettings& host, const wchar_t* side, const wchar_t* locale,
     const wchar_t* status, const wchar_t* latest, bool hasNewer, bool automatic, bool busy,
     bool unread, const wchar_t* url, long long lastCheckUtc = 1791691200,
-    std::wstring_view current = L"1.2.4-holybear") {
+    std::wstring_view current = L"1.2.5.1-holybear") {
     PushState(host, side, locale);
     const auto timestamp = std::wstring_view(status) == L"never" ? 0 : lastCheckUtc;
     std::wstring message = L"{\"state\":{\"holyBearUpdate\":{\"current\":\"" +
@@ -297,20 +297,20 @@ void CaptureLayouts(WebViewSettings& host, HWND window, const std::filesystem::p
         Capture(view, folder / name);
     };
     captureAbout(L"about-docked-zh-TW-current.png", L"Right", L"zh-TW", L"current",
-        L"v1.2.4-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
+        L"v1.2.5.1-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
     Script(view, L"document.querySelector('#about-technical').open = false");
     PumpUntil([] { return false; }, 120);
     Capture(view, folder / L"about-docked-zh-TW-contributors-only.png");
     captureAbout(L"about-docked-en-US-available.png", L"Right", L"en-US", L"available",
-        L"v1.2.5-holybear", true,
-        L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear",
+        L"v1.2.5.1-holybear", true,
+        L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear",
         1920, 1080, WebViewSettings::Dock::Right);
     captureAbout(L"about-docked-zh-TW-api-unavailable.png", L"Right", L"zh-TW", L"apiUnavailable",
-        L"v1.2.4-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
+        L"v1.2.5.1-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
     captureAbout(L"about-full-1920x1080-zh-TW.png", L"Full", L"zh-TW", L"current",
-        L"v1.2.4-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Full);
+        L"v1.2.5.1-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Full);
     captureAbout(L"about-full-2560x1440-zh-TW.png", L"Full", L"zh-TW", L"current",
-        L"v1.2.4-holybear", false, L"", 2560, 1440, WebViewSettings::Dock::Full);
+        L"v1.2.5.1-holybear", false, L"", 2560, 1440, WebViewSettings::Dock::Full);
     // Render the production source controls through the native host. The saved
     // one-character name is a fixture; no capture hardware or user config is used.
     for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
@@ -655,7 +655,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Right);
     Script(view, L"document.querySelector('.rail-item[data-tab=\"pane-video\"]').click()");
     PumpUntil([] { return false; }, 120);
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.4-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
         false, false, false, false, L"");
     const auto settingsBefore = Script(view, SharedValues);
     const size_t beforeAbout = messages.size();
@@ -673,12 +673,12 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
                     document.getElementById(summary.getAttribute('aria-controls')).parentElement === details &&
                     summary.tabIndex >= 0;
             }) &&
-            document.querySelector('#holy-bear-product-title').textContent === 'NitLink 1.2.4 HolyBear Edition' &&
-            // The injected product version is 1.2.4, and the upstream-base
-            // subtitle now independently names 1.2.4 as well.
-            (heroText.match(/1\.2\.4/g) || []).length === 2 &&
+            document.querySelector('#holy-bear-product-title').textContent === 'NitLink 1.2.5.1 HolyBear Edition' &&
+            // The injected product version is 1.2.5.1, and the upstream-base
+            // subtitle now independently names 1.2.5 as well.
+            (heroText.match(/1\.2\.5\.1/g) || []).length === 1 &&
             pane.querySelector('[data-i18n="about.subtitle"]').textContent ===
-                '非官方社群整合版本 · 基於 NitLink 1.2.4' &&
+                '非官方社群整合版本 · 基於 NitLink 1.2.5' &&
             !pane.querySelector('#holy-bear-version, #holy-bear-latest-version, .about-detail-list') &&
             document.querySelector('#holy-bear-last-check').closest('.about-update') !== null &&
             document.querySelector('#holy-bear-update-status').textContent === window.NitLinkLocales['zh-TW']['update.current'] &&
@@ -706,7 +706,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             document.querySelector('#holy-bear-last-check').textContent === window.__lastAboutCheck)JS") == L"true",
         "manual button retains its action and busy state without inventing a completion time");
 
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.4-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
         false, false, false, false, L"", 1791691320);
     Check(Script(view, L"document.querySelector('#holy-bear-last-check').textContent !== window.__lastAboutCheck && "
         L"!document.querySelector('#holy-bear-check-update').disabled") == L"true",
@@ -718,15 +718,15 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     Check(automatic && automatic->action == L"setHolyBearAutoUpdateCheck" && automatic->number == 1 &&
         Script(view, L"document.querySelector('#toggle-holy-bear-auto-update').getAttribute('aria-checked') === 'true'") == L"true",
         "automatic check enables with an accessible switch state");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.4-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
         false, true, false, false, L"");
     Check(Script(view, L"document.querySelector('#toggle-holy-bear-auto-update').classList.contains('on') && "
         L"document.querySelector('#toggle-holy-bear-auto-update').getAttribute('aria-checked') === 'true'") == L"true",
         "automatic check setting is restored from native state");
     Script(view, L"window.__lastAboutCheck = document.querySelector('#holy-bear-last-check').textContent");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"checking", L"v1.2.4-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"checking", L"v1.2.5.1-holybear",
         false, true, true, false, L"");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.4-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
         false, true, false, false, L"", 1791691440);
     Check(Script(view, L"document.querySelector('#holy-bear-last-check').textContent !== window.__lastAboutCheck && "
         L"document.querySelector('#toggle-holy-bear-auto-update').getAttribute('aria-checked') === 'true'") == L"true",
@@ -737,7 +737,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     automatic = NitLink::ParseSettingsMessage(messages.back());
     Check(automatic && automatic->action == L"setHolyBearAutoUpdateCheck" && automatic->number == 0,
         "turning automatic checks off persists the false setting");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.4-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
         false, false, false, false, L"");
 
     const std::array<std::pair<const wchar_t*, const wchar_t*>, 9> statuses{{
@@ -746,8 +746,16 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         {L"serverUnavailable", L"serverUnavailable"}, {L"apiUnavailable", L"apiUnavailable"},
         {L"invalid", L"invalid"}, {L"never", L"never"}}};
     for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
+        PushAboutUpdate(host, L"Right", locale, L"current", L"v1.2.5.1-holybear",
+            false, true, false, false, L"");
+        std::wstring baseCopy = L"(() => { const locale=window.NitLinkLocales['" + std::wstring(locale) +
+            L"']; const subtitle=document.querySelector('[data-i18n=\"about.subtitle\"]'); "
+            L"return document.documentElement.lang==='" + std::wstring(locale) +
+            L"' && subtitle.textContent===locale['about.subtitle'] && subtitle.textContent.includes('1.2.5') && "
+            L"!subtitle.textContent.includes('1.2.4'); })()";
+        Check(Script(view, baseCopy) == L"true", "About identifies NitLink 1.2.5 as the base in all six languages");
         for (const auto& [status, key] : statuses) {
-            const auto latest = std::wstring_view(status) == L"never" ? L"" : L"v1.2.4-holybear";
+            const auto latest = std::wstring_view(status) == L"never" ? L"" : L"v1.2.5.1-holybear";
             PushAboutUpdate(host, L"Right", locale, status, latest, false,
                 true, std::wstring_view(status) == L"checking", false, L"");
             std::wstring expression = L"(() => { const node=document.querySelector('#holy-bear-update-status'); return node.hidden === ";
@@ -759,37 +767,37 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         }
     }
     for (const auto timestamp : {0LL, -1LL, 9223372036854775807LL}) {
-        PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.4-holybear",
+        PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
             false, false, false, false, L"", timestamp);
         Check(Script(view, L"document.querySelector('#holy-bear-last-check').textContent === "
             L"window.NitLinkLocales['zh-TW']['update.never']") == L"true",
             "missing, negative and out-of-range times never display an epoch or invalid date");
     }
 
-    const std::wstring validUrl = L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear";
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5-holybear",
+    const std::wstring validUrl = L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear";
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
         true, true, false, true, validUrl.c_str());
     Check(Script(view, LR"JS((() => {
         const link = document.querySelector('#holy-bear-release-link'), status = document.querySelector('#holy-bear-update-status');
-        return status.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5-holybear') &&
+        return status.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5.1-holybear') &&
             status.classList.contains('is-new-version') &&
-            !link.hidden && link.href === 'https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear' &&
+            !link.hidden && link.href === 'https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear' &&
             document.querySelector('#holy-bear-update-badge').hidden === false;
     })())JS") == L"true", "newer release shows a localized message, verified link and unread state");
-    for (const auto& badUrl : {L"https://github.com/HolyBearTW/nitlink/releases/tag/v1.2.5-holybear",
-            L"https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.5-holybear",
-            L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear?next=evil"}) {
-        PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5-holybear",
+    for (const auto& badUrl : {L"https://github.com/HolyBearTW/nitlink/releases/tag/v1.2.5.1-holybear",
+            L"https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.5.1-holybear",
+            L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear?next=evil"}) {
+        PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
             true, true, false, true, badUrl);
         Check(Script(view, L"document.querySelector('#holy-bear-release-link').hidden") == L"true",
             "untrusted release URL is never shown");
     }
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
         false, true, false, false, validUrl.c_str());
     Check(Script(view, L"document.querySelector('#holy-bear-release-link').hidden") == L"true",
         "release link requires a native newer-version result");
 
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
         true, true, false, true, validUrl.c_str());
     const size_t beforeDisclosure = messages.size();
     Script(view, L"document.querySelector('#about-details-summary').click()");
@@ -837,7 +845,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         const contributors = document.querySelector('#about-contributors-body').innerText;
         return text.includes('D3D11') && text.includes('P010 / NV12 / BGRA') && text.includes('HDR10') && text.includes('VRR') &&
             text.includes(window.NitLinkLocales['zh-TW']['about.holyBearDisclaimer']) &&
-            !text.includes('1.2.4-holybear') && !text.includes('v1.2.5-holybear') &&
+            !text.includes('1.2.5.1-holybear') && !text.includes('v1.2.5.1-holybear') &&
             contributors.includes('CN_115 (@CN115)') && contributors.includes('聖小熊 (@HolyBearTW)') && contributors.includes('Noka123 (@Noka123)') &&
             contributors.includes('i0rph (@i0rph)') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/HolyBearTW"]') &&
@@ -855,7 +863,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             document.querySelector('#pane-about').scrollWidth <= document.querySelector('#pane-about').clientWidth;
     })())JS") == L"true", "expanded 420px About remains free of horizontal overflow");
 
-    PushAboutUpdate(host, L"Right", L"zh-CN", L"available", L"v1.2.5-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-CN", L"available", L"v1.2.5.1-holybear",
         true, true, false, true, validUrl.c_str());
     Check(Script(view, LR"JS(document.documentElement.lang === 'zh-CN' &&
         document.querySelector('#about-details-summary').textContent === '技术信息' &&
@@ -863,7 +871,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         document.querySelector('#holy-bear-check-update').textContent === '检查更新' &&
         document.querySelector('#holy-bear-update-status').textContent.includes('发现新版本'))JS") == L"true",
         "Simplified Chinese updates the About and update controls");
-    PushAboutUpdate(host, L"Right", L"en-US", L"available", L"v1.2.5-holybear",
+    PushAboutUpdate(host, L"Right", L"en-US", L"available", L"v1.2.5.1-holybear",
         true, true, false, true, validUrl.c_str());
     Check(Script(view, LR"JS(document.documentElement.lang === 'en-US' &&
         document.querySelector('#about-details-summary').textContent === 'Technical Information' &&
@@ -915,8 +923,8 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
 
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Full);
     for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
-        PushAboutUpdate(host, L"Full", locale, L"available", L"v1.2.5-holybear",
-            true, false, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5-holybear",
+        PushAboutUpdate(host, L"Full", locale, L"available", L"v1.2.5.1-holybear",
+            true, false, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear",
             1791691200, NitLink::HolyBear::Version);
         const auto numeric = NitLink::HolyBear::Version.substr(0, NitLink::HolyBear::Version.size() - 9);
         Check(Script(view, L"document.getElementById('holy-bear-product-title').textContent === 'NitLink " +
@@ -924,7 +932,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     }
 
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Right);
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.4-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
         false, false, false, false, L"");
     const size_t sizeBeforeReturn = messages.size();
     Script(view, L"document.querySelector('.rail-item[data-tab=\"pane-video\"]').click()");

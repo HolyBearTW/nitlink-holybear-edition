@@ -21,9 +21,10 @@ Assert-Notes (($notes -split '\r?\n', 2)[0] -ceq "# $($info.Title)") 'exact Mark
 Assert-Notes ($notes.Contains('非官方社群整合版') -and $notes.Contains('來源、授權與致謝') -and
     $notes.Contains('已知限制') -and $notes.Contains('English Summary')) 'UTF-8 Traditional Chinese notes retain required sections'
 Assert-Notes ($notes -notmatch '審閱草稿|預計納入|final release validation is pending|41/41|38155376483') 'no draft or obsolete build results'
-Assert-Notes ($notes.Contains('既有 1.2.4 安裝版') -and $notes.Contains('不代表 1.2.4.1 正式產物')) 'older hardware evidence is identified honestly'
+Assert-Notes ($notes.Contains('GC553Pro／Switch 2') -and $notes.Contains('已完成真實實機驗收') -and
+    -not $notes.Contains('尚待實機驗收')) 'user-confirmed GC553Pro/Switch 2 hardware acceptance is stated clearly'
 Assert-Notes ($notes.Contains('自動模式無法取得更新率') -and $notes.Contains('30 Hz fallback')) 'conservative fallback is scoped to Auto'
-$handles = @('nitlink-dev', 'CN115', 'HolyBearTW', 'n810K', 'Noka123')
+$handles = @('nitlink-dev', 'CN115', 'HolyBearTW', 'n810K', 'Noka123', 'i0rph')
 $allHandlesPlain = @($handles | Where-Object { -not $notes.Contains('@' + $_) }).Count -eq 0
 Assert-Notes ($allHandlesPlain -and
     -not [regex]::IsMatch($notes, '\[[^\]\r\n]*@[^\]\r\n]*\]\([^)]+\)')) 'contributor mentions are plain @handles, not explicit Markdown links'

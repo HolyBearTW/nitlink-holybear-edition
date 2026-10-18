@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
     check(ParseVersion(L"v1.2.4.2-holybear") > ParseVersion(L"v1.2.4.1-holybear"), "numeric revision");
     check(ParseVersion(L"v1.2.4.10-holybear") > ParseVersion(L"v1.2.4.2-holybear"), "numeric, not lexical order");
     check(ParseVersion(L"v1.2.5-holybear") > ParseVersion(L"v1.2.4.2-holybear"), "patch exceeds revision");
+    check(ParseVersion(L"v1.2.5.1-holybear") > ParseVersion(L"v1.2.5-holybear"), "1.2.5.1 update exceeds 1.2.5");
     for (auto bad : {L"1.2.4", L"v0.1.2", L"v1.2.4-holybear-beta", L"v1.2-holybear", L"v1.02.4-holybear",
             L"v1.2.4.1.1-holybear", L"v65536.2.4-holybear", L"v1.2.4.-holybear", L"v1.2.4-holybear/evil"})
         check(!ParseVersion(bad), "invalid/other edition version");
@@ -38,6 +39,12 @@ int main(int argc, char** argv) {
     check(ClassifyReply(response(currentTag)).status == UpdateStatus::Current, "equal current revision");
     check(ClassifyReply(response("v1.2.5-holybear"), L"1.2.4.1-holybear").status == UpdateStatus::Available,
         "published 1.2.4.1 upgrades to 1.2.5");
+    check(ClassifyReply(response("v1.2.5.1-holybear"), L"1.2.5-holybear").status == UpdateStatus::Available,
+        "published 1.2.5.1 upgrades to 1.2.5");
+    const auto release1251 = ClassifyReply(response("v1.2.5.1-holybear"), L"1.2.5-holybear");
+    check(release1251.tag == L"v1.2.5.1-holybear" &&
+        std::wstring(ReleasePrefix) + release1251.tag == L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear" &&
+        IsReleaseUrl(std::wstring(ReleasePrefix) + release1251.tag), "1.2.5.1 uses the exact canonical release URL");
     check(ClassifyReply(response("v1.2.4.1-holybear"), L"1.2.4-holybear").status == UpdateStatus::Available,
         "published 1.2.4 recognizes new revision tag");
     const auto revision = ClassifyReply(response("v1.2.4.1-holybear"), L"1.2.4-holybear");

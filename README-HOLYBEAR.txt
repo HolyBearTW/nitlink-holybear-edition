@@ -1,5 +1,5 @@
-NitLink 1.2.5 HolyBear Edition (1.2.5-holybear)
-Unofficial community integration build based on NitLink 1.2.3.
+NitLink 1.2.5.1 HolyBear Edition (1.2.5.1-holybear)
+Unofficial community integration build based on NitLink 1.2.5.
 Not an official nitlink-dev release.
 
 Extract the complete ZIP into a writable folder, then run NitLink.exe.
@@ -10,8 +10,9 @@ uses the application's folder. No separate development checkout is required.
 
 Alternatively run the multilingual Setup.exe. It installs under your user's
 standard Programs directory, creates Start menu shortcuts, and offers optional
-desktop shortcut and launch. Windows UI language selects English, Traditional
-Chinese (TW/HK/MO), or Simplified Chinese (CN/SG), with a manual selector.
+desktop shortcut and launch. The settings interface supports English,
+Traditional Chinese, Simplified Chinese, German, Japanese and Korean, with a
+manual selector. The Setup wizard is available in English and both Chinese variants.
 Upgrades and uninstall retain your settings and other generated user files.
 The installer does not migrate or change an existing original NitLink installation.
 

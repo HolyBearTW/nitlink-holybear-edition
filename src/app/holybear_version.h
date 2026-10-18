@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <optional>
 namespace NitLink::HolyBear {
-inline constexpr std::wstring_view Version = L"1.2.5-holybear";
+inline constexpr std::wstring_view Version = L"1.2.5.1-holybear";
 inline constexpr std::wstring_view ReleaseApiPath = L"/repos/HolyBearTW/nitlink-holybear-edition/releases/latest";
 inline constexpr std::wstring_view ReleasePrefix = L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/";
 using NumericVersion = std::array<uint16_t, 4>;

@@ -10,7 +10,7 @@ the community edition notice and source/license links stay in the first;
 the original contributor names and links stay in the second. The shared
 capture/signal strip is hidden only while About is selected and returns on the
 other tabs. English, Traditional
-Chinese and Simplified Chinese use the existing localization and settings
+Chinese, Simplified Chinese, German, Japanese and Korean use the existing localization and settings
 layout. An unread badge is cleared when About is opened; no startup popup, toast
 or forced update is used.
 

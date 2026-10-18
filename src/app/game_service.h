@@ -59,7 +59,7 @@ inline int SearchThumbnailArtworkPriority(const Cover& cover) {
     if(!cover.isOfficial&&cover.provider==L"steamgriddb"&&cover.shape==L"portrait")return 3;
     return 4;
 }
-inline constexpr int UnavailableActivityArtwork = 5;
+inline constexpr int UnavailableActivityArtwork = 8;
 // Source availability and manual choices are independent of the UI locale.
 // Only the automatic default skips Nintendo Taiwan outside Traditional Chinese.
 inline bool AutomaticArtworkLocaleAllowed(std::wstring_view provider, std::wstring_view locale) {
@@ -67,6 +67,17 @@ inline bool AutomaticArtworkLocaleAllowed(std::wstring_view provider, std::wstri
 }
 inline int ActivityArtworkPriority(const Cover& cover, std::wstring_view locale) {
     if(!AutomaticArtworkLocaleAllowed(cover.provider,locale))return UnavailableActivityArtwork;
+    if(locale==L"ja-JP"||locale==L"ko-KR"){
+        // A filename, author or unknown label cannot prove the printed cover
+        // language. Keep those candidates available for manual selection.
+        if(!cover.languageVerified)return UnavailableActivityArtwork;
+        const int tier=cover.language==locale?0:
+            (cover.language==L"en-US"||cover.language==L"zxx")?3:UnavailableActivityArtwork;
+        if(tier==UnavailableActivityArtwork)return tier;
+        const int shape=cover.shape==L"square"?0:cover.shape==L"landscape"?1:
+            cover.shape==L"portrait"?2:UnavailableActivityArtwork;
+        return shape==UnavailableActivityArtwork?shape:tier+shape;
+    }
     if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&cover.shape==L"square")return 0;
     if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&cover.shape==L"landscape")return 1;
     if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&cover.shape==L"portrait")return 2;

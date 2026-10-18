@@ -43,7 +43,7 @@ class OfficialSeedArtworkProvider final : public ArtworkProvider {
                 if(!game.id||game.name.empty()||entries.contains(game.id))continue;
                 if(object.HasKey(L"displayNames")&&object.GetNamedValue(L"displayNames").ValueType()==JsonValueType::Object){
                     const auto names=object.GetNamedObject(L"displayNames");
-                    for(const auto* locale:{L"zh-TW",L"zh-CN",L"en-US",L"de-DE"}){const auto name=Text(names,locale);if(!name.empty())entry.names[locale]=name;}
+                    for(const auto* locale:{L"zh-TW",L"zh-CN",L"en-US",L"de-DE",L"ko-KR",L"ja-JP"}){const auto name=Text(names,locale);if(!name.empty())entry.names[locale]=name;}
                 }
                 if(object.HasKey(L"searchTerms")&&object.GetNamedValue(L"searchTerms").ValueType()==JsonValueType::Array){
                     const auto terms=object.GetNamedArray(L"searchTerms");
@@ -97,7 +97,9 @@ class OfficialSeedArtworkProvider final : public ArtworkProvider {
     }
     static Game Localized(const Entry& entry,std::wstring_view locale){
         auto game=entry.game;const auto name=entry.names.find(std::wstring(locale));
-        game.displayName=name!=entry.names.end()?name->second:game.name;game.displayNameSource=game.source;return game;
+        game.displayName=name!=entry.names.end()?name->second:game.name;
+        game.displayNameLanguage=name!=entry.names.end()?std::wstring(locale):L"en-US";
+        game.displayNameSource=game.source;return game;
     }
 public:
     std::optional<ArtworkCrop> Crop(std::wstring_view url) override{

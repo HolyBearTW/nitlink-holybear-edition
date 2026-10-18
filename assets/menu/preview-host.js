@@ -29,18 +29,24 @@
     return taiwan.length?taiwan:candidates.filter(cover=>cover.provider==='nintendo-hk-eshop');
   };
   const activityArtworkPriority=cover=>{
-    if(cover.provider==='nintendo-tw'&&state.locale!=='zh-TW')return 5;
+    if(cover.provider==='nintendo-tw'&&state.locale!=='zh-TW')return 8;
+    if(state.locale==='ja-JP'||state.locale==='ko-KR'){
+      if(cover.languageVerified!==true)return 8;
+      const tier=cover.language===state.locale?0:['en-US','zxx'].includes(cover.language)?3:8;
+      const shape=cover.shape==='square'?0:cover.shape==='landscape'?1:cover.shape==='portrait'?2:8;
+      return tier===8||shape===8?8:tier+shape;
+    }
     if(cover.isOfficial&&cover.provider!=='nintendo-hk-store'&&cover.shape==='square')return 0;
     if(cover.isOfficial&&cover.provider!=='nintendo-hk-store'&&cover.shape==='landscape')return 1;
     if(cover.isOfficial&&cover.provider!=='nintendo-hk-store'&&cover.shape==='portrait')return 2;
     if(cover.provider!=='nintendo-hk-store'&&cover.shape==='square')return 3;
     if(!cover.isOfficial&&cover.provider==='steamgriddb'&&cover.shape==='portrait')return 4;
-    return 5;
+    return 8;
   };
   const preferredSeed=id=>preferredSources(officialGames.get(id)?.artworkSources||[])
-    .filter(cover=>activityArtworkPriority(cover)<5).sort((a,b)=>activityArtworkPriority(a)-activityArtworkPriority(b))[0];
+    .filter(cover=>activityArtworkPriority(cover)<8).sort((a,b)=>activityArtworkPriority(a)-activityArtworkPriority(b))[0];
   state.holyBearUpdate={current:document.querySelector('meta[name="nitlink-version"]')?.content||'',status:'never',automatic:false};
-  if(!['zh-TW','zh-CN','en-US','de-DE'].includes(state.locale))state.locale=state.languagePreference='zh-TW';
+  if(!['zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP'].includes(state.locale))state.locale=state.languagePreference='zh-TW';
   window.NitLinkPreview={mode};
   // WebView2 serializes native messages; preview models must not share mutable
   // objects with the UI's loading-state bookkeeping either.
@@ -59,7 +65,7 @@
   const localizedGameName=record=>{
     if(record.customName)return record.customName;
     const display=record.displayNames?.[state.locale]||record.name;
-    return ['en-US','de-DE'].includes(state.locale)&&/[\u3400-\u9fff\uf900-\ufaff]/.test(display)?record.name:display;
+    return (state.locale==='en-US'||(state.locale==='de-DE'&&/[\u3400-\u9fff\uf900-\ufaff]/.test(display)))?record.name:display;
   };
   const saveRecord=async key=>{
     if(location.protocol==='http:'){const reply=await api('library',{mode,action:'upsert',key,record:JSON.stringify(records[key])});if(reply.status!=='ok')emit({gameNotice:'saveFailed'});}
@@ -131,7 +137,7 @@
   const searchThumbnail=async(game,token)=>{
     let chosen,image='',failed=false;
     const tryCandidates=async candidates=>{
-      for(const cover of candidates.slice(0,3)){
+      for(const cover of candidates.filter(cover=>activityArtworkPriority(cover)<8).slice(0,3)){
         if(token!==generation)return;
         const reply=await api('image',{url:cover.thumb||cover.url});
         if(token!==generation)return;
@@ -180,7 +186,8 @@
       if(mode==='real'){
         const reply=await api('search',{query:value.query});if(token!==generation)return;
         (reply.games||[]).forEach(game=>{
-          if(['en-US','de-DE'].includes(locale)&&(/[\u3400-\u9fff\uf900-\ufaff]/.test(game.displayName||'')||String(game.displayNameLanguage||'').startsWith('zh')))game.displayName=game.name;
+          if(locale==='en-US')game.displayName=game.name;
+          if(['de-DE','ko-KR','ja-JP'].includes(locale)&&!String(game.displayNameLanguage||'').toLowerCase().startsWith(locale.slice(0,2).toLowerCase()))game.displayName=game.name;
           game.imageStatus='loading';game.thumbnailRequest=value.request;game.thumbnailLocale=locale;games.set(game.id,game);
         });emit({gameEvent:{...reply,kind:'search',request:value.request,locale}});
         // Enrich every result with bounded concurrency. Known official images do
@@ -188,7 +195,7 @@
         const queue=[...(reply.games||[])].sort((a,b)=>Number(!!b.artworkSources?.length)-Number(!!a.artworkSources?.length));
         let index=0;await Promise.all(Array.from({length:2},async()=>{while(token===generation&&index<queue.length)await searchThumbnail(queue[index++],token);}));return;
       }
-      later(()=>{const q=String(value.query).trim().toLowerCase();const numeric=/^\d+$/.test(q)||/^https:\/\/store\.steampowered\.com\/app\/\d+/.test(q);let rows=fixtures.filter(game=>numeric||[...Object.values(game.titles),game.name,game.slug].some(name=>name.toLowerCase().includes(q)));if(['empty','upstreamUnavailable','timeout'].includes(scenario))rows=[];rows.forEach(game=>games.set(game.id,game));const status=scenario==='imageFailure'?(rows.length?'ok':'empty'):scenario!=='ok'?scenario:rows.length?'ok':'empty';emit({gameEvent:{kind:'search',request:value.request,locale,status,dataMode:'fixture',queriedTerms:[value.query],suggestions:[],games:rows.map(game=>({...game,image:game.covers.square[0]?art(game.covers.square[0]):'',displayName:game.titles[state.locale],source:'fixture',dataMode:'fixture'}))}});},token);return;
+      later(()=>{const q=String(value.query).trim().toLowerCase();const numeric=/^\d+$/.test(q)||/^https:\/\/store\.steampowered\.com\/app\/\d+/.test(q);let rows=fixtures.filter(game=>numeric||[...Object.values(game.titles),game.name,game.slug].some(name=>name.toLowerCase().includes(q)));if(['empty','upstreamUnavailable','timeout'].includes(scenario))rows=[];rows.forEach(game=>games.set(game.id,game));const status=scenario==='imageFailure'?(rows.length?'ok':'empty'):scenario!=='ok'?scenario:rows.length?'ok':'empty';emit({gameEvent:{kind:'search',request:value.request,locale,status,dataMode:'fixture',queriedTerms:[value.query],suggestions:[],games:rows.map(game=>({...game,image:game.covers.square[0]?art(game.covers.square[0]):'',displayName:game.titles[state.locale]||game.name,source:'fixture',dataMode:'fixture'}))}});},token);return;
     }
     if(action==='setGame'){
       initialSearchAllowed=false;
@@ -221,7 +228,7 @@
         }
         return;
       }
-      const cover=batch.candidates.find(cover=>cover.id===value.coverId&&cover.image&&cover.imageStatus==='ok'&&activityArtworkPriority(cover)<5);
+      const cover=batch.candidates.find(cover=>cover.id===value.coverId&&cover.image&&cover.imageStatus==='ok'&&activityArtworkPriority(cover)<8);
       if(!cover)return;
       selectArtwork(record,cover);record.image=cover.image;record.sourceImage=cover.image;
       push();await saveRecord(record.key);return;

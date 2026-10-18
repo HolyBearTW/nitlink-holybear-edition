@@ -28,30 +28,39 @@ inline uint32_t DynamicId(std::string_view id) {
 }
 inline std::string GameKey(uint32_t id) { return "sgdb-" + std::to_string(id); }
 inline bool IsLocale(std::wstring_view locale) {
-    return locale == L"zh-TW" || locale == L"zh-CN" || locale == L"en-US" || locale == L"de-DE";
+    return locale == L"zh-TW" || locale == L"zh-CN" || locale == L"en-US" || locale == L"de-DE" ||
+        locale == L"ko-KR" || locale == L"ja-JP";
 }
 inline bool IsCoverLanguage(std::wstring_view language) {
-    return IsLocale(language) || language == L"ja-JP" || language == L"zxx";
+    return IsLocale(language) || language == L"zxx";
 }
 inline std::wstring LocalizedGameName(std::wstring_view original, std::wstring_view display,
     std::wstring_view locale, std::wstring_view language = {}) {
-    const auto hasHan=[](std::wstring_view text){return std::any_of(text.begin(),text.end(),[](wchar_t c){
-        return (c>=0x3400&&c<=0x9fff)||(c>=0xf900&&c<=0xfaff);
-    });};
-    // SGDB's original name is the English fallback. A Chinese fallback from
-    // upstream must never be stored as an English or German localized title.
-    if((locale==L"en-US"||locale==L"de-DE")&&(language.starts_with(L"zh")||hasHan(display)))return std::wstring(original);
-    if(locale==L"zh-CN"&&!display.empty()&&display.size()<=1024){
-        // Repair older cached Traditional-Chinese fallbacks by script
-        // conversion, not per-game aliases or an invented translation.
-        const auto length=static_cast<int>(display.size());
-        const int count=LCMapStringEx(L"zh-CN",LCMAP_SIMPLIFIED_CHINESE,display.data(),length,nullptr,0,nullptr,nullptr,0);
-        if(count>0){std::wstring simplified(count,L'\0');
-            if(LCMapStringEx(L"zh-CN",LCMAP_SIMPLIFIED_CHINESE,display.data(),length,simplified.data(),count,nullptr,nullptr,0)==count)return simplified;
-        }
-        return std::wstring(original);
+    // Worker displayName is not necessarily in the requested language. For
+    // non-Chinese locales use it only when provenance confirms that locale;
+    // the canonical SGDB name is the English fallback.
+    const auto matches=[&](std::wstring_view prefix){
+        return language==prefix || (language.size()>prefix.size() && language.starts_with(prefix) &&
+            (language[prefix.size()]==L'-' || language[prefix.size()]==L'_'));
+    };
+    if(locale==L"en-US")return std::wstring(!display.empty()&&matches(L"en")?display:original);
+    if(locale==L"de-DE"||locale==L"ko-KR"||locale==L"ja-JP"){
+        const auto code=locale==L"de-DE"?L"de":locale==L"ko-KR"?L"ko":L"ja";
+        return std::wstring(!display.empty()&&matches(code)?display:original);
     }
-    return std::wstring(display.empty()?original:display);
+    if((locale==L"zh-CN"||locale==L"zh-TW")&&!display.empty()&&display.size()<=1024&&matches(L"zh")){
+        // Convert only a verified Chinese title, never Japanese kanji or an
+        // unlabelled fallback from the Worker. The saved-library map supplies
+        // its locale as provenance separately below.
+        const auto length=static_cast<int>(display.size());
+        const auto flags=locale==L"zh-CN"?LCMAP_SIMPLIFIED_CHINESE:LCMAP_TRADITIONAL_CHINESE;
+        const auto* winLocale=locale==L"zh-CN"?L"zh-CN":L"zh-TW";
+        const int count=LCMapStringEx(winLocale,flags,display.data(),length,nullptr,0,nullptr,nullptr,0);
+        if(count>0){std::wstring converted(count,L'\0');
+            if(LCMapStringEx(winLocale,flags,display.data(),length,converted.data(),count,nullptr,nullptr,0)==count)return converted;
+        }
+    }
+    return std::wstring(original);
 }
 inline bool ValidText(std::wstring_view text, size_t max = 256) {
     if (text.size() > max) return false;
@@ -191,7 +200,11 @@ struct SavedGame : ArtworkMetadata {
     std::wstring DisplayName(std::wstring_view locale) const {
         if (!customName.empty()) return customName;
         const auto it = displayNames.find(std::wstring(locale));
-        return LocalizedGameName(name,it!=displayNames.end()?std::wstring_view(it->second):std::wstring_view{},locale);
+        if(it==displayNames.end())return name;
+        if((locale==L"en-US"||locale==L"de-DE")&&std::any_of(it->second.begin(),it->second.end(),[](wchar_t c){
+            return (c>=0x3400&&c<=0x9fff)||(c>=0xf900&&c<=0xfaff);
+        }))return name;
+        return LocalizedGameName(name,it->second,locale,locale);
     }
 };
 inline bool ValidSavedGame(std::string_view key, const SavedGame& game) {
@@ -199,7 +212,7 @@ inline bool ValidSavedGame(std::string_view key, const SavedGame& game) {
         std::all_of(key.begin(),key.end(),[](char c){return (c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='_';});
     if ((!builtin && (!game.id || DynamicId(key) != game.id)) || game.name.empty() || !ValidText(game.name) ||
         !ValidText(game.customName) || game.lastUsedUtc > 253402300799ull ||
-        game.displayNames.size() > 4 || (!game.coverUrl.empty() && !IsCoverUrl(game.coverUrl)) ||
+        game.displayNames.size() > 6 || (!game.coverUrl.empty() && !IsCoverUrl(game.coverUrl)) ||
         (!game.coverThumb.empty() && !IsCoverUrl(game.coverThumb))) return false;
     if(!game.coverShape.empty()&&game.coverShape!=L"square"&&game.coverShape!=L"portrait"&&game.coverShape!=L"landscape")return false;
     if(!ValidText(game.sourceLabel,128)||(!game.language.empty()&&!IsCoverLanguage(game.language))||

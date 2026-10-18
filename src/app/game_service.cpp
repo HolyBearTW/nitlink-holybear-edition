@@ -961,8 +961,13 @@ void GameService::Run(std::stop_token stop) {
                     auto image = base; image.reply = {}; image.operation = Operation::Image; image.gameId = game.id;
                     bool failed=false;
                     const auto tryCandidates=[&](const std::vector<Cover>& candidates){
-                        for(size_t i=0;i<std::min<size_t>(3,candidates.size())&&!cancelled();++i){
-                            auto cover=candidates[i];std::wstring actualShape;
+                        size_t attempted=0;
+                        for(const auto& candidate:candidates){
+                            if(cancelled())break;
+                            auto cover=candidate;std::wstring actualShape;
+                            if((request.locale==L"ja-JP"||request.locale==L"ko-KR")&&
+                               ActivityArtworkPriority(cover,request.locale)>=UnavailableActivityArtwork)continue;
+                            if(++attempted>3)break;
                             image.imageUri=LoadArtworkImage(cover.thumb.empty()?cover.url:cover.thumb,cancelled,&actualShape);
                             if(!image.imageUri.empty()){
                                 if(cover.shape.empty()&&!actualShape.empty())cover.shape=actualShape;

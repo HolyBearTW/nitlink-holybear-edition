@@ -14,6 +14,8 @@
         if (['zh-cn', 'zh-sg', 'zh-hans'].includes(tag) || tag.startsWith('zh-hans-')) return 'zh-CN';
         if (['zh-tw', 'zh-hant-tw'].includes(tag)) return 'zh-TW';
         if (tag === 'de' || tag.startsWith('de-')) return 'de-DE';
+        if (tag === 'ko' || tag.startsWith('ko-')) return 'ko-KR';
+        if (tag === 'ja' || tag.startsWith('ja-')) return 'ja-JP';
       }
       return 'en-US';
     };
@@ -22,7 +24,7 @@
       if (hasWebViewHost()) return 'system';
       try {
         const saved = window.localStorage.getItem(standaloneLanguageKey);
-        return ['system', 'en-US', 'zh-TW', 'zh-CN', 'de-DE'].includes(saved) ? saved : 'system';
+        return ['system', 'en-US', 'zh-TW', 'zh-CN', 'de-DE', 'ko-KR', 'ja-JP'].includes(saved) ? saved : 'system';
       } catch (_) {
         return 'system';
       }
@@ -87,7 +89,7 @@
       const h1 = document.querySelector('.topbar h1');
       if (h1 && titleKey) h1.textContent = t(titleKey);
       const language = document.getElementById('language-select');
-      if (language && language.value !== 'system' && language.value !== 'en-US' && language.value !== 'zh-TW' && language.value !== 'zh-CN' && language.value !== 'de-DE') {
+      if (language && !['system', 'en-US', 'zh-TW', 'zh-CN', 'de-DE', 'ko-KR', 'ja-JP'].includes(language.value)) {
         language.value = 'system';
       }
       renderHolyBearUpdate();
@@ -257,7 +259,8 @@
         HolyBearTW: 'assets/menu/contributors/holybear.png',
         CN115: 'assets/menu/contributors/cn115.jpg',
         n810K: 'assets/menu/contributors/n810k.png',
-        Noka123: null
+        Noka123: null,
+        i0rph: null
       };
       const title = document.getElementById('contributor-preview-title');
       const handle = document.getElementById('contributor-preview-handle');
@@ -1055,17 +1058,23 @@
       const gameCards = new Map(), coverCards = new Map(), coverGroupHeadings = new Map(), favoriteCards = new Map(), recentCards = new Map();
       let readyCoverBatch=0,appliedCoverBatch=0;
       const automaticCoverPriority=cover=>{
-        if(cover.provider==='nintendo-tw'&&current.locale!=='zh-TW')return 5;
-        if(cover.provider==='nintendo-hk-store')return 5;
-        if(cover.isOfficial)return cover.shape==='square'?0:cover.shape==='landscape'?1:cover.shape==='portrait'?2:5;
-        return cover.shape==='square'?3:cover.provider==='steamgriddb'&&cover.shape==='portrait'?4:5;
+        if(cover.provider==='nintendo-tw'&&current.locale!=='zh-TW')return 8;
+        if(cover.provider==='nintendo-hk-store')return 8;
+        if(current.locale==='ja-JP'||current.locale==='ko-KR'){
+          if(cover.languageVerified!==true)return 8;
+          const tier=cover.language===current.locale?0:['en-US','zxx'].includes(cover.language)?3:8;
+          const shape=cover.shape==='square'?0:cover.shape==='landscape'?1:cover.shape==='portrait'?2:8;
+          return tier===8||shape===8?8:tier+shape;
+        }
+        if(cover.isOfficial)return cover.shape==='square'?0:cover.shape==='landscape'?1:cover.shape==='portrait'?2:8;
+        return cover.shape==='square'?3:cover.provider==='steamgriddb'&&cover.shape==='portrait'?4:8;
       };
       const applyAutomaticCoverWhenReady=()=>{
         if(!current.id||current.manualCover||current.finalImageKey||readyCoverBatch!==coverRequest||
            appliedCoverBatch===coverRequest||shape!=='all'||coverProvider!=='all'||coverPage!==0)return;
         if([...coverCards.values()].some(entry=>entry.art.dataset.imageState==='loading'))return;
         appliedCoverBatch=coverRequest;
-        const chosen=covers.filter(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='ok'&&automaticCoverPriority(cover)<5)
+        const chosen=covers.filter(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='ok'&&automaticCoverPriority(cover)<8)
           .sort((a,b)=>automaticCoverPriority(a)-automaticCoverPriority(b))[0];
         post('applyAutoGameCover',{gameId:current.id,request:coverRequest,coverId:chosen?.id||0});
       };
@@ -1411,7 +1420,7 @@
       el('game-name-cancel').addEventListener('click',()=>{el('game-rename-editor').hidden=true;});
       const renderLibrary = () => {
         el('game-favorites-empty').hidden=library.favorites.length>0;el('game-recent-empty').hidden=library.recent.length>0;
-        const title = game => game.customName || game.displayNames?.[currentLocale] || game.displayName || game.name;
+        const title = game => game.customName || game.displayNames?.[currentLocale] || game.name;
         const reconcile = (container, entries, items, create, update) => {
           const keys=new Set(items.map(game=>game.key));
           for(const [key,entry] of entries)if(!keys.has(key)){

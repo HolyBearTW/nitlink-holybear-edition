@@ -108,4 +108,20 @@ class ArtworkPolicyTests(unittest.TestCase):
         entries=[value for group in expansions.get('groups',[]) for field in ('aliases','queries','suggestions') for value in group.get(field,[])]
         self.assertFalse(any('zelda' in value.casefold() or 'hyrule' in value.casefold() for value in entries))
 
+    def test_korean_japanese_titles_require_matching_provenance(self):
+        original='The Legend of Zelda'
+        self.assertEqual(bridge.localized_game_name(original,'ゼルダの伝説','ja-JP','ja'), 'ゼルダの伝説')
+        self.assertEqual(bridge.localized_game_name(original,'젤다의 전설','ko-KR','ko-KR'), '젤다의 전설')
+        for locale in ('ja-JP','ko-KR'):
+            with self.subTest(locale=locale):
+                self.assertEqual(bridge.localized_game_name(original,'薩爾達傳說',locale,'zh-hant'),original)
+                self.assertEqual(bridge.localized_game_name(original,'薩爾達傳說',locale,''),original)
+                self.assertEqual(bridge.localized_game_name(original,'The Legend of Zelda',locale,'en'),original)
+        response={'status':'ok','data':[{'id':35744,'name':original,'displayName':'薩爾達傳說',
+                    'displayNameLanguage':'zh-hant','source':'wikidata'}], 'lookups':{},'resolvedQueries':[]}
+        with patch.object(bridge,'fetch_json',return_value=response):
+            for locale in ('ja-JP','ko-KR'):
+                result=bridge.search('test title',locale,'other')
+                self.assertEqual(result['games'][0]['displayName'],original)
+
 if __name__=='__main__':unittest.main(verbosity=2)

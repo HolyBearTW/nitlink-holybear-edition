@@ -1225,14 +1225,27 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         }
         if (action == L"setLanguage" && m_config) {
             const std::wstring requested = message->text;
-            if (requested == L"system" || requested == L"en-US" || requested == L"zh-TW" || requested == L"zh-CN" || requested == L"de-DE") {
+            if (requested == L"system" || requested == L"en-US" || requested == L"zh-TW" || requested == L"zh-CN" || requested == L"de-DE" || requested == L"ko-KR" || requested == L"ja-JP") {
                 m_config->language = requested == L"en-US" ? "en-US"
                     : requested == L"zh-TW" ? "zh-TW"
                     : requested == L"zh-CN" ? "zh-CN"
-                    : requested == L"de-DE" ? "de-DE" : "system";
+                    : requested == L"de-DE" ? "de-DE"
+                    : requested == L"ko-KR" ? "ko-KR"
+                    : requested == L"ja-JP" ? "ja-JP" : "system";
                 Localization::Instance().SetPreference(m_config->language);
+                const auto effectiveLocale=Localization::Instance().LocaleName();
+                for(auto& [key,game]:m_config->onlineGames){
+                    if(game.manualCover||!game.finalImageKey.empty()||!game.coverId)continue;
+                    const bool taiwanMismatch=game.provider==L"nintendo-tw"&&effectiveLocale!=L"zh-TW";
+                    const bool strictLanguage=(effectiveLocale==L"ja-JP"||effectiveLocale==L"ko-KR")&&
+                        game.language!=effectiveLocale&&game.language!=L"en-US"&&game.language!=L"zxx";
+                    if(!taiwanMismatch&&!strictLanguage)continue;
+                    Games::SelectArtwork(game,Games::Cover{});
+                    m_libraryImages.erase(key);m_librarySourceImages.erase(key);
+                    if(key==m_config->currentGameId){m_currentGameImage.clear();m_currentGameSourceImage.clear();}
+                }
                 // Search results belong to their effective locale. Do not
-                // relabel a previous zh-TW result as en-US/zh-CN/de-DE on save.
+                // relabel a previous zh-TW result as another locale on save.
                 m_searchGames.clear();m_searchDefaultCovers.clear();
                 m_readyAutoCover.reset();m_coverRequest=0;
                 if (m_overlay && !m_overlay->RefreshTextFormats()) {

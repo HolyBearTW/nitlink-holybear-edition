@@ -65,6 +65,8 @@ int main() {
           !IsNintendoArtworkUrl(L"https://www.nintendo.com/tw/%2e%2e/cover.png"),"official artwork authority and path boundary");
     Check(IsLocale(L"de-DE") && IsCoverLanguage(L"de-DE") && !IsLocale(L"fr-FR"),
           "German search, cover, and saved-title locale is accepted");
+    Check(IsLocale(L"ko-KR")&&IsLocale(L"ja-JP")&&IsCoverLanguage(L"ko-KR")&&IsCoverLanguage(L"ja-JP"),
+          "Korean and Japanese search, cover and saved-title locales are accepted");
     Check(LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"en-US",L"zh-hant")==L"The Legend of Zelda"&&
           LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"de-DE",L"zh-hant")==L"The Legend of Zelda",
           "English and German never use an upstream Traditional-Chinese fallback");
@@ -72,10 +74,23 @@ int main() {
           LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"zh-CN",L"zh-hant")==L"萨尔达传说"&&
           LocalizedGameName(L"Zelda",L"薩爾達 🎮",L"zh-CN",L"zh-hant")==L"萨尔达 🎮",
           "Simplified-Chinese API titles survive and legacy Traditional text is converted generically");
-    Check(LocalizedGameName(L"The Legend of Zelda",L"Die Legende von Zelda",L"de-DE",L"de")==L"Die Legende von Zelda"&&
-          LocalizedGameName(L"Zelda",L"The Legend of Zelda",L"en-US",L"en")==L"The Legend of Zelda"&&
-          LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"zh-TW",L"zh-hant")==L"薩爾達傳說",
-          "verified German and Traditional-Chinese titles retain their locale");
+    Check(LocalizedGameName(L"The Legend of Zelda",L"塞尔达传说",L"zh-TW",L"zh-hans")==L"塞爾達傳說"&&
+          LocalizedGameName(L"The Legend of Zelda",L"ゼルダの伝説",L"zh-TW",L"ja")==L"The Legend of Zelda"&&
+          LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"zh-CN")==L"The Legend of Zelda",
+          "Chinese locales convert verified script and reject unrelated or unlabelled titles");
+    Check(LocalizedGameName(L"The Legend of Zelda",L"Die Legende von Zelda",L"de-DE",L"de")==L"Die Legende von Zelda",
+          "verified German title retains its locale");
+    Check(LocalizedGameName(L"Zelda",L"The Legend of Zelda",L"en-US",L"en")==L"The Legend of Zelda",
+          "verified English title retains its locale");
+    Check(LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"zh-TW",L"zh-hant")==L"薩爾達傳說",
+          "verified Traditional-Chinese title retains its locale");
+    Check(LocalizedGameName(L"The Legend of Zelda",L"ゼルダの伝説",L"ja-JP",L"ja")==L"ゼルダの伝説"&&
+          LocalizedGameName(L"The Legend of Zelda",L"젤다의 전설",L"ko-KR",L"ko-KR")==L"젤다의 전설"&&
+          LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"ja-JP",L"zh-hant")==L"The Legend of Zelda"&&
+          LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"ko-KR",L"zh-hant")==L"The Legend of Zelda"&&
+          LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"ja-JP")==L"The Legend of Zelda"&&
+          LocalizedGameName(L"The Legend of Zelda",L"젤다의 전설",L"ja-JP",L"ko")==L"The Legend of Zelda",
+          "Japanese and Korean require matching title provenance and otherwise use English");
     SavedGame oldNames;oldNames.name=L"The Legend of Zelda";
     oldNames.displayNames={{L"en-US",L"薩爾達傳說"},{L"de-DE",L"薩爾達傳說"},{L"zh-CN",L"薩爾達傳說"}};
     Check(oldNames.DisplayName(L"en-US")==oldNames.name&&oldNames.DisplayName(L"de-DE")==oldNames.name&&
@@ -112,6 +127,17 @@ int main() {
     Check(AutomaticActivityArtwork(automatic,noOfficial,true,L"zh-TW")==&noOfficial[0]&&
           !AutomaticActivityArtwork(automatic,{},true,L"zh-TW"),
           "square is the fallback when no official image loaded; all failures select nothing");
+    auto japanese=communitySquare;japanese.language=L"ja-JP";japanese.languageVerified=true;
+    auto korean=communitySquare;korean.language=L"ko-KR";korean.languageVerified=true;
+    auto english=communitySquare;english.language=L"en-US";english.languageVerified=true;
+    auto unknown=communitySquare;unknown.language.clear();unknown.languageVerified=false;
+    Check(PreferredActivityArtwork({japanese,english},L"ja-JP")!=nullptr&&
+          PreferredActivityArtwork({korean,english},L"ko-KR")!=nullptr&&
+          ActivityArtworkPriority(japanese,L"ja-JP")<ActivityArtworkPriority(english,L"ja-JP")&&
+          ActivityArtworkPriority(korean,L"ko-KR")<ActivityArtworkPriority(english,L"ko-KR")&&
+          !PreferredActivityArtwork({unknown,taiwanLandscape},L"ja-JP")&&
+          !PreferredActivityArtwork({unknown,taiwanLandscape},L"ko-KR"),
+          "Japanese and Korean auto artwork requires verified matching language, then English fallback");
     for(const auto* locale:{L"en-US",L"zh-CN",L"de-DE"}){
         Check(!AutomaticActivityArtwork(automatic,loaded,false,locale)&&
               AutomaticActivityArtwork(automatic,loaded,true,locale)==&loaded[1],
@@ -154,8 +180,9 @@ int main() {
     Check(ValidSavedGame("sgdb-35744",storeGame),"store provenance survives native config validation");
     SavedGame localizedGame;localizedGame.id=35744;localizedGame.name=L"Breath of the Wild";
     localizedGame.displayNames={{L"en-US",L"Breath of the Wild"},{L"zh-TW",L"曠野之息"},
-        {L"zh-CN",L"旷野之息"},{L"de-DE",L"Breath of the Wild"}};
-    Check(ValidSavedGame("sgdb-35744",localizedGame),"saved games retain all four display locales");
+        {L"zh-CN",L"旷野之息"},{L"de-DE",L"Breath of the Wild"},
+        {L"ja-JP",L"ゼルダの伝説 ブレス オブ ザ ワイルド"},{L"ko-KR",L"젤다의 전설 브레스 오브 더 와일드"}};
+    Check(ValidSavedGame("sgdb-35744",localizedGame),"saved games retain all six display locales");
     storeGame.provider=L"nintendo-tw";storeGame.region=L"TW";storeGame.sourceLabel=L"Official Nintendo Taiwan";
     Check(!ValidSavedGame("sgdb-35744",storeGame),"store image cannot impersonate Taiwan provenance");
     Check(ParseSettingsMessage(LR"({"action":"getGameCovers","value":{"gameId":35744,"shape":"all","page":1,"request":9,"provider":"nintendo","officialQuery":""}})").has_value(),"generic official catalogue browse schema");

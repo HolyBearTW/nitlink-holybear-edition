@@ -4,6 +4,8 @@ Not an official nitlink-dev release.
 
 Extract the complete ZIP into a writable folder, then run NitLink.exe.
 Keep its HTML, assets, locales and third_party directories together.
+Extract before launching; running inside an archive can discard settings
+with its temporary folder when the archive program closes.
 No personal nitlink.json or capture-device preset is included. Settings are
 created on first launch in the working directory; launching from Explorer
 uses the application's folder. No separate development checkout is required.
@@ -84,6 +86,18 @@ alternatives. BUILD.txt identifies checks actually run.
 
 Present FPS is successful DXGI submissions, not game FPS or scan-out rate.
 Content FPS is an estimate. Actual capture rate and monitor refresh are separate.
+
+The window title bar reserves its own area above the game. Its gear opens
+F1; its HUD icon cycles Standard, Detailed and Compact, or restores the
+stored mode when the HUD is hidden. Fullscreen and PiP hide the title bar.
+Supported Windows 11 systems use the desktop Acrylic background; older
+systems use a solid dark title bar.
+
+Video > Panel > Panel background selects Blur glass (default) or Classic
+transparency. Glass blurs the game behind F1 and changes only background
+opacity; classic keeps the existing whole-panel transparency. Each mode
+remembers its own opacity. BUILD.txt records that this acceptance revision
+was compiled without CTest or regression tests; visual review is pending.
 
 BUILD.txt records the exact build commit/tag and integration sources.
 SHA256SUMS.txt records package file hashes; the separate release checksum file

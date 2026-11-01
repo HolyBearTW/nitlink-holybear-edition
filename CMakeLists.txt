@@ -261,6 +261,8 @@ if(BUILD_TESTING)
     find_program(HOLYBEAR_PWSH NAMES pwsh REQUIRED)
     add_test(NAME holybear_release_notes
         COMMAND ${HOLYBEAR_PWSH} -NoProfile -File ${CMAKE_SOURCE_DIR}/scripts/test-holybear-release-notes.ps1)
+    add_test(NAME package_account_privacy
+        COMMAND ${HOLYBEAR_PWSH} -NoProfile -File ${CMAKE_SOURCE_DIR}/scripts/test-package-privacy.ps1)
     add_executable(NitLinkXboxAuthCallbackTests tests/xbox_auth_callback_tests.cpp src/app/xbox_auth_callback.cpp)
     target_include_directories(NitLinkXboxAuthCallbackTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(NitLinkXboxAuthCallbackTests PRIVATE ws2_32 windowsapp)
@@ -677,5 +679,6 @@ if(BUILD_TESTING)
     set_property(TEST
         holybear_release_notes
         holybear_tag_security
+        package_account_privacy
         APPEND PROPERTY LABELS release)
 endif()

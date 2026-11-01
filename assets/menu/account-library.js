@@ -274,13 +274,18 @@ window.NitLinkGameTitles = (() => {
         .map(game=>({...game,id:0,accountKey:game.key,source:game.provider+'-account',titleLocale:locale,imageStatus:game.image?'ok':game.artworks?.length?'loading':'missing',coverShape:'square',coverIsOfficial:true}));
     },
     updateCurrent(value) { const changed=current.key!==value.key;if(changed){linkTarget='';lookupPending=!value.id&&/^(nintendo|playstation|xbox)-/.test(value.key);}current = value;render(); },
-    lookupCurrent() { if(!lookupPending||current.id)return false;lookupPending=false;if(model.games.find(game=>game.key===current.key)?.artworks.length)return false;findCovers(false);return true; },
+    lookupCurrent(community=false) {
+      if(current.id||!/^(nintendo|playstation|xbox)-/.test(current.key||'')||(!lookupPending&&!community))return false;
+      lookupPending=false;
+      if(!community&&model.games.find(game=>game.key===current.key)?.artworks.length)return false;
+      findCovers(false);return true;
+    },
     searchResults(games) {
       if(!linkTarget)return;
       if(games.length&&games.every(game=>game.accountKey)){linkTarget='';render();document.dispatchEvent(new Event('accountcoverschanged'));return;}
-      const normalize=value=>String(value||'').normalize('NFKC').replace(/[\s\p{P}\p{S}_]+/gu,'').toLocaleLowerCase(locale);
+      const normalize=value=>titles.key(titles.coverQuery(value));
       const target=normalize(current.name),matches=games.filter(game=>[game.name,game.displayName,...Object.values(game.titles||{}),...(game.artworkSources||[]).map(source=>source.productTitle)].some(name=>normalize(name)===target));
-      if(matches.length===1||games.length===1)this.linkSearchResult((matches[0]||games[0]).id);
+      if(matches.length===1)this.linkSearchResult(matches[0].id);
       else document.dispatchEvent(new Event('accountcoverschanged'));
     },
     linkSearchResult(gameId) { if(!linkTarget||!gameId)return false;post('linkAccountGame',{key:linkTarget,gameId});linkTarget='';render();return true; }

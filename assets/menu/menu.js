@@ -1386,7 +1386,8 @@
         const storeLabel=officialProvider==='nintendo-tw'?'game.nintendoTaiwan':officialProvider==='playstation-tw'?'game.playstationTaiwan':['nintendo-hk-store','nintendo-hk-eshop'].includes(officialProvider)?'game.hkStore':'game.sourcesOfficial';
         el('game-store-status').textContent=t(storeLabel)+' · '+t('game.status.'+storeStatus);
       };
-      const loadCovers = () => {
+      const loadCovers = (resolveCommunity=false) => {
+        if(resolveCommunity&&coverProvider!=='nintendo'&&window.NitLinkAccountLibrary?.lookupCurrent(true))return;
         readyCoverBatch=0;appliedCoverBatch=0;
         if(searchStatus==='loading'&&!results.length)stopSearch();
         else {clearTimeout(debounce);clearTimeout(searchTimer);}
@@ -1450,11 +1451,11 @@
       ['square', 'portrait', 'landscape', 'all'].forEach(value => el(`game-shape-${value}`).addEventListener('click', () => {
         shape = value; coverPage = 0; renderGameUI(); loadCovers();
       }));
-      el('game-cover-retry').addEventListener('click', () => { coverPage=0;loadCovers(); });
+      el('game-cover-retry').addEventListener('click', () => { coverPage=0;loadCovers(true); });
       document.addEventListener('accountcoverschanged',()=>{if(current.key){coverPage=0;loadCovers();}});
       el('game-cover-prev').addEventListener('click',()=>{if(coverPage){--coverPage;loadCovers();}});
       el('game-cover-next').addEventListener('click',()=>{if(coverHasMore){++coverPage;loadCovers();}});
-      document.querySelectorAll('[data-cover-provider]').forEach(button=>button.addEventListener('click',()=>{coverProvider=button.dataset.coverProvider;shape='all';coverPage=0;renderGameUI();loadCovers();}));
+      document.querySelectorAll('[data-cover-provider]').forEach(button=>button.addEventListener('click',()=>{coverProvider=button.dataset.coverProvider;shape='all';coverPage=0;renderGameUI();loadCovers(true);}));
       el('game-official-search').addEventListener('click',()=>{coverProvider='nintendo';shape='all';coverPage=0;renderGameUI();loadCovers();});
       el('game-official-query').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();el('game-official-search').click();}});
       const beginRename = game => {
@@ -1566,7 +1567,7 @@
         const platformChanged=!!current.artworkPlatform&&current.artworkPlatform!==state.artworkPlatform;
         const localeChanged=!!current.locale&&current.locale!==state.locale;
         const nameChanged=current.name!==state.name||current.displayName!==state.displayName;
-        if(changed||platformChanged){if(platformChanged||!results.some(game=>game.id===state.id))stopSearch();stopCovers();covers=[];renderCovers();shape='all';coverProvider='nintendo';officialStatus='idle';officialProvider='';const known=results.find(game=>game.id===state.id);const saved=library.games.find(game=>game.key===state.key);el('game-official-query').value=window.NitLinkGameTitles.base(window.NitLinkGameTitles.label({...state,customName:'',displayName:'',titleLocale:'',locale:''},'zh-TW',t('account.switch2Edition')))||state.officialQuery||saved?.displayNames?.['zh-TW']||known?.displayName||state.name||'';}
+        if(changed||platformChanged){if(platformChanged||!results.some(game=>game.id===state.id))stopSearch();stopCovers();covers=[];renderCovers();if(current.key!==state.key||platformChanged){shape='all';coverProvider='nintendo';}officialStatus='idle';officialProvider='';const known=results.find(game=>game.id===state.id);const saved=library.games.find(game=>game.key===state.key);el('game-official-query').value=window.NitLinkGameTitles.base(window.NitLinkGameTitles.label({...state,customName:'',displayName:'',titleLocale:'',locale:''},'zh-TW',t('account.switch2Edition')))||state.officialQuery||saved?.displayNames?.['zh-TW']||known?.displayName||state.name||'';}
         if(platformChanged){results=[];searchStatus='idle';covers=[];renderResults();}
         if (current.locale && current.locale !== state.locale) {
           stopCovers();

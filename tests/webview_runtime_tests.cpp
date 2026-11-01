@@ -401,6 +401,102 @@ void GameResultBridgeTest(WebViewSettings& host, ICoreWebView2* view,
     host.PostMessage(LR"({"state":{"panelSide":"Full","panelWidth":500}})");
 }
 
+void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
+    std::vector<std::wstring>& messages) {
+    Script(view, LR"JS(window.__communityFixtures = [
+        {key:'nintendo-BEE-0400000000000001',name:'Sonic Racing: CrossWorlds - Demo',provider:'nintendo',platform:'Switch 2',artworkPlatform:'switch',source:'community'},
+        {key:'playstation-PPSA12345_00',name:'ASTRO BOT',provider:'playstation',platform:'PS5',artworkPlatform:'playstation',source:'all'},
+        {key:'xbox-12345',name:'Forza Horizon 5',provider:'xbox',platform:'Xbox Series X|S',artworkPlatform:'other',source:'community'},
+        {key:'nintendo-HAC-0100000000000001',name:'The Legend of Zelda: Tears of the Kingdom - Nintendo Switch 2 Edition',provider:'nintendo',platform:'Switch',artworkPlatform:'switch',source:'community'}
+    ]; document.querySelector('[data-tab="pane-games"]').click())JS");
+    const wchar_t* queries[]={L"Sonic Racing: CrossWorlds",L"ASTRO BOT",L"Forza Horizon 5",L"The Legend of Zelda: Tears of the Kingdom"};
+    for(unsigned i=0;i<4;++i){
+        const auto before=messages.size();
+        const auto setup=std::wstring(LR"JS((()=>{
+            const game=__communityFixtures[)JS")+std::to_wstring(i)+LR"JS(];
+            game.artworks=[{url:'https://example.invalid/official.jpg',language:'en-US'}];
+            window.NitLinkAccountLibrary.update({accounts:[],games:[game]});
+            window._updateGameState({...game,id:0,displayName:game.name,locale:'zh-TW',coverId:0,manualCover:false,finalImageKey:'',dataMode:'real'});
+            document.querySelector('[data-cover-provider="'+game.source+'"]').click();
+        })())JS";
+        Script(view,setup.c_str());
+        uint32_t request=0;
+        Check(PumpUntil([&]{
+            for(size_t n=before;n<messages.size();++n){
+                const auto message=NitLink::ParseSettingsMessage(messages[n]);
+                if(message&&message->action==L"searchGames"&&message->text==queries[i]){request=message->request;return true;}
+            }return false;
+        }),"community/all requests resolve missing catalogue IDs even when official account artwork exists on Nintendo, PlayStation and Xbox");
+        NitLink::Games::Result search;search.operation=NitLink::Games::Operation::Search;
+        search.request=request;search.locale=L"zh-TW";search.reply.status=L"ok";
+        search.reply.games={{799900u,0,L"Unrelated World",L"不相關的遊戲",L"fixture"},
+            {800000u+i,0,queries[i],queries[i],L"fixture"}};
+        if(i==0){
+            const auto unrelatedStart=messages.size();
+            auto unrelated=search;unrelated.reply.games.resize(1);
+            host.PostMessage(NitLink::SerializeGameResult(unrelated));
+            Check(PumpUntil([&]{return Script(view,L"document.querySelectorAll('.game-result').length===1&&!document.getElementById('account-match-note').hidden")==L"true";}),
+                "a lone unrelated catalogue result stays available for manual review instead of being linked automatically");
+            for(size_t n=unrelatedStart;n<messages.size();++n){
+                const auto message=NitLink::ParseSettingsMessage(messages[n]);
+                Check(!message||message->action!=L"linkAccountGame","a shared title word never maps an unrelated game");
+            }
+        }
+        if(i==1){
+            const auto ambiguousStart=messages.size();
+            auto ambiguous=search;auto duplicate=search.reply.games.back();duplicate.id=799901;
+            ambiguous.reply.games.push_back(duplicate);host.PostMessage(NitLink::SerializeGameResult(ambiguous));
+            Check(PumpUntil([&]{return Script(view,L"document.querySelectorAll('.game-result').length===3&&!document.getElementById('account-match-note').hidden")==L"true";}),
+                "multiple matching editions require a user's selection");
+            for(size_t n=ambiguousStart;n<messages.size();++n){
+                const auto message=NitLink::ParseSettingsMessage(messages[n]);
+                Check(!message||message->action!=L"linkAccountGame","ambiguous catalogue matches are never chosen automatically");
+            }
+        }
+        auto linkStart=messages.size();host.PostMessage(NitLink::SerializeGameResult(search));
+        Check(PumpUntil([&]{
+            for(size_t n=linkStart;n<messages.size();++n){
+                const auto message=NitLink::ParseSettingsMessage(messages[n]);
+                if(message&&message->action==L"linkAccountGame"&&message->gameId==800000u+i)return true;
+            }return false;
+        }),"only the matching complete title is linked; demo and Switch 2 suffixes resolve to the original game");
+        if(i==0)Script(view,L"document.getElementById('game-shape-square').click()");
+        const auto mappedStart=messages.size();
+        const auto mapped=std::wstring(LR"JS((()=>{
+            const game=__communityFixtures[)JS")+std::to_wstring(i)+LR"JS(];
+            window._updateGameState({...game,id:)JS"+std::to_wstring(800000u+i)+LR"JS(,displayName:game.name,locale:'zh-TW',coverId:0,manualCover:false,finalImageKey:'',dataMode:'real'});
+            return document.querySelector('[data-cover-provider="'+game.source+'"]').getAttribute('aria-pressed')==='true'&&
+                document.getElementById('game-shape-'+(game===__communityFixtures[0]?'square':'all')).getAttribute('aria-pressed')==='true';
+        })())JS";
+        Check(Script(view,mapped.c_str())==L"true","mapping an account game retains the selected source and shape filter");
+        uint32_t galleryRequest=0;
+        Check(PumpUntil([&]{
+            for(size_t n=mappedStart;n<messages.size();++n){
+                const auto message=NitLink::ParseSettingsMessage(messages[n]);
+                if(message&&message->action==L"getGameCovers"&&message->gameId==800000u+i&&
+                    message->coverProvider==(i==1?L"all":L"community")){galleryRequest=message->request;return true;}
+            }return false;
+        }),"the resolved catalogue ID is immediately used for the requested community gallery");
+        auto gallery=search;gallery.operation=NitLink::Games::Operation::Covers;gallery.request=galleryRequest;
+        gallery.gameId=800000u+i;gallery.shape=i==0?L"square":L"all";gallery.reply.games.clear();
+        NitLink::Games::Cover cover;cover.id=810000u+i;cover.shape=L"square";gallery.reply.covers={cover};
+        host.PostMessage(NitLink::SerializeGameResult(gallery));
+        auto image=gallery;image.operation=NitLink::Games::Operation::Image;image.coverId=cover.id;
+        image.imageUri=L"assets/nitlink.svg";image.imageStatus=L"ok";
+        host.PostMessage(NitLink::SerializeGameResult(image));
+        Check(PumpUntil([&]{return Script(view,LR"JS((()=>{
+            const card=document.querySelector('#game-gallery .game-cover'),img=card?.querySelector('img');
+            return card&&!card.disabled&&img?.complete&&img.naturalWidth>0&&!document.getElementById('game-gallery').hidden;
+        })())JS")==L"true";}),"decoded community artwork becomes selectable in the real native WebView");
+    }
+    Script(view, LR"JS((()=>{
+        window._updateGameState({key:'',id:0,name:'',displayName:'',locale:'zh-TW',artworkPlatform:'unknown',dataMode:'real'});
+        window.NitLinkAccountLibrary.update({accounts:[],games:[]});
+        document.getElementById('game-query').value='';document.getElementById('game-query').dispatchEvent(new Event('input'));
+        delete window.__communityFixtures;document.querySelector('[data-tab="pane-video"]').click();
+    })())JS");
+}
+
 void ManualSourcePickerTest(WebViewSettings& host, HWND window, ICoreWebView2* view,
                             std::vector<std::wstring>& messages) {
     // Keep the controller visible inside the hidden fixture so WebView2 does
@@ -724,6 +820,7 @@ int main(int argc, char** argv) {
         wil::com_ptr<ICoreWebView2Settings> settings;
         Hr(view->get_Settings(&settings));
         GameResultBridgeTest(host, view, messages);
+        AccountCommunityLookupTest(host, view, messages);
         BOOL enabled = TRUE;
         Hr(settings->get_AreHostObjectsAllowed(&enabled)); Check(!enabled, "host objects disabled");
         Hr(settings->get_AreDevToolsEnabled(&enabled)); Check(!enabled, "developer tools disabled");

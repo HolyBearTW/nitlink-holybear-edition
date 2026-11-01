@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
     check(ParseVersion(L"v1.2.5-holybear") > ParseVersion(L"v1.2.4.2-holybear"), "patch exceeds revision");
     check(ParseVersion(L"v1.2.5.1-holybear") > ParseVersion(L"v1.2.5-holybear"), "1.2.5.1 update exceeds 1.2.5");
     check(ParseVersion(L"v1.2.5.2-holybear") > ParseVersion(L"v1.2.5.1-holybear"), "1.2.5.2 update exceeds 1.2.5.1");
+    check(ParseVersion(L"v1.2.5.3-holybear") > ParseVersion(L"v1.2.5.2-holybear"), "1.2.5.3 update exceeds 1.2.5.2");
     for (auto bad : {L"1.2.4", L"v0.1.2", L"v1.2.4-holybear-beta", L"v1.2-holybear", L"v1.02.4-holybear",
             L"v1.2.4.1.1-holybear", L"v65536.2.4-holybear", L"v1.2.4.-holybear", L"v1.2.4-holybear/evil"})
         check(!ParseVersion(bad), "invalid/other edition version");

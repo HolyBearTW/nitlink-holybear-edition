@@ -21,8 +21,8 @@ class ReleaseSigningTests(unittest.TestCase):
 
     def test_current_version_asset_names_include_the_fourth_component(self):
         self.assertEqual(signing.identity(self.current_tag()), [
-            "NitLink-1.2.5.2-HolyBear-Win64.zip",
-            "NitLink-1.2.5.2-HolyBear-Setup-x64.exe",
+            "NitLink-1.2.5.3-HolyBear-Win64.zip",
+            "NitLink-1.2.5.3-HolyBear-Setup-x64.exe",
             "SHA256SUMS.txt",
         ])
 

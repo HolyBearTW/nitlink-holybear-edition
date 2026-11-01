@@ -11,8 +11,8 @@
 #include <array>
 #include "game_service.h"
 
-// WebViewSettings: host a WebView2 control as a CHILD of the main window,
-// occupying the selected dock within the picture area below the title bar.
+// WebViewSettings: host a WebView2 control as a CHILD of the picture window,
+// occupying the selected dock within its client area below the title bar.
 // Glass and translucent settings keep the game rendering underneath.
 class WebViewSettings {
 public:
@@ -22,11 +22,10 @@ public:
     WebViewSettings(const WebViewSettings&) = delete;
     WebViewSettings& operator=(const WebViewSettings&) = delete;
 
-    // Initialize attaches WebView2 to `parent` (the main app HWND).
+    // Initialize attaches WebView2 to `parent` (the picture HWND).
     // Width/height are the initial parent client size; the controller
     // bounds track parent size automatically via Resize().
     bool Initialize(HWND parent, int width, int height);
-    void SetContentBoundsProvider(std::function<RECT()> provider) { m_contentBounds=std::move(provider);Resize(); }
 
     // Show/hide the overlay. Setting visible=true makes the WebView2 fill
     // the entire parent client area and become input-active. Setting
@@ -87,7 +86,6 @@ private:
     // this token prevents callbacks from an old initialization using this.
     std::shared_ptr<int> m_callbackLifetime;
     HWND m_parent  = nullptr;
-    std::function<RECT()> m_contentBounds;
     bool m_visible = false;
     void HideBrowserSurfaces();
     void ShowBrowserSurfaces();

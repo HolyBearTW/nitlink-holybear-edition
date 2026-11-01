@@ -1,13 +1,8 @@
 // WebViewSettings: child-window WebView2 overlay.
 //
-// Attaches to the main window's HWND directly. Show(true) puts WebView2
-// at full client-rect size and makes it visible; Show(false) hides it.
-// No popup, no tracking, no separate window class: the fullscreen-when-
-// open UX matches what console settings menus do.
-//
-// The application is responsible for skipping its render-loop EndFrame
-// while the menu is visible, otherwise the swap chain repaints over the
-// WebView2 child every frame. That's done in Application::Run.
+// Attaches to the picture HWND that owns the swap chain, so a transparent
+// panel composites over the game. Show(true) restores the selected dock;
+// Show(false) hides and collapses the browser control.
 
 #include "WebViewSettings.h"
 #include "webview_policy.h"
@@ -439,14 +434,15 @@ void WebViewSettings::HideBrowserSurfaces() {
 // the compositor and makes it recompose the window. A window covering its
 // monitor (fullscreen) never showed the leftover and is left alone.
 void WebViewSettings::RefreshComposition() {
+    const HWND owner=GetAncestor(m_parent,GA_ROOT);
     RECT rc{};
-    if (!GetWindowRect(m_parent, &rc)) return;
+    if (!GetWindowRect(owner, &rc)) return;
     MONITORINFO mi{sizeof(mi)};
-    HMONITOR monitor = MonitorFromWindow(m_parent, MONITOR_DEFAULTTONEAREST);
+    HMONITOR monitor = MonitorFromWindow(owner, MONITOR_DEFAULTTONEAREST);
     if (monitor && GetMonitorInfoW(monitor, &mi) && EqualRect(&rc, &mi.rcMonitor)) return;
     constexpr UINT flags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
-    SetWindowPos(m_parent, nullptr, rc.left + 1, rc.top, 0, 0, flags);
-    SetWindowPos(m_parent, nullptr, rc.left, rc.top, 0, 0, flags);
+    SetWindowPos(owner, nullptr, rc.left + 1, rc.top, 0, 0, flags);
+    SetWindowPos(owner, nullptr, rc.left, rc.top, 0, 0, flags);
 }
 
 void WebViewSettings::ShowBrowserSurfaces() {
@@ -464,7 +460,7 @@ void WebViewSettings::ShowBrowserSurfaces() {
 
 RECT WebViewSettings::ComputeBounds() const {
     RECT rc{};
-    if(m_contentBounds)rc=m_contentBounds();else GetClientRect(m_parent, &rc);
+    GetClientRect(m_parent, &rc);
     if (m_dock == Dock::Full) return rc;
     // The strip width follows the monitor scale so the requested width reads the same
     // on a 4K display at 150% as on a 1080p display at 100%.

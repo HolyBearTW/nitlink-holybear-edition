@@ -1183,8 +1183,9 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             ShowToast(Tr(retrying ? L"toast.settingsRetry" : reason.c_str()),
                       std::chrono::milliseconds(10000));
     });
-    m_webviewSettings->SetContentBoundsProvider([this](){return m_window->GetContentBounds();});
-    const bool settingsStarting = m_webviewSettings->Initialize(m_window->GetHWND(), actualW, actualH);
+    // WebView and swap chain share a picture HWND so transparent settings
+    // reveal the blurred picture, rather than the outer window's black fill.
+    const bool settingsStarting = m_webviewSettings->Initialize(m_window->GetRenderHWND(), actualW, actualH);
     ApplyPanelLayout();
     m_gameService = std::make_unique<Games::GameService>();
     m_accountService = std::make_unique<Accounts::AccountService>();
@@ -2548,8 +2549,6 @@ void Application::Run()
         if(m_settingsVisible&&m_webviewSettings&&m_webviewSettings->IsVisible()&&
             m_config->panelEffect=="blur"&&m_config->panelBlurOpacity<1.0f){
             panelGlass=m_webviewSettings->GetBounds();
-            const auto picture=m_window->GetContentBounds();
-            OffsetRect(&panelGlass,-picture.left,-picture.top);
         }
         m_renderer->SetPanelGlass(panelGlass);
         m_window->SetVideoAvailable(
@@ -3499,10 +3498,6 @@ void Application::ToggleSettings()
     m_shortcutInputContext=ShortcutInputContext::Normal;
     if(!m_settingsVisible)m_webviewSettings->PostMessage(L"{\"shortcutCaptureCancelled\":true}");
     if (m_webviewSettings) {
-        // The picture and WebView are sibling HWNDs. Keep the picture below
-        // the browser before showing F1, including its first activation.
-        if(m_settingsVisible)SetWindowPos(m_window->GetRenderHWND(),HWND_BOTTOM,0,0,0,0,
-            SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
         m_webviewSettings->Show(m_settingsVisible);
         // Push current state every time the menu opens so toggles reflect
         // the truth: important for things that can change outside the menu

@@ -337,6 +337,7 @@
     if(action==='cyclePanelSide'){layout({full:'right',right:'left',left:'full'}[state.panelSide]||'full');push();return;}
     if(action==='setManualHdmiSource'){const previous=artworkPlatform();state.manualHdmiSource=value;state.effectiveHdmiSource=value==='auto'?detectedSource:value==='other'?state.manualHdmiSourceCustom||detectedSource:sourceNames[value]||value;if(previous!==artworkPlatform()){cancel();games.clear();coversById.clear();}push();return;}
     if(action==='setManualHdmiSourceCustom'){const previous=artworkPlatform();state.manualHdmiSourceCustom=value;state.effectiveHdmiSource=value||detectedSource;if(previous!==artworkPlatform()){cancel();games.clear();coversById.clear();}push();return;}
+    if(action==='setPanelWidth'){state.panelWidth=value;layout(state.panelSide);push();return;}
     if(action==='setPreferredDevice'){state.activeDevice=value;push();return;}
     if(action==='setCaptureFormatOverride'){state.captureFormatOverride=value;push();return;}
     if(action==='javascriptException'){console.error('Preview bridge:',value);return;}
@@ -344,12 +345,12 @@
   };
   const layout=value=>{
     const side=String(value).toLowerCase();state.panelSide=side;document.documentElement.dataset.side=side;document.documentElement.style.background='#101319';
-    const width=side==='full'?'100%':`min(${420}px, 100vw)`;
+    const width=side==='full'?'100%':`min(${state.panelWidth||500}px, 100vw)`;
     document.body.style.width=width;document.body.style.marginLeft=side==='right'?'auto':'0';
     const app=document.querySelector('.app');app.style.width=width;app.style.left=side==='right'?'auto':'0';app.style.right=side==='left'?'auto':'0';
     for(const dialog of document.querySelectorAll('.game-cover-dialog')){
-      dialog.style.left=side==='right'?`max(0px, calc(100vw - ${420}px))`:'0px';
-      dialog.style.right=side==='left'?`max(0px, calc(100vw - ${420}px))`:'0px';
+      dialog.style.left=side==='right'?`max(0px, calc(100vw - ${state.panelWidth||500}px))`:'0px';
+      dialog.style.right=side==='left'?`max(0px, calc(100vw - ${state.panelWidth||500}px))`:'0px';
     }
     document.getElementById('game-preview-layout').value=side;
   };

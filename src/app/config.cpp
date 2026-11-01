@@ -492,7 +492,7 @@ bool Config::Load(const std::string& path)
         }
         if (key == "no_signal_dim_image") noSignalDimImage = ParseBool(val);
         if (key == "panel_side")     panelSide    = val.substr(0, 8);
-        if (key == "panel_width")    panelWidth   = ParseI32(val, panelWidth, 320, 1200);
+        if (key == "panel_width")    panelWidth   = ParseI32(val, panelWidth, 500, 1200);
         if (key == "enable_shaders")  enableShaders = ParseBool(val);
         if (key == "show_overlay")    showOverlay   = ParseBool(val);
         if (key == "current_game" && IsGameId(val)) currentGameId = val;

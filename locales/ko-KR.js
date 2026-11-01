@@ -11,6 +11,7 @@ window.NitLinkLocales['ko-KR'] = {
   "game.playstationOfficial": "PlayStation 공식",
   "game.xboxOfficial": "Xbox 공식",
   "game.coverLanguage.de-DE": "독일어",
+  "panel.resizeHelp": "드래그하여 패널 너비 조절",
   "discord.totalPlaytime": "누적 플레이 시간: {hours}시간 {minutes}분",
   "account.demoGameName": "데모: 플레이 시간 정보 없음",
   "account.switch2Edition": "Switch 2 에디션",

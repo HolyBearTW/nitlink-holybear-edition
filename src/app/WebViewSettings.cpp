@@ -466,7 +466,7 @@ RECT WebViewSettings::ComputeBounds() const {
     RECT rc{};
     GetClientRect(m_parent, &rc);
     if (m_dock == Dock::Full) return rc;
-    // The strip width follows the monitor scale so 420 DIP reads the same
+    // The strip width follows the monitor scale so the requested width reads the same
     // on a 4K display at 150% as on a 1080p display at 100%.
     UINT dpi = GetDpiForWindow(m_parent);
     if (dpi == 0) dpi = 96;
@@ -554,8 +554,8 @@ void WebViewSettings::ReceiveMessage(const std::wstring& json) {
         return;
     }
     if (!m_ready) return;
-    if (parsed && (parsed->action == L"setVolume" || parsed->action == L"setPiPOpacity")) {
-        const size_t index = parsed->action == L"setVolume" ? 0 : 1;
+    if (parsed && (parsed->action == L"setVolume" || parsed->action == L"setPiPOpacity" || parsed->action == L"setPanelWidth")) {
+        const size_t index = parsed->action == L"setVolume" ? 0 : parsed->action == L"setPiPOpacity" ? 1 : 2;
         const bool replaced = m_pendingSliders.Store(index, json);
         if (replaced) ++m_sliderReplacements;
         DispatchPendingMessages();
@@ -592,7 +592,7 @@ void WebViewSettings::DispatchPendingMessages(bool closing) {
         m_pendingSliders.Clear();
         return;
     }
-    // Only native teardown may drain these two validated values without budget.
+    // Only native teardown may drain the validated slider values without budget.
     m_pendingSliders.Drain(m_messageBudget, GetTickCount64(), closing, m_onMessage);
 }
 

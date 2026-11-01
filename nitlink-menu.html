@@ -467,6 +467,10 @@
     .game-button.danger { border-color: #a95151; color: #ffc0c0; }
     .game-button.danger:hover { border-color: #e06b6b; background: #452828; color: #fff; }
     .game-button:disabled { opacity: .45; cursor: default; }
+    #panel-resize { display:none; position:fixed; z-index:120; top:0; bottom:0; width:8px; cursor:ew-resize; touch-action:none; }
+    html[data-side="left"] #panel-resize { display:block; right:0; }
+    html[data-side="right"] #panel-resize { display:block; left:0; }
+    #panel-resize:hover, #panel-resize:focus-visible { background:var(--accent-soft); outline:none; }
     #pane-games :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .game-search-row { display: flex; gap: 8px; }
     .account-overview { margin:0 0 18px; }
@@ -722,6 +726,7 @@
 </head>
 
 <body>
+  <div id="panel-resize" role="separator" aria-orientation="vertical" tabindex="0" aria-valuemin="500" aria-valuemax="1200" aria-valuenow="500" data-i18n-title="panel.resizeHelp" data-i18n-aria-label="panel.resizeHelp"></div>
   <div class="app">
 
     <nav class="rail" aria-label="" data-i18n-aria-label="top.settings">

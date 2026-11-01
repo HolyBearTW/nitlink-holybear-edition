@@ -23,7 +23,7 @@ private:
     uint64_t m_lastMs = 0;
     uint64_t m_credit = 120000;
 };
-// Validated slider payloads occupy two fixed slots, independent of WebView2.
+// Validated slider payloads occupy fixed slots, independent of WebView2.
 class PendingSliderMessages {
 public:
     bool Store(size_t index, std::wstring_view json) {
@@ -33,7 +33,7 @@ public:
         return replaced;
     }
     bool Has(size_t index) const { return index < m_values.size() && !m_values[index].empty(); }
-    bool Empty() const { return !Has(0) && !Has(1); }
+    bool Empty() const { return !Has(0) && !Has(1) && !Has(2); }
     void Clear() { m_values = {}; }
     template<class Callback>
     void Drain(MessageBudget& budget, uint64_t now, bool closing, Callback&& dispatch) {
@@ -48,7 +48,7 @@ public:
         }
     }
 private:
-    std::array<std::wstring, 2> m_values;
+    std::array<std::wstring, 3> m_values;
     size_t m_next = 0;
 };
 } // namespace NitLink

@@ -296,6 +296,10 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
         uint32_t request = 0;
         if (!Uint(root, L"value", 0xffffffffu, request) || request == 0) return std::nullopt;
         result.number = request;
+    } else if (action == L"setPanelWidth") {
+        if (!value || value->kind != Value::Kind::Number || value->number < 500 ||
+            value->number > 1200 || std::floor(value->number) != value->number) return std::nullopt;
+        result.number = value->number;
     } else if (action == L"setAudioFifoMs" || action == L"setAudioRenderMs") {
         if (!value || value->kind != Value::Kind::Number || value->number < 3 ||
             value->number > 100 || std::floor(value->number) != value->number) return std::nullopt;

@@ -141,7 +141,29 @@
         window.chrome.webview.postMessage(payload);
       }
     };
+    const panelResize=document.getElementById('panel-resize');
     window.NitLinkShortcutEditor?.init({post,t});
+    let panelSide='right',panelWidth=500,panelDrag=null;
+    panelResize.addEventListener('pointerdown',event=>{
+      if(event.button!==0)return;
+      panelDrag={x:event.screenX,width:window.innerWidth,side:panelSide,last:window.innerWidth};
+      panelResize.setPointerCapture(event.pointerId);event.preventDefault();
+    });
+    panelResize.addEventListener('pointermove',event=>{
+      if(!panelDrag)return;
+      const width=Math.max(500,Math.min(1200,Math.round(panelDrag.width+(event.screenX-panelDrag.x)*(panelDrag.side==='left'?1:-1))));
+      if(width!==panelDrag.last){panelDrag.last=width;post('setPanelWidth',width);}
+    });
+    for(const eventName of ['pointerup','pointercancel'])panelResize.addEventListener(eventName,event=>{
+      if(!panelDrag)return;
+      post('setPanelWidth',Math.max(500,panelDrag.last));panelDrag=null;
+      if(panelResize.hasPointerCapture(event.pointerId))panelResize.releasePointerCapture(event.pointerId);
+    });
+    panelResize.addEventListener('keydown',event=>{
+      if(!['ArrowLeft','ArrowRight','Home'].includes(event.key))return;
+      const delta=(event.key==='ArrowRight'?16:-16)*(panelSide==='left'?1:-1);
+      post('setPanelWidth',event.key==='Home'?500:Math.max(500,Math.min(1200,panelWidth+delta)));event.preventDefault();
+    });
 
     // The WebView never fetches network resources. Native HTTPS checks are opt-in,
     // and this display receives only validated version/status fields.
@@ -1737,7 +1759,9 @@
       if (s.panelSide) {
         setText('panel-side-val', localizeValue(s.panelSide));
         document.documentElement.dataset.side = String(s.panelSide).toLowerCase();
+        panelSide=String(s.panelSide).toLowerCase();
       }
+      if(typeof s.panelWidth==='number'){panelWidth=s.panelWidth;panelResize.setAttribute('aria-valuenow',String(panelWidth));}
       let configWarning = document.getElementById('config-warning');
       if (!configWarning) {
         configWarning = document.createElement('div');

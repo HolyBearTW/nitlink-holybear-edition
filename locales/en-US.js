@@ -12,6 +12,7 @@ window.NitLinkLocales['en-US'] = {
   "game.playstationOfficial": "Official PlayStation",
   "game.xboxOfficial": "Official Xbox",
   "game.coverLanguage.de-DE": "German",
+  "panel.resizeHelp": "Drag to resize the panel",
   "discord.totalPlaytime": "Total playtime: {hours} h {minutes} min",
   "account.demoGameName": "Demo: playtime unavailable",
   "account.switch2Edition": "Switch 2 Edition",

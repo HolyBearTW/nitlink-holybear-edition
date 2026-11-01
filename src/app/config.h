@@ -222,7 +222,7 @@ struct Config {
     // window with the wide layout and holds a black frame while it is open.
     std::string  panelSide  = "right";
     // Width of the docked panel in device-independent pixels.
-    int          panelWidth = 420;
+    int          panelWidth = 500;
 
     // (hdrMode string field stripped: Reference/Vibrant was an earlier
     //  fake-HDR pipeline. The current path negotiates real HDR10 via

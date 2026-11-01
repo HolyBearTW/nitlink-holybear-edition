@@ -1455,6 +1455,10 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             CyclePanelSide();
             return;
         }
+        if(action==L"setPanelWidth"){
+            m_config->panelWidth=static_cast<int>(message->number);
+            ApplyPanelLayout();m_config->Save("nitlink.json");PushSettingsState();return;
+        }
         if (action == L"cycleScaler") {
             // Only Catmull-Rom is wired today; this is a placeholder for
             // when more scalers exist (bilinear, Lanczos, etc).
@@ -4575,7 +4579,7 @@ std::wstring Application::ApplyPanelLayout()
     else if (side == "full") dock = WebViewSettings::Dock::Full;
     else                     side = "right";
     if (m_webviewSettings) {
-        m_webviewSettings->SetDock(dock, m_config ? m_config->panelWidth : 420);
+        m_webviewSettings->SetDock(dock, m_config ? m_config->panelWidth : 500);
         m_webviewSettings->SetTransparentBackground(dock != WebViewSettings::Dock::Full);
     }
     if (side == "left") return L"Left";
@@ -5091,6 +5095,7 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     js << L"\"scalerName\":\"Catmull-Rom\",";
     js << L"\"aspectRatio\":\"" << JsonEscapeWide(ApplyAspectRatio()) << L"\",";
     js << L"\"panelSide\":\"" << ApplyPanelLayout() << L"\",";
+    js << L"\"panelWidth\":" << m_config->panelWidth << L",";
     js << L"\"configWarning\":\"" << JsonEscapeWide(ConfigWarning()) << L"\",";
     if (m_captureDevice) {
         auto fmt = m_captureDevice->GetOutputFormat();

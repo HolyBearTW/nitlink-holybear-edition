@@ -106,7 +106,7 @@ void PushState(WebViewSettings& host, const wchar_t* side, const wchar_t* locale
         "availableFormats":[{"width":1920,"height":1080,"fps":60,"format":"NV12"}],
         "captureFormatOverride":{"width":0,"height":0,"fps":0,
             "fpsNumerator":0,"fpsDenominator":1,"format":""},
-        "languagePreference":"system","panelSide":")") + side +
+        "languagePreference":"system","panelWidth":500,"panelSide":")") + side +
         L"\",\"locale\":\"" + locale + L"\"}}");
     auto* view = WebViewSettingsTestAccess::View(host);
     const std::wstring expected = side == std::wstring_view(L"Full") ? L"full"
@@ -201,7 +201,7 @@ void Capture(ICoreWebView2* view, const std::filesystem::path& path) {
 void PushAboutUpdate(WebViewSettings& host, const wchar_t* side, const wchar_t* locale,
     const wchar_t* status, const wchar_t* latest, bool hasNewer, bool automatic, bool busy,
     bool unread, const wchar_t* url, long long lastCheckUtc = 1791691200,
-    std::wstring_view current = L"1.2.5.1-holybear") {
+    std::wstring_view current = L"1.2.5.2-holybear") {
     PushState(host, side, locale);
     const auto timestamp = std::wstring_view(status) == L"never" ? 0 : lastCheckUtc;
     std::wstring message = L"{\"state\":{\"holyBearUpdate\":{\"current\":\"" +
@@ -297,20 +297,20 @@ void CaptureLayouts(WebViewSettings& host, HWND window, const std::filesystem::p
         Capture(view, folder / name);
     };
     captureAbout(L"about-docked-zh-TW-current.png", L"Right", L"zh-TW", L"current",
-        L"v1.2.5.1-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
+        L"v1.2.5.2-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
     Script(view, L"document.querySelector('#about-technical').open = false");
     PumpUntil([] { return false; }, 120);
     Capture(view, folder / L"about-docked-zh-TW-contributors-only.png");
     captureAbout(L"about-docked-en-US-available.png", L"Right", L"en-US", L"available",
-        L"v1.2.5.1-holybear", true,
-        L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear",
+        L"v1.2.5.2-holybear", true,
+        L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.2-holybear",
         1920, 1080, WebViewSettings::Dock::Right);
     captureAbout(L"about-docked-zh-TW-api-unavailable.png", L"Right", L"zh-TW", L"apiUnavailable",
-        L"v1.2.5.1-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
+        L"v1.2.5.2-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Right);
     captureAbout(L"about-full-1920x1080-zh-TW.png", L"Full", L"zh-TW", L"current",
-        L"v1.2.5.1-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Full);
+        L"v1.2.5.2-holybear", false, L"", 1920, 1080, WebViewSettings::Dock::Full);
     captureAbout(L"about-full-2560x1440-zh-TW.png", L"Full", L"zh-TW", L"current",
-        L"v1.2.5.1-holybear", false, L"", 2560, 1440, WebViewSettings::Dock::Full);
+        L"v1.2.5.2-holybear", false, L"", 2560, 1440, WebViewSettings::Dock::Full);
     // Render the production source controls through the native host. The saved
     // one-character name is a fixture; no capture hardware or user config is used.
     for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
@@ -655,7 +655,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Right);
     Script(view, L"document.querySelector('.rail-item[data-tab=\"pane-video\"]').click()");
     PumpUntil([] { return false; }, 120);
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.2-holybear",
         false, false, false, false, L"");
     const auto settingsBefore = Script(view, SharedValues);
     const size_t beforeAbout = messages.size();
@@ -673,10 +673,10 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
                     document.getElementById(summary.getAttribute('aria-controls')).parentElement === details &&
                     summary.tabIndex >= 0;
             }) &&
-            document.querySelector('#holy-bear-product-title').textContent === 'NitLink 1.2.5.1 HolyBear Edition' &&
-            // The injected product version is 1.2.5.1, and the upstream-base
+            document.querySelector('#holy-bear-product-title').textContent === 'NitLink 1.2.5.2 HolyBear Edition' &&
+            // The injected product version is 1.2.5.2, and the upstream-base
             // subtitle now independently names 1.2.5 as well.
-            (heroText.match(/1\.2\.5\.1/g) || []).length === 1 &&
+            (heroText.match(/1\.2\.5\.2/g) || []).length === 1 &&
             pane.querySelector('[data-i18n="about.subtitle"]').textContent ===
                 '非官方社群整合版本 · 基於 NitLink 1.2.5' &&
             !pane.querySelector('#holy-bear-version, #holy-bear-latest-version, .about-detail-list') &&
@@ -706,7 +706,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             document.querySelector('#holy-bear-last-check').textContent === window.__lastAboutCheck)JS") == L"true",
         "manual button retains its action and busy state without inventing a completion time");
 
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.2-holybear",
         false, false, false, false, L"", 1791691320);
     Check(Script(view, L"document.querySelector('#holy-bear-last-check').textContent !== window.__lastAboutCheck && "
         L"!document.querySelector('#holy-bear-check-update').disabled") == L"true",
@@ -718,15 +718,15 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     Check(automatic && automatic->action == L"setHolyBearAutoUpdateCheck" && automatic->number == 1 &&
         Script(view, L"document.querySelector('#toggle-holy-bear-auto-update').getAttribute('aria-checked') === 'true'") == L"true",
         "automatic check enables with an accessible switch state");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.2-holybear",
         false, true, false, false, L"");
     Check(Script(view, L"document.querySelector('#toggle-holy-bear-auto-update').classList.contains('on') && "
         L"document.querySelector('#toggle-holy-bear-auto-update').getAttribute('aria-checked') === 'true'") == L"true",
         "automatic check setting is restored from native state");
     Script(view, L"window.__lastAboutCheck = document.querySelector('#holy-bear-last-check').textContent");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"checking", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"checking", L"v1.2.5.2-holybear",
         false, true, true, false, L"");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.2-holybear",
         false, true, false, false, L"", 1791691440);
     Check(Script(view, L"document.querySelector('#holy-bear-last-check').textContent !== window.__lastAboutCheck && "
         L"document.querySelector('#toggle-holy-bear-auto-update').getAttribute('aria-checked') === 'true'") == L"true",
@@ -737,7 +737,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     automatic = NitLink::ParseSettingsMessage(messages.back());
     Check(automatic && automatic->action == L"setHolyBearAutoUpdateCheck" && automatic->number == 0,
         "turning automatic checks off persists the false setting");
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.2-holybear",
         false, false, false, false, L"");
 
     const std::array<std::pair<const wchar_t*, const wchar_t*>, 9> statuses{{
@@ -746,7 +746,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         {L"serverUnavailable", L"serverUnavailable"}, {L"apiUnavailable", L"apiUnavailable"},
         {L"invalid", L"invalid"}, {L"never", L"never"}}};
     for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
-        PushAboutUpdate(host, L"Right", locale, L"current", L"v1.2.5.1-holybear",
+        PushAboutUpdate(host, L"Right", locale, L"current", L"v1.2.5.2-holybear",
             false, true, false, false, L"");
         std::wstring baseCopy = L"(() => { const locale=window.NitLinkLocales['" + std::wstring(locale) +
             L"']; const subtitle=document.querySelector('[data-i18n=\"about.subtitle\"]'); "
@@ -755,7 +755,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             L"!subtitle.textContent.includes('1.2.4'); })()";
         Check(Script(view, baseCopy) == L"true", "About identifies NitLink 1.2.5 as the base in all six languages");
         for (const auto& [status, key] : statuses) {
-            const auto latest = std::wstring_view(status) == L"never" ? L"" : L"v1.2.5.1-holybear";
+            const auto latest = std::wstring_view(status) == L"never" ? L"" : L"v1.2.5.2-holybear";
             PushAboutUpdate(host, L"Right", locale, status, latest, false,
                 true, std::wstring_view(status) == L"checking", false, L"");
             std::wstring expression = L"(() => { const node=document.querySelector('#holy-bear-update-status'); return node.hidden === ";
@@ -767,37 +767,37 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         }
     }
     for (const auto timestamp : {0LL, -1LL, 9223372036854775807LL}) {
-        PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
+        PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.2-holybear",
             false, false, false, false, L"", timestamp);
         Check(Script(view, L"document.querySelector('#holy-bear-last-check').textContent === "
             L"window.NitLinkLocales['zh-TW']['update.never']") == L"true",
             "missing, negative and out-of-range times never display an epoch or invalid date");
     }
 
-    const std::wstring validUrl = L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear";
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
+    const std::wstring validUrl = L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.2-holybear";
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.2-holybear",
         true, true, false, true, validUrl.c_str());
     Check(Script(view, LR"JS((() => {
         const link = document.querySelector('#holy-bear-release-link'), status = document.querySelector('#holy-bear-update-status');
-        return status.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5.1-holybear') &&
+        return status.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5.2-holybear') &&
             status.classList.contains('is-new-version') &&
-            !link.hidden && link.href === 'https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear' &&
+            !link.hidden && link.href === 'https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.2-holybear' &&
             document.querySelector('#holy-bear-update-badge').hidden === false;
     })())JS") == L"true", "newer release shows a localized message, verified link and unread state");
-    for (const auto& badUrl : {L"https://github.com/HolyBearTW/nitlink/releases/tag/v1.2.5.1-holybear",
-            L"https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.5.1-holybear",
-            L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear?next=evil"}) {
-        PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
+    for (const auto& badUrl : {L"https://github.com/HolyBearTW/nitlink/releases/tag/v1.2.5.2-holybear",
+            L"https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.5.2-holybear",
+            L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.2-holybear?next=evil"}) {
+        PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.2-holybear",
             true, true, false, true, badUrl);
         Check(Script(view, L"document.querySelector('#holy-bear-release-link').hidden") == L"true",
             "untrusted release URL is never shown");
     }
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.2-holybear",
         false, true, false, false, validUrl.c_str());
     Check(Script(view, L"document.querySelector('#holy-bear-release-link').hidden") == L"true",
         "release link requires a native newer-version result");
 
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.2-holybear",
         true, true, false, true, validUrl.c_str());
     const size_t beforeDisclosure = messages.size();
     Script(view, L"document.querySelector('#about-details-summary').click()");
@@ -845,7 +845,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         const contributors = document.querySelector('#about-contributors-body').innerText;
         return text.includes('D3D11') && text.includes('P010 / NV12 / BGRA') && text.includes('HDR10') && text.includes('VRR') &&
             text.includes(window.NitLinkLocales['zh-TW']['about.holyBearDisclaimer']) &&
-            !text.includes('1.2.5.1-holybear') && !text.includes('v1.2.5.1-holybear') &&
+            !text.includes('1.2.5.2-holybear') && !text.includes('v1.2.5.2-holybear') &&
             contributors.includes('CN_115 (@CN115)') && contributors.includes('聖小熊 (@HolyBearTW)') && contributors.includes('Noka123 (@Noka123)') &&
             contributors.includes('i0rph (@i0rph)') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/HolyBearTW"]') &&
@@ -863,7 +863,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             document.querySelector('#pane-about').scrollWidth <= document.querySelector('#pane-about').clientWidth;
     })())JS") == L"true", "expanded 420px About remains free of horizontal overflow");
 
-    PushAboutUpdate(host, L"Right", L"zh-CN", L"available", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-CN", L"available", L"v1.2.5.2-holybear",
         true, true, false, true, validUrl.c_str());
     Check(Script(view, LR"JS(document.documentElement.lang === 'zh-CN' &&
         document.querySelector('#about-details-summary').textContent === '技术信息' &&
@@ -871,7 +871,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         document.querySelector('#holy-bear-check-update').textContent === '检查更新' &&
         document.querySelector('#holy-bear-update-status').textContent.includes('发现新版本'))JS") == L"true",
         "Simplified Chinese updates the About and update controls");
-    PushAboutUpdate(host, L"Right", L"en-US", L"available", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"en-US", L"available", L"v1.2.5.2-holybear",
         true, true, false, true, validUrl.c_str());
     Check(Script(view, LR"JS(document.documentElement.lang === 'en-US' &&
         document.querySelector('#about-details-summary').textContent === 'Technical Information' &&
@@ -923,8 +923,8 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
 
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Full);
     for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
-        PushAboutUpdate(host, L"Full", locale, L"available", L"v1.2.5.1-holybear",
-            true, false, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear",
+        PushAboutUpdate(host, L"Full", locale, L"available", L"v1.2.5.2-holybear",
+            true, false, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.2-holybear",
             1791691200, NitLink::HolyBear::Version);
         const auto numeric = NitLink::HolyBear::Version.substr(0, NitLink::HolyBear::Version.size() - 9);
         Check(Script(view, L"document.getElementById('holy-bear-product-title').textContent === 'NitLink " +
@@ -932,7 +932,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     }
 
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Right);
-    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.1-holybear",
+    PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.2-holybear",
         false, false, false, false, L"");
     const size_t sizeBeforeReturn = messages.size();
     Script(view, L"document.querySelector('.rail-item[data-tab=\"pane-video\"]').click()");
@@ -1022,6 +1022,66 @@ void TestF1Visibility(WebViewSettings& host, HWND window) {
     UnregisterClassW(cls.lpszClassName, cls.hInstance);
 }
 
+void TestGameControlsAndPanelResize(WebViewSettings& host,HWND window,std::vector<std::wstring>& messages){
+    auto* view=WebViewSettingsTestAccess::View(host);
+    host.SetMessageHandler([&](const std::wstring& json){
+        messages.push_back(json);const auto message=NitLink::ParseSettingsMessage(json);
+        if(message&&message->action==L"setPanelWidth"){
+            const auto width=static_cast<int>(message->number);host.SetDock(host.GetDock(),width);
+            host.PostMessage(L"{\"state\":{\"panelWidth\":"+std::to_wstring(width)+L"}}");
+        }
+    });
+    for(const auto dock:{WebViewSettings::Dock::Left,WebViewSettings::Dock::Right}){
+        const auto* side=dock==WebViewSettings::Dock::Left?L"Left":L"Right";
+        Resize(host,window,1280,800,dock,500);PushState(host,side,L"zh-TW");
+        host.PostMessage(LR"({"state":{"manualHdmiSource":"switch2","effectiveHdmiSource":"Switch 2"}})");
+        host.PostMessage(LR"({"accountLibrary":{"accounts":[],"games":[]}})");
+        Script(view,L"document.querySelector('[data-tab=\"pane-games\"]').click()");
+        Check(PumpUntil([&]{return Script(view,LR"JS(document.getElementById('account-overview').open&&document.getElementById('account-unlinked').hidden&&document.querySelectorAll('#account-linked-grid .account-card').length===3&&[...document.querySelectorAll('.account-card')].every(card=>card.getBoundingClientRect().height>0))JS")==L"true";}),"all platforms initially expand when no account is linked");
+        Script(view,L"document.querySelector('#account-overview > summary').click();NitLinkAccountLibrary.setLocale('zh-TW')");
+        Check(Script(view,LR"JS(!document.getElementById('account-overview').open&&[...document.querySelectorAll('.account-card')].every(card=>!card.checkVisibility()))JS")==L"true","users can collapse the unlinked overview and rendering preserves their choice");
+        Script(view,L"document.querySelector('#account-overview > summary').click()");
+        host.PostMessage(LR"({"accountLibrary":{"preview":false,"accounts":[{"provider":"nintendo","accountId":"fixture","status":"connected"}],"games":[{"key":"nintendo-BEE-0400000000000002","id":700001,"provider":"nintendo","platform":"Switch 2","name":"控制測試 DEMO","nameLocale":"zh-TW","totalMinutes":120,"lastPlayed":"2026-10-31T12:00:00Z","artworks":[],"displayNames":{"zh-TW":"控制測試 DEMO"}},{"key":"nintendo-BEE-0400000000000001","id":700001,"provider":"nintendo","platform":"Switch 2","name":"控制測試","nameLocale":"zh-TW","totalMinutes":60,"lastPlayed":"2026-09-01T12:00:00Z","artworks":[],"displayNames":{"zh-TW":"控制測試"}}]}})");
+        host.PostMessage(LR"({"gameState":{"key":"nintendo-BEE-0400000000000001","id":700001,"name":"控制測試","displayName":"控制測試","locale":"zh-TW","artworkPlatform":"switch","coverId":0,"manualCover":false,"finalImageKey":"","dataMode":"real","discordActivityState":"遊玩總時數：1 小時 0 分鐘"}})");
+        Script(view,L"document.querySelector('[data-tab=\"pane-games\"]').click()");
+        Check(PumpUntil([&]{return Script(view,LR"JS(!document.getElementById('account-unlinked').hidden&&!document.getElementById('account-unlinked').open&&document.querySelectorAll('#account-linked-grid .account-card').length===1&&document.getElementById('account-nintendo').checkVisibility()&&!document.getElementById('account-playstation').checkVisibility()&&!document.getElementById('account-xbox').checkVisibility())JS")==L"true";}),"linking Nintendo leaves it visible and automatically collapses unlinked platforms");
+        Script(view,L"document.querySelector('#account-unlinked > summary').click();NitLinkAccountLibrary.setLocale('zh-TW')");
+        Check(Script(view,LR"JS(document.getElementById('account-unlinked').open&&document.getElementById('account-playstation').getBoundingClientRect().height>0&&document.getElementById('account-xbox').getBoundingClientRect().height>0)JS")==L"true","users can expand the remaining platforms and normal updates do not close them");
+        Script(view,L"document.querySelector('#account-unlinked > summary').click()");
+        Check(PumpUntil([&]{return Script(view,LR"JS((()=>{
+            const tabs=[...document.querySelectorAll('#account-source-tabs button')];const first=tabs[0].getBoundingClientRect();
+            return tabs.length===6&&tabs.every(button=>Math.abs(button.getBoundingClientRect().top-first.top)<1)&&
+                [...document.querySelectorAll('#account-source-tabs img')].every(image=>image.complete&&image.naturalWidth>0);
+        })())JS")==L"true";},3000),"Xbox and all library filters fit on the first row in both default dock positions");
+        Check(PumpUntil([&]{return Script(view,LR"JS((()=>{
+            const ids=['game-save-quality','account-match-game','game-adjust-cover','game-reset-all'];
+            const buttons=ids.map(id=>document.getElementById(id));const first=buttons[0].getBoundingClientRect();
+            return !buttons[1].hidden&&buttons.every(button=>Math.abs(button.getBoundingClientRect().top-first.top)<1&&button.scrollWidth<=button.clientWidth&&getComputedStyle(button).textAlign==='center')&&document.documentElement.scrollWidth<=innerWidth;
+        })())JS")==L"true";},3000),"both 500px docks keep all four second-row actions centered and unclipped");
+        Check(Script(view,LR"JS([...document.querySelectorAll('[data-cover-provider]')].map(button=>button.dataset.coverProvider).join(',')==='nintendo,community,all'&&document.querySelector('[data-cover-provider=nintendo]').getAttribute('aria-pressed')==='true'&&!document.getElementById('account-match-cancel')&&[...document.querySelectorAll('[data-account-cover-prompt]')].every(node=>node.hidden)&&document.getElementById('game-discord-signal').textContent==='遊玩總時數：1 小時 0 分鐘')JS")==L"true","official-first controls, connected-source prompts and time-only preview match native state");
+        Check(Script(view,LR"JS((()=>{const cards=[...document.querySelectorAll('.account-game-title')];return cards.length===2&&cards[0].textContent==='控制測試'&&/DEMO/.test(cards[1].textContent)&&NitLinkGameTitles.coverQuery('Sonic Racing: CrossWorlds - Demo')==='Sonic Racing: CrossWorlds'&&NitLinkGameTitles.coverQuery('Majogami Demo ver.')==='Majogami';})())JS")==L"true","demo records stay separate, sort last and use the base name only for artwork lookup");
+        Script(view,L"window._updateGameLive({manualHdmiSource:'ps5',effectiveHdmiSource:'PS5'})");
+        Check(Script(view,LR"JS(document.getElementById('game-store-search').hidden&&[...document.querySelectorAll('[data-account-cover-prompt]')].every(node=>!node.hidden&&node.querySelectorAll('button').length===1&&node.textContent.includes('PlayStation')))JS")==L"true","an unlinked selected console shows only its own link prompt and hides Nintendo store search");
+        Script(view,L"window._updateGameLive({manualHdmiSource:'switch2',effectiveHdmiSource:'Switch 2'});document.getElementById('game-query').value='控制測試 DEMO';document.getElementById('game-search').click()");
+        uint32_t searchRequest=0;
+        Check(PumpUntil([&]{for(auto it=messages.rbegin();it!=messages.rend();++it){const auto message=NitLink::ParseSettingsMessage(*it);if(message&&message->action==L"searchGames"){searchRequest=message->request;return true;}}return false;}),"demo query reaches the native bridge");
+        host.PostMessage(L"{\"gameEvent\":{\"kind\":\"search\",\"request\":"+std::to_wstring(searchRequest)+L",\"locale\":\"zh-TW\",\"status\":\"upstreamUnavailable\",\"games\":[]}}");
+        Check(PumpUntil([&]{return Script(view,LR"JS(document.querySelectorAll('.game-result').length===2&&document.getElementById('game-search-status').dataset.error==='false'&&document.getElementById('game-search-empty').hidden)JS")==L"true";}),"valid linked-platform results remain usable when the public catalogue fails without duplicate errors");
+        Script(view,L"document.getElementById('panel-resize').focus()");
+        BrowserKey(view,dock==WebViewSettings::Dock::Left?L"ArrowRight":L"ArrowLeft",dock==WebViewSettings::Dock::Left?L"ArrowRight":L"ArrowLeft",dock==WebViewSettings::Dock::Left?VK_RIGHT:VK_LEFT);
+        Check(PumpUntil([&]{return Script(view,L"document.getElementById('panel-resize').getAttribute('aria-valuenow')")==L"\"516\"";}),"dock width keyboard control reaches the native host");
+        BrowserKey(view,L"Home",L"Home",VK_HOME);
+        Check(PumpUntil([&]{return Script(view,L"document.getElementById('panel-resize').getAttribute('aria-valuenow')")==L"\"500\"";}),"dock width cannot shrink below its default");
+        const int start=dock==WebViewSettings::Dock::Left?496:4;const int finish=start+(dock==WebViewSettings::Dock::Left?40:-40);
+        BrowserCommand(view,L"Input.dispatchMouseEvent",L"{\"type\":\"mousePressed\",\"x\":"+std::to_wstring(start)+L",\"y\":240,\"button\":\"left\",\"buttons\":1,\"clickCount\":1}");
+        BrowserCommand(view,L"Input.dispatchMouseEvent",L"{\"type\":\"mouseMoved\",\"x\":"+std::to_wstring(finish)+L",\"y\":240,\"button\":\"left\",\"buttons\":1}");
+        BrowserCommand(view,L"Input.dispatchMouseEvent",L"{\"type\":\"mouseReleased\",\"x\":"+std::to_wstring(finish)+L",\"y\":240,\"button\":\"left\",\"buttons\":0,\"clickCount\":1}");
+        Check(PumpUntil([&]{return Script(view,L"Number(document.getElementById('panel-resize').getAttribute('aria-valuenow'))>=530")==L"true";}),"dragging either inner dock edge resizes the actual native controller");
+    }
+    host.SetMessageHandler([&messages](const std::wstring& json){messages.push_back(json);});
+    host.Show(false);
+}
+
 int main(int argc, char** argv) {
     const bool captureOnly = argc == 3 && std::string(argv[1]) == "--capture-layout";
     const bool visibilityOnly = argc == 2 && std::string(argv[1]) == "--visibility-only";
@@ -1053,7 +1113,7 @@ int main(int argc, char** argv) {
             Script(view, L"[document.documentElement.lang, navigator.languages]") << L'\n';
         Script(view, L"window.__fontsReady = false; document.fonts.ready.then(() => __fontsReady = true)");
         Check(PumpUntil([&] { return Script(view, L"window.__fontsReady") == L"true"; }), "bundled fonts loaded");
-        if (visibilityOnly) TestF1Visibility(host, window);
+        if (visibilityOnly) {TestGameControlsAndPanelResize(host,window,messages);TestF1Visibility(host, window);}
         else if (captureOnly) CaptureLayouts(host, window, std::filesystem::path(argv[2]));
         else {
             TestLayouts(host, window, messages);

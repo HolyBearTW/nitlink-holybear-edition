@@ -258,11 +258,20 @@ void GameResultBridgeTest(WebViewSettings& host, ICoreWebView2* view,
     result.reply.status = L"ok";
     result.reply.games.push_back({5303117, 0, L"The Legend of Zelda: Tears of the Kingdom",
         L"薩爾達傳說 王國之淚", L"fixture"});
+    result.reply.games.push_back({700002,0,L"A longer catalogue title spanning more than one line",L"搜尋結果使用較長的本地化遊戲名稱以確認卡片與收藏按鈕對齊",L"fixture"});
     Check(host.PostMessage(NitLink::SerializeGameResult(result)), "production search JSON is accepted by WebView2");
     Check(PumpUntil([&] { return Script(view, LR"JS(
         document.querySelector('.game-result-title')?.textContent === '薩爾達傳說 王國之淚' &&
         document.getElementById('game-search-status').getAttribute('aria-busy') === 'false'
     )JS") == L"true"; }), "successful native search renders the game and clears the timeout watchdog");
+    for(const auto id:{5303117u,700002u}){
+        auto thumbnail=result;thumbnail.operation=NitLink::Games::Operation::Image;thumbnail.gameId=id;thumbnail.imageUri=L"assets/nitlink.svg";thumbnail.imageStatus=L"ok";thumbnail.reply.games.clear();
+        host.PostMessage(NitLink::SerializeGameResult(thumbnail));
+    }
+    Check(PumpUntil([&]{return Script(view,LR"JS((()=>{
+        const cards=[...document.querySelectorAll('.game-result')],favorites=[...document.querySelectorAll('.game-favorite-action')];
+        return cards.length===2&&!document.querySelector('.game-result-subtitle')&&cards.every(card=>{const image=card.querySelector('img');return image?.complete&&image.naturalWidth>0;})&&Math.abs(cards[0].getBoundingClientRect().height-cards[1].getBoundingClientRect().height)<1&&Math.abs(favorites[0].getBoundingClientRect().top-favorites[1].getBoundingClientRect().top)<1&&cards.every(card=>card.querySelector('.game-result-title').getBoundingClientRect().top-card.querySelector('.game-art').getBoundingClientRect().bottom<=10);
+    })())JS")==L"true";}),"decoded search thumbnails keep equal card/action alignment with one compact localized title");
     result.operation = NitLink::Games::Operation::Covers;
     result.reply.page = 1; result.reply.hasMore = true;
     Check(host.PostMessage(NitLink::SerializeGameResult(result)), "production covers JSON is accepted by WebView2");
@@ -310,8 +319,12 @@ void GameResultBridgeTest(WebViewSettings& host, ICoreWebView2* view,
     taiwanCover.shape=L"landscape";taiwanCover.language=L"zh-TW";taiwanCover.languageVerified=true;
     taiwanCover.languageSource=L"https://www.nintendo.com/tw/zelda/totk/index.html";
     artworkResult.reply.covers.push_back(taiwanCover);
+    auto japaneseSquare=taiwanCover;japaneseSquare.id=9005;japaneseSquare.provider=L"nintendo-account";japaneseSquare.author.clear();japaneseSquare.shape=L"square";japaneseSquare.language=L"ja-JP";japaneseSquare.languageVerified=false;japaneseSquare.productTitle=L"Mario Kart World";
+    auto englishPortrait=japaneseSquare;englishPortrait.id=9006;englishPortrait.provider=L"playstation-account";englishPortrait.shape=L"portrait";englishPortrait.language=L"en-US";
+    auto germanXbox=japaneseSquare;germanXbox.id=9007;germanXbox.provider=L"xbox-account";germanXbox.language=L"de-DE";
+    artworkResult.reply.covers.push_back(japaneseSquare);artworkResult.reply.covers.push_back(englishPortrait);artworkResult.reply.covers.push_back(germanXbox);
     Check(host.PostMessage(NitLink::SerializeGameResult(artworkResult)), "gallery with sourced and default artwork languages is accepted");
-    Check(PumpUntil([&] { return Script(view,L"document.querySelectorAll('#game-gallery .game-cover-info').length === 4") == L"true"; }),
+    Check(PumpUntil([&] { return Script(view,L"document.querySelectorAll('#game-gallery .game-cover-info').length === 7") == L"true"; }),
           "gallery renders community and Nintendo Taiwan cover details controls");
     const auto openDetails=[&](uint32_t coverId){
         const auto script=L"document.getElementById('game-cover-details').open&&document.getElementById('game-cover-details').close();"
@@ -330,12 +343,31 @@ void GameResultBridgeTest(WebViewSettings& host, ICoreWebView2* view,
     openDetails(9004);
     const auto taiwanMetadata=detailValue(L"作者")+L"|"+detailValue(L"語言")+L"|"+detailValue(L"素材類型");
     if(defaultSgdbLanguage!=L"\"英文\""||defaultCommunityLanguage!=L"\"英文\""||
-       sourcedCommunityLanguage!=L"\"簡中\""||taiwanMetadata!=L"\"台灣任天堂\"|\"繁體中文\"|\"官方主視覺\"")
+       sourcedCommunityLanguage!=L"\"簡中\""||taiwanMetadata!=L"\"任天堂官方\"|\"繁體中文\"|\"官方主視覺\"")
         std::wcerr<<L"Artwork detail metadata observed: sgdb="<<defaultSgdbLanguage<<L" community="
             <<defaultCommunityLanguage<<L" sourced="<<sourcedCommunityLanguage<<L" Taiwan="<<taiwanMetadata<<L'\n';
     Check(defaultSgdbLanguage==L"\"英文\""&&defaultCommunityLanguage==L"\"英文\""&&
-          sourcedCommunityLanguage==L"\"簡中\""&&taiwanMetadata==L"\"台灣任天堂\"|\"繁體中文\"|\"官方主視覺\"",
+          sourcedCommunityLanguage==L"\"簡中\""&&taiwanMetadata==L"\"任天堂官方\"|\"繁體中文\"|\"官方主視覺\"",
           "community artwork defaults to English unless a source verifies its language; Taiwan official metadata stays localized and uses key-art type");
+    openDetails(9005);Check(detailValue(L"作者")==L"\"任天堂官方\""&&detailValue(L"語言")==L"\"日文\"","Nintendo account metadata displays its source language and official publisher");
+    openDetails(9006);Check(detailValue(L"作者")==L"\"PlayStation 官方\""&&detailValue(L"語言")==L"\"英文\"","PS4/PS5 account metadata uses the same language and official publisher display");
+    openDetails(9007);Check(detailValue(L"作者")==L"\"Xbox 官方\""&&detailValue(L"語言")==L"\"德文\"","Xbox account metadata uses the same language and official publisher display");
+    Check(Script(view,LR"JS((()=>{
+        const badge=id=>document.querySelector('#game-gallery [data-cover-id="'+id+'"]').closest('.game-cover-tile').querySelector('.game-cover-badge');
+        return badge(9004).textContent==='繁中'&&badge(9005).textContent==='日文'&&badge(9006).textContent==='英文'&&badge(9007).textContent==='德文'&&[9004,9005,9006,9007].every(id=>!badge(id).hidden)&&badge(9003).hidden;
+    })())JS")==L"true","official square, portrait and landscape badges show short language names across every platform without community badges");
+    Check(Script(view,LR"JS(!document.getElementById('game-gallery').textContent.includes('來源語系')&&![...document.querySelectorAll('#game-cover-detail-fields dt')].some(field=>field.textContent==='來源語系'))JS")==L"true","language badges replace duplicate source-locale text in captions and details");
+    Script(view,L"document.getElementById('game-cover-details').close()");
+    for(const auto side:{L"Left",L"Right"}){
+        host.SetDock(side==std::wstring_view(L"Left")?WebViewSettings::Dock::Left:WebViewSettings::Dock::Right,500);host.Resize();
+        host.PostMessage(L"{\"state\":{\"panelSide\":\""+std::wstring(side)+L"\",\"panelWidth\":500}}");
+        const bool coversFit=PumpUntil([&]{return Script(view,LR"JS((()=>{
+            const gallery=document.getElementById('game-gallery'),tile=id=>document.querySelector('#game-gallery [data-cover-id="'+id+'"]').closest('.game-cover-tile');
+            return getComputedStyle(gallery).gridTemplateColumns.split(' ').length===6&&getComputedStyle(tile(9005)).gridColumnStart==='span 2'&&getComputedStyle(tile(9006)).gridColumnStart==='span 2'&&getComputedStyle(tile(9004)).gridColumnStart==='span 3'&&tile(9005).querySelector('.game-cover-caption').getBoundingClientRect().width>=85;
+        })())JS")==L"true";});
+        if(!coversFit)std::wcerr<<L"Dock cover layout: "<<Script(view,LR"JS(JSON.stringify({side:document.documentElement.dataset.side,width:innerWidth,columns:getComputedStyle(document.getElementById('game-gallery')).gridTemplateColumns,covers:[9004,9005,9006].map(id=>{const tile=document.querySelector('#game-gallery [data-cover-id="'+id+'"]').closest('.game-cover-tile');return {id,shape:tile.dataset.shape,end:getComputedStyle(tile).gridColumnEnd,width:tile.getBoundingClientRect().width,caption:tile.querySelector('.game-cover-caption').getBoundingClientRect().width};})}))JS")<<L'\n';
+        Check(coversFit,"both docks fit three square/portrait covers or two landscapes per row with readable captions");
+    }
     const auto beforeLandscapeRequest=messages.size();
     Script(view,L"document.getElementById('game-shape-landscape').click(); true");
     uint32_t landscapeRequest=0;
@@ -365,6 +397,8 @@ void GameResultBridgeTest(WebViewSettings& host, ICoreWebView2* view,
         document.querySelector('[data-tab="pane-video"]').click();
         return true;
     })())JS");
+    host.SetDock(WebViewSettings::Dock::Full,500);host.Resize();
+    host.PostMessage(LR"({"state":{"panelSide":"Full","panelWidth":500}})");
 }
 
 void ManualSourcePickerTest(WebViewSettings& host, HWND window, ICoreWebView2* view,

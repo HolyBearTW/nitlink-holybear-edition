@@ -98,7 +98,7 @@ private:
     };
     std::vector<BrowserSurface> m_hiddenSurfaces;
     Dock m_dock = Dock::Full;
-    int  m_widthDip = 420;
+    int  m_widthDip = 500;
     bool m_transparent = false;
 
     // Bounds for the current dock mode in parent client coordinates.

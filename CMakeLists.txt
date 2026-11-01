@@ -32,6 +32,8 @@ set(NITLINK_SOURCES
     src/app/game_identity.h
     src/app/game_service.h
     src/app/game_service.cpp
+    src/app/xbox_auth_callback.cpp
+    src/app/xbox_auth_callback.h
     src/app/artwork_renderer.cpp
     src/app/nintendo_tw_artwork.cpp
     src/app/source_cadence.h
@@ -117,6 +119,7 @@ add_executable(NitLink WIN32 ${NITLINK_SOURCES})
 target_compile_definitions(NitLink PRIVATE RESULT_DIAGNOSTICS_LEVEL=2)
 
 target_link_libraries(NitLink PRIVATE
+    ws2_32
     d3d11
     d2d1
     dwrite
@@ -246,6 +249,11 @@ if(BUILD_TESTING)
     find_program(HOLYBEAR_PWSH NAMES pwsh REQUIRED)
     add_test(NAME holybear_release_notes
         COMMAND ${HOLYBEAR_PWSH} -NoProfile -File ${CMAKE_SOURCE_DIR}/scripts/test-holybear-release-notes.ps1)
+    add_executable(NitLinkXboxAuthCallbackTests tests/xbox_auth_callback_tests.cpp src/app/xbox_auth_callback.cpp)
+    target_include_directories(NitLinkXboxAuthCallbackTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(NitLinkXboxAuthCallbackTests PRIVATE ws2_32 windowsapp)
+    add_test(NAME xbox_oauth_callback COMMAND NitLinkXboxAuthCallbackTests)
+    set_tests_properties(xbox_oauth_callback PROPERTIES TIMEOUT 20)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME holybear_tag_security
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test-holybear-tag.py)

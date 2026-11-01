@@ -593,6 +593,7 @@ window.NitLinkLocales['en-US'] = {
   "shortcut.hudMode0": "Standard HUD",
   "shortcut.hudMode1": "Detailed HUD",
   "shortcut.hudMode2": "Compact text row",
+  "shortcut.hudMode3": "HUD off",
   "shortcut.hudColor": "Compact HUD text color",
   "shortcut.hudMetrics": "Compact HUD information",
   "shortcut.hudAll": "Show all",

@@ -590,6 +590,7 @@ window.NitLinkLocales['ja-JP'] = {
   "shortcut.hudMode0": "標準 HUD",
   "shortcut.hudMode1": "詳細 HUD",
   "shortcut.hudMode2": "簡易テキスト行",
+  "shortcut.hudMode3": "HUD を非表示",
   "shortcut.hudColor": "簡易 HUD の文字色",
   "shortcut.hudMetrics": "簡易 HUD の表示項目",
   "shortcut.hudAll": "すべて表示",

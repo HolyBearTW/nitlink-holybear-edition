@@ -592,6 +592,7 @@ window.NitLinkLocales['zh-CN'] = {
   "shortcut.hudMode0": "标准 HUD",
   "shortcut.hudMode1": "详细 HUD",
   "shortcut.hudMode2": "精简文字行",
+  "shortcut.hudMode3": "不显示 HUD",
   "shortcut.hudColor": "精简 HUD 文字颜色",
   "shortcut.hudMetrics": "精简 HUD 显示项目",
   "shortcut.hudAll": "全部显示",

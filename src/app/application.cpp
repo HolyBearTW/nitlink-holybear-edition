@@ -1204,7 +1204,10 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
         AppLog(L"WebView2 msg: " + action);
         if(action==L"cycleHudMode"){
-            m_config->hudMode=(m_config->hudMode+1)%3;
+            if(!m_showOverlay){m_showOverlay=true;m_config->hudMode=0;}
+            else if(m_config->hudMode==2)m_showOverlay=false;
+            else ++m_config->hudMode;
+            m_config->showOverlay=m_showOverlay;
             if(m_overlay)m_overlay->SetHudMode(m_config->hudMode);
             m_config->Save("nitlink.json");PushSettingsState();return;
         }
@@ -3390,6 +3393,7 @@ void Application::ToggleOverlay()
             AppLog(L"HUD visibility: could not save nitlink.json");
         }
     }
+    if(m_settingsVisible)PushSettingsState();
 }
 
 void Application::ShowToast(const std::wstring& text,
@@ -5033,6 +5037,7 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
         std::string(NormalizeManualHdmiSource(m_config->manualHdmiSource)));
     coreState.manualHdmiSourceCustom = Utf8ToWide(m_config->manualHdmiSourceCustom);
     coreState.shortcutBindings=m_config->shortcutBindings;
+    coreState.hudVisible=m_showOverlay;
     coreState.hudMode=m_config->hudMode;coreState.compactHudColor=m_config->compactHudColor;coreState.compactHudMetrics=m_config->compactHudMetrics;coreState.compactHudTextSize=m_config->compactHudTextSize;
     coreState.effectiveHdmiSource = GetEffectiveHdmiSourceLabel();
     coreState.manualHdmiSourceOptions.reserve(kManualHdmiSources.size());

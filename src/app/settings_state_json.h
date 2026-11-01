@@ -33,6 +33,7 @@ struct ManualHdmiSourceOptionState {
 struct WebViewCoreSettingsState {
     ShortcutBindings shortcutBindings=DefaultShortcutBindings;
     unsigned hudMode=0,compactHudColor=0x76b900,compactHudMetrics=15,compactHudTextSize=14;
+    bool hudVisible=false;
     std::wstring languagePreference;
     std::wstring locale;
     HolyBearUpdateSettingsState holyBearUpdate;

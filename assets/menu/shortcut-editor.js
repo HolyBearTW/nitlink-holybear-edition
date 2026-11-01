@@ -1,5 +1,5 @@
 window.NitLinkShortcutEditor=(()=>{
-  let post,t,definitions=[],saved=[],draft=[],recording=-1,armed=false,pending=null,saving=false,notice='',hudMode;
+  let post,t,definitions=[],saved=[],draft=[],recording=-1,armed=false,pending=null,saving=false,notice='',hudMode,hudVisible=false;
   const rows=new Map(),el=id=>document.getElementById(id);
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const defaults=()=>definitions.map(item=>({key:item.defaultKey,modifiers:item.defaultModifiers}));
@@ -14,7 +14,7 @@ window.NitLinkShortcutEditor=(()=>{
   const cancel=()=>{if(recording<0)return;recording=-1;armed=false;pending=null;sendContext();render();};
   const render=()=>{
     if(!t)return;
-    if(hudMode!==undefined)el('hud-mode').textContent=t('shortcut.hudMode'+hudMode);
+    if(hudMode!==undefined)el('hud-mode').textContent=t('shortcut.hudMode'+(hudVisible?hudMode:3));
     const conflicts=new Set(),seen=new Map();
     draft.forEach((chord,index)=>{const key=chord.key+':'+chord.modifiers;if(seen.has(key)){conflicts.add(index);conflicts.add(seen.get(key));}else seen.set(key,index);});
     const dirty=!same(draft,saved);
@@ -85,9 +85,10 @@ window.NitLinkShortcutEditor=(()=>{
     },
     hud(state){
       if(state.hudMode===undefined)return;
-      hudMode=state.hudMode;el('hud-mode').textContent=t('shortcut.hudMode'+hudMode);
-      el('hud-color-row').hidden=state.hudMode!==2;el('hud-metrics-row').hidden=state.hudMode!==2;
-      el('hud-size-row').hidden=state.hudMode!==2;
+      hudMode=state.hudMode;hudVisible=state.hudVisible===true;
+      el('hud-mode').textContent=t('shortcut.hudMode'+(hudVisible?hudMode:3));
+      el('hud-color-row').hidden=!hudVisible||hudMode!==2;el('hud-metrics-row').hidden=!hudVisible||hudMode!==2;
+      el('hud-size-row').hidden=!hudVisible||hudMode!==2;
       el('hud-text-color').value=state.compactHudColor;
       el('hud-text-size').value=state.compactHudTextSize;el('hud-text-size-value').value=state.compactHudTextSize+'px';
       for(const checkbox of document.querySelectorAll('[data-hud-metric]'))checkbox.checked=!!(state.compactHudMetrics&Number(checkbox.dataset.hudMetric));

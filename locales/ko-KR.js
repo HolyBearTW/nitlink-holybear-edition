@@ -355,6 +355,7 @@ window.NitLinkLocales['ko-KR'] = {
   "shortcut.hudMode0": "기본 HUD",
   "shortcut.hudMode1": "상세 HUD",
   "shortcut.hudMode2": "간단한 텍스트 행",
+  "shortcut.hudMode3": "HUD 끄기",
   "shortcut.hudColor": "간단한 HUD 글자 색",
   "shortcut.hudMetrics": "간단한 HUD 표시 항목",
   "shortcut.hudAll": "모두 표시",

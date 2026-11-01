@@ -35,7 +35,7 @@ const {installExactDocument}=require('./preview-browser.cjs');
     await page.locator('.game-cover:enabled:visible').nth(1).click();
     await page.waitForFunction(()=>document.getElementById('game-cover-mode').textContent==='手動指定封面');
     await page.locator('#game-query').fill('The Legend of Zelda: Tears of the Kingdom');
-    await page.waitForFunction(()=>[...document.querySelectorAll('.game-result-subtitle')].some(el=>el.textContent.includes('Tears of the Kingdom')),{},{timeout:20000});
+    await page.waitForFunction(()=>[...document.querySelectorAll('.game-result-title')].some(el=>/Tears of the Kingdom|王國之淚/.test(el.textContent)),{},{timeout:20000});
     const fullNameResults=await page.locator('.game-result-title').allTextContents();
     const favoriteAction=page.locator('.game-result-wrap').first().locator('.game-favorite-action');
     if((await favoriteAction.textContent()).includes('加入'))await favoriteAction.click();

@@ -25,6 +25,7 @@ struct Game {
     std::vector<Cover> artworkSources;
     std::wstring displayNameSource;
     std::wstring displayNameLanguage;
+    std::wstring wikidataId;
 };
 // Taiwan is primary for Switch. A Hong Kong eShop CDN image is a fallback
 // only when Taiwan has no mapping. The Hong Kong Store image endpoint is
@@ -32,6 +33,7 @@ struct Game {
 inline std::vector<Cover> PreferredOfficialArtwork(std::vector<Cover> covers, std::wstring_view platform) {
     const bool taiwan=platform==L"switch" && std::any_of(covers.begin(),covers.end(),[](const Cover& c){return c.provider==L"nintendo-tw";});
     std::erase_if(covers,[&](const Cover& c){
+        if(c.provider.ends_with(L"-account"))return platform==L"switch"?c.provider!=L"nintendo-account":platform==L"playstation"?c.provider!=L"playstation-account":c.provider!=L"xbox-account";
         if(platform==L"playstation")return c.provider!=L"playstation-tw";
         if(platform!=L"switch")return true;
         return taiwan ? c.provider!=L"nintendo-tw" : c.provider!=L"nintendo-hk-eshop";
@@ -51,44 +53,23 @@ inline const Cover* PreferredTaiwanLandscapeArtwork(const std::vector<Cover>& co
     });
     return found==covers.end()?nullptr:&*found;
 }
-inline int SearchThumbnailArtworkPriority(const Cover& cover) {
-    if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&
-       (cover.shape==L"landscape"||(cover.provider==L"playstation-tw"&&cover.shape==L"square")))return 0;
-    if(!cover.isOfficial&&cover.provider==L"steamgriddb"&&cover.shape==L"landscape")return 1;
-    if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&cover.shape==L"portrait")return 2;
-    if(!cover.isOfficial&&cover.provider==L"steamgriddb"&&cover.shape==L"portrait")return 3;
-    return 4;
-}
 inline constexpr int UnavailableActivityArtwork = 8;
-// Source availability and manual choices are independent of the UI locale.
-// Only the automatic default skips Nintendo Taiwan outside Traditional Chinese.
-inline bool AutomaticArtworkLocaleAllowed(std::wstring_view provider, std::wstring_view locale) {
-    return provider!=L"nintendo-tw"||locale==L"zh-TW";
-}
-inline int ActivityArtworkPriority(const Cover& cover, std::wstring_view locale) {
-    if(!AutomaticArtworkLocaleAllowed(cover.provider,locale))return UnavailableActivityArtwork;
-    if(locale==L"ja-JP"||locale==L"ko-KR"){
-        // A filename, author or unknown label cannot prove the printed cover
-        // language. Keep those candidates available for manual selection.
-        if(!cover.languageVerified)return UnavailableActivityArtwork;
-        const int tier=cover.language==locale?0:
-            (cover.language==L"en-US"||cover.language==L"zxx")?3:UnavailableActivityArtwork;
-        if(tier==UnavailableActivityArtwork)return tier;
-        const int shape=cover.shape==L"square"?0:cover.shape==L"landscape"?1:
-            cover.shape==L"portrait"?2:UnavailableActivityArtwork;
-        return shape==UnavailableActivityArtwork?shape:tier+shape;
-    }
-    if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&cover.shape==L"square")return 0;
-    if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&cover.shape==L"landscape")return 1;
-    if(cover.isOfficial&&cover.provider!=L"nintendo-hk-store"&&cover.shape==L"portrait")return 2;
-    if(cover.provider!=L"nintendo-hk-store"&&cover.shape==L"square")return 3;
-    if(!cover.isOfficial&&cover.provider==L"steamgriddb"&&cover.shape==L"portrait")return 4;
+// Automatic defaults follow the same source/shape order in every UI locale.
+inline int ActivityArtworkPriority(const Cover& cover, std::wstring_view /*locale*/) {
+    if(cover.shape==L"square")return cover.isOfficial?0:1;
+    if(cover.shape==L"portrait")return cover.isOfficial?2:4;
+    if(cover.shape==L"landscape")return cover.isOfficial?3:5;
     return UnavailableActivityArtwork;
+}
+inline int SearchThumbnailArtworkPriority(const Cover& cover) {
+    return ActivityArtworkPriority(cover,{});
 }
 inline const Cover* PreferredActivityArtwork(const std::vector<Cover>& covers, std::wstring_view locale) {
     const Cover* preferred=nullptr;
     int priority=UnavailableActivityArtwork;
+    const bool localized=std::any_of(covers.begin(),covers.end(),[&](const Cover& cover){return cover.isOfficial&&cover.language==locale;});
     for(const auto& cover:covers){
+        if(localized&&(!cover.isOfficial||cover.language!=locale))continue;
         const auto candidate=ActivityArtworkPriority(cover,locale);
         if(candidate<priority){preferred=&cover;priority=candidate;}
     }
@@ -123,9 +104,15 @@ struct Request {
     Operation operation = Operation::Search;
     uint32_t request = 0, gameId = 0, coverId = 0, page = 0;
     std::wstring query, locale, shape = L"square", imageUrl;
+    std::string key;
+    bool accountOriginal=false;
     std::wstring coverProvider=L"all",catalogueQuery;
     std::wstring platform=L"unknown";
     std::vector<SavedGame> library;
+    std::map<std::string,std::vector<Cover>> libraryArtworks;
+    std::vector<Cover> accountArtworks;
+    std::vector<Game> searchGames;
+    uint32_t searchRequest=0;
     std::wstring artworkMode,finalImageKey,sourceImageKey;
     double cropX=.5,cropY=.5,artworkZoom=1;
 };
@@ -133,6 +120,8 @@ struct Result {
     Operation operation = Operation::Search;
     uint32_t request = 0, gameId = 0, coverId = 0;
     uint64_t generation = 0;
+    std::string key;
+    bool accountOriginal=false;
     std::wstring locale, query, shape, imageUri, imageStatus,coverProvider=L"all";
     std::wstring platform;
     Reply reply;
@@ -172,7 +161,7 @@ public:
 private:
     void Run(std::stop_token stop);
     void Publish(Result result, const Cancelled&);
-    std::wstring LoadArtworkImage(std::wstring_view url, const Cancelled&,std::wstring* actualShape=nullptr);
+    std::wstring LoadArtworkImage(std::wstring_view url, const Cancelled&,std::wstring* actualShape=nullptr,bool accountImage=false);
     std::wstring LoadFinalImage(std::wstring_view key,const Cancelled&);
     std::wstring StoreImage(std::shared_ptr<const Image> image,std::wstring_view identity,bool discord=false);
     std::unique_ptr<Provider> m_provider;

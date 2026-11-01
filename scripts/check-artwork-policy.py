@@ -1,6 +1,6 @@
 """Isolated artwork policy tests; Worker and official catalogue calls are mocked."""
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import json
 from pathlib import Path
 from nintendo_tw_artwork import OFFICIAL, preferred_sources, playstation_url
@@ -11,6 +11,42 @@ COMMUNITY={'id':1,'url':'https://cdn2.steamgriddb.com/grid/72654158f52bf25f9a810
 WORKER={'status':'ok','data':[COMMUNITY],'page':0,'hasMore':False}
 
 class ArtworkPolicyTests(unittest.TestCase):
+    @patch.object(bridge,'fetch_json',return_value={'status':'empty','data':[],'page':0,'hasMore':False})
+    def test_official_and_all_sources_reject_shared_words_and_sequel_prefixes(self,worker):
+        for selected,unrelated in (('Mario Kart World','東方 New World'),('Selected Game Deluxe Edition','Another Game Deluxe Edition'),('Adventure','Adventure 2'),('Adventure Returns','Adventure')):
+            good={'id':4200001998,'productTitle':selected,'url':'https://example.invalid/selected'}
+            bad={'id':4200001999,'productTitle':unrelated,'url':'https://example.invalid/unrelated'}
+            catalog={'status':'ok','covers':[bad,good],'page':0,'hasMore':False,'total':2,'officialProvider':'nintendo-tw'}
+            for source in ('nintendo','all'):
+                with self.subTest(selected=selected,source=source),patch.object(bridge.TW_LINEUP,'search',return_value=catalog),patch.object(bridge.HK_STORE,'search',side_effect=AssertionError('a matching Taiwan product already exists')):
+                    result=bridge.covers(1,'all','zh-TW',0,source,selected,'switch')
+                    self.assertEqual(result['artworkSources'],[good])
+
+    def test_generic_chinese_label_repairs_english_worker_fallback(self):
+        path='/games/search?q=locale-regression-fixture&lang=zh-TW'
+        responses=[]
+        for payload in ({'ok':True,'data':[{'id':5483943,'name':'Mario Kart World','displayName':'Mario Kart World','displayNameLanguage':'en','wikidataId':'Q131767872'}]},
+                        {'entities':{'Q131767872':{'labels':{'zh':{'value':'瑪利歐賽車世界','language':'zh'}}}}}):
+            response=MagicMock();response.__enter__.return_value=response;response.headers.get_content_type.return_value='application/json';response.read.return_value=json.dumps(payload).encode('utf-8');responses.append(response)
+        bridge.CACHE.pop(path,None)
+        with patch.object(bridge.OPENER,'open',side_effect=responses) as network:
+            reply=bridge.fetch_json(path)
+        self.assertEqual(reply['status'],'ok')
+        self.assertEqual(reply['data'][0]['displayName'],'瑪利歐賽車世界')
+        self.assertEqual(reply['data'][0]['displayNameLanguage'],'zh-TW')
+        self.assertIn('www.wikidata.org/w/api.php?',network.call_args_list[1].args[0].full_url)
+        bridge.CACHE.pop(path,None)
+
+    def test_named_preview_profiles_are_bounded(self):
+        self.assertEqual(bridge.library({'mode':['fixture'],'profile':['codex_account_review'],'action':['load']})['status'],'ok')
+        self.assertEqual(bridge.library({'mode':['fixture'],'profile':['../private'],'action':['load']})['status'],'invalid')
+
+    @patch.object(bridge,'fetch_json',side_effect=[{'status':'invalid','data':[]},{'status':'ok','data':[COMMUNITY],'page':0,'hasMore':False}])
+    def test_legacy_worker_landscape_uses_all_shapes_for_pixel_filtering(self,worker):
+        reply=bridge.covers(123,'landscape','en-US',0,'community','','other')
+        self.assertEqual(len(reply['covers']),1)
+        self.assertEqual(worker.call_args_list[1].args[0],'/games/123/covers?shape=all&page=0')
+
     @patch.object(bridge.HK_STORE,'search',side_effect=AssertionError('Hong Kong must not be queried'))
     @patch.object(bridge,'fetch_json',return_value=WORKER)
     @patch.object(bridge.TW_LINEUP,'search',side_effect=AssertionError('Worker-only covers must not query the official directory'))
@@ -50,9 +86,33 @@ class ArtworkPolicyTests(unittest.TestCase):
                 self.assertEqual(reply['officialProvider'],'nintendo-hk-store')
                 store.assert_called_once_with('曠野之息',1)
 
+    @patch.object(bridge,'fetch_json',return_value={'status':'empty','data':[],'page':0,'hasMore':False})
+    def test_all_sources_keeps_official_store_fallback_and_unknown_geometry(self,worker):
+        candidate={'id':4200000998,'provider':'nintendo-hk-store','shape':'','isOfficial':True,'productTitle':'Example','url':'https://store.nintendo.com.hk/media/catalog/product/example.jpg'}
+        empty={'status':'empty','covers':[],'page':0,'hasMore':False,'total':0,'officialProvider':'nintendo-tw'}
+        store={'status':'ok','covers':[candidate],'page':0,'hasMore':False,'total':1}
+        with patch.object(bridge.TW_LINEUP,'search',return_value=empty),patch.object(bridge.HK_STORE,'search',return_value=store):
+            for provider in ('all','nintendo'):
+                for shape in ('all','square','portrait','landscape'):
+                    with self.subTest(provider=provider,shape=shape):
+                        reply=bridge.covers(35744,shape,'zh-TW',0,provider,'Example','switch')
+                        self.assertIn(candidate,reply['artworkSources'])
+                        self.assertTrue(reply['artworkSources'][0]['isOfficial'])
+            self.assertEqual(bridge.covers(35744,'all','zh-TW',0,'community','Example','switch')['artworkSources'],[])
+
+    @patch.object(bridge,'fetch_json',return_value={'status':'empty','data':[],'page':0,'hasMore':False})
+    def test_platform_edition_tokens_do_not_include_unrelated_games(self,worker):
+        selected={'id':4200001001,'provider':'nintendo-tw','shape':'landscape','url':'https://example.invalid/selected','productTitle':'冒險傳說 王國之旅 Nintendo Switch 2 Edition'}
+        unrelated={**selected,'id':4200001002,'url':'https://example.invalid/other','productTitle':'另一款遊戲 Nintendo Switch 2 Edition'}
+        response={'status':'ok','covers':[selected,unrelated],'page':0,'hasMore':False,'total':2,'officialProvider':'nintendo-tw'}
+        with patch.object(bridge.TW_LINEUP,'search',return_value=response) as search:
+            reply=bridge.covers(1,'all','zh-TW',0,'all','冒險傳說 王國之旅 Nintendo Switch 2 Edition','switch')
+            search.assert_called_once_with('冒險傳說 王國之旅',0)
+            self.assertEqual(reply['artworkSources'],[selected])
+
     @patch.object(bridge,'fetch_json',return_value={'status':'ok','data':[],'page':0,'hasMore':False})
     def test_taiwan_official_browse_and_locale_independence(self,worker):
-        candidate={'id':4200001998,'provider':'nintendo-tw','sourceLabel':'Official Nintendo Taiwan','region':'TW','isOfficial':True,
+        candidate={'id':4200001998,'provider':'nintendo-tw','sourceLabel':'Official Nintendo Taiwan','region':'TW','isOfficial':True,'productTitle':'ZELDA無雙 災厄啟示錄',
                    'kind':'logo','shape':'landscape','url':'https://images.ctfassets.net/o5v89n4kg6h4/7001000013323143e1afaeac8b11f18660ebc15686256c/ff9b9a2c673b031deefe23e14af7e66c/b34d2cdc3942da8386bfba51c7f46fcf027f5a09901680b1c5a02d46cf585c51.jpg?w=400&fm=webp'}
         result={'status':'ok','covers':[candidate],'page':0,'hasMore':False,'total':1,'officialProvider':'nintendo-tw'}
         with patch.object(bridge.TW_LINEUP,'search',return_value=result) as taiwan, patch.object(bridge.HK_STORE,'search',side_effect=AssertionError('Taiwan results must be primary')):

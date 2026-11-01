@@ -49,6 +49,20 @@ struct OfficialThumbnailProvider final : NitLink::Games::Provider {
 int main() {
     using namespace NitLink;
     using namespace Games;
+    Check(MatchesCoverTitle(L"mario kart world",L"Mario Kart World")&&
+          MatchesCoverTitle(L"冒險遊戲 Nintendo Switch 2 Edition",L"冒險遊戲")&&
+          MatchesCoverTitle(L"Sonic Racing: CrossWorlds",L"Sonic Racing: CrossWorlds - Demo")&&
+          !MatchesCoverTitle(L"東方 New World",L"Mario Kart World")&&
+          !MatchesCoverTitle(L"Another Game Deluxe Edition",L"Selected Game Deluxe Edition")&&
+          !MatchesCoverTitle(L"Adventure 2",L"Adventure")&&!MatchesCoverTitle(L"Adventure",L"Adventure Returns"),"official products require the complete normalized title, never a shared word, edition token or sequel prefix");
+    Check(NeedsLocalizedTitle(L"Mario Kart World",L"zh-TW")&&!NeedsLocalizedTitle(L"瑪利歐賽車世界",L"zh-TW")&&
+          !NeedsLocalizedTitle(L"マリオカート ワールド",L"ja-JP")&&!NeedsLocalizedTitle(L"마리오 카트 월드",L"ko-KR")&&
+          !NeedsLocalizedTitle(L"Mario Kart World",L"de-DE"),"an English platform fallback does not suppress missing Chinese/Japanese/Korean catalogue labels");
+    Check(CoverSearchTitle(L"Sonic Racing: CrossWorlds - Demo")==L"Sonic Racing: CrossWorlds"&&
+          CoverSearchTitle(L"Majogami Demo ver.")==L"Majogami"&&
+          CoverSearchTitle(L"STREET FIGHTER 6 DEMO")==L"STREET FIGHTER 6"&&
+          CoverSearchTitle(L"魔女祇兵 體驗版")==L"魔女祇兵"&&
+          CoverSearchTitle(L"DEMON X MACHINA")==L"DEMON X MACHINA","cover lookup strips demo suffixes without changing unrelated names");
     Check(DynamicId("sgdb-5303117") == 5303117 && !DynamicId("sgdb-01") && !DynamicId("sgdb-0") &&
           !DynamicId("sgdb-4294967296") && !DynamicId("spider-man-2"), "canonical dynamic IDs");
     const std::wstring url = L"https://cdn2.steamgriddb.com/grid/72654158f52bf25f9a8101f78aceaa2f.jpg";
@@ -108,8 +122,8 @@ int main() {
     Check(PreferredTaiwanLandscapeArtwork(searchArt)==&searchArt[1]&&
           PreferredTaiwanLandscapeArtwork({taiwanLandscape})!=nullptr,
           "search thumbnails prefer verified Nintendo Taiwan landscape artwork, including logo covers");
-    Check(PreferredActivityArtwork(searchArt,L"zh-TW")==&searchArt[1],
-          "game selection uses the Taiwan landscape logo when no square is available");
+    Check(PreferredActivityArtwork(searchArt,L"zh-TW")==&searchArt[0],
+          "official portrait precedes official landscape when no square is available");
     Check(PreferredTaiwanLandscapeArtwork({taiwanPortrait,hongKongLandscape})==nullptr,
           "portrait and non-Taiwan art do not replace the existing search thumbnail");
     Cover communitySquare;communitySquare.id=81;communitySquare.url=communitySquare.thumb=url;communitySquare.shape=L"square";
@@ -118,48 +132,44 @@ int main() {
     SavedGame automatic;
     Check(!AutomaticActivityArtwork(automatic,{communitySquare},false,L"zh-TW")&&!AutomaticActivityArtwork(automatic,loaded,false,L"zh-TW"),
           "no default is selected before the entire image batch settles");
-    Check(AutomaticActivityArtwork(automatic,loaded,true,L"zh-TW")==&loaded[1],
-          "a late official portrait wins over an early community square");
-    std::reverse(loaded.begin(),loaded.end());
     Check(AutomaticActivityArtwork(automatic,loaded,true,L"zh-TW")==&loaded[0],
-          "official selection is independent of image arrival order");
+          "a community square precedes an official portrait");
+    std::reverse(loaded.begin(),loaded.end());
+    Check(AutomaticActivityArtwork(automatic,loaded,true,L"zh-TW")==&loaded[1],
+          "selection priority is independent of image arrival order");
     const std::vector<Cover> noOfficial={communitySquare};
     Check(AutomaticActivityArtwork(automatic,noOfficial,true,L"zh-TW")==&noOfficial[0]&&
           !AutomaticActivityArtwork(automatic,{},true,L"zh-TW"),
           "square is the fallback when no official image loaded; all failures select nothing");
-    auto japanese=communitySquare;japanese.language=L"ja-JP";japanese.languageVerified=true;
-    auto korean=communitySquare;korean.language=L"ko-KR";korean.languageVerified=true;
-    auto english=communitySquare;english.language=L"en-US";english.languageVerified=true;
-    auto unknown=communitySquare;unknown.language.clear();unknown.languageVerified=false;
-    Check(PreferredActivityArtwork({japanese,english},L"ja-JP")!=nullptr&&
-          PreferredActivityArtwork({korean,english},L"ko-KR")!=nullptr&&
-          ActivityArtworkPriority(japanese,L"ja-JP")<ActivityArtworkPriority(english,L"ja-JP")&&
-          ActivityArtworkPriority(korean,L"ko-KR")<ActivityArtworkPriority(english,L"ko-KR")&&
-          !PreferredActivityArtwork({unknown,taiwanLandscape},L"ja-JP")&&
-          !PreferredActivityArtwork({unknown,taiwanLandscape},L"ko-KR"),
-          "Japanese and Korean auto artwork requires verified matching language, then English fallback");
-    for(const auto* locale:{L"en-US",L"zh-CN",L"de-DE"}){
-        Check(!AutomaticActivityArtwork(automatic,loaded,false,locale)&&
-              AutomaticActivityArtwork(automatic,loaded,true,locale)==&loaded[1],
-              "non-Traditional locales wait for the batch then prefer the community square over Taiwan");
-        for(const auto* shape:{L"square",L"landscape",L"portrait"}){
-            auto tw=officialPortrait;tw.shape=shape;
-            Check(ActivityArtworkPriority(tw,locale)==UnavailableActivityArtwork&&
-                  !PreferredActivityArtwork({tw},locale),
-                  "Nintendo Taiwan never becomes an automatic default in other locales, regardless of shape");
+    Cover officialSquare=officialPortrait;officialSquare.shape=L"square";
+    auto localizedPortrait=officialPortrait;localizedPortrait.language=L"zh-TW";
+    auto englishSquare=officialSquare;englishSquare.language=L"en-US";
+    const std::vector<Cover> localeChoices={englishSquare,localizedPortrait};
+    Check(PreferredActivityArtwork(localeChoices,L"zh-TW")==&localeChoices[1]&&PreferredActivityArtwork(localeChoices,L"en-US")==&localeChoices[0],"official candidates retain every locale while the effective UI language chooses the default");
+    Cover communityPortrait=communitySquare;communityPortrait.shape=L"portrait";
+    Cover communityLandscape=communitySquare;communityLandscape.shape=L"landscape";
+    const std::vector<Cover> priority={officialSquare,communitySquare,officialPortrait,taiwanLandscape,communityPortrait,communityLandscape};
+    for(const auto* locale:{L"zh-TW",L"zh-CN",L"en-US",L"de-DE",L"ja-JP",L"ko-KR"}){
+        for(size_t index=0;index<priority.size();++index){
+            Check(ActivityArtworkPriority(priority[index],locale)==static_cast<int>(index),"six source/shape tiers apply in every locale");
+            const std::vector<Cover> remaining(priority.begin()+index,priority.end());
+            Check(PreferredActivityArtwork(remaining,locale)==&remaining.front(),"each missing tier falls back to the next available shape/source");
         }
-        auto sony=officialPortrait;sony.provider=L"playstation-tw";
-        Check(ActivityArtworkPriority(sony,locale)<UnavailableActivityArtwork,
-              "Nintendo locale policy does not change PlayStation artwork");
+        Check(!AutomaticActivityArtwork(automatic,loaded,false,locale)&&AutomaticActivityArtwork(automatic,loaded,true,locale)==&loaded[1],"selection waits for the complete image batch in every locale");
         auto manual=automatic;SelectArtwork(manual,officialPortrait);manual.manualCover=true;
-        Check(manual.coverUrl==officialPortrait.url&&manual.provider==L"nintendo-tw"&&
-              !AutomaticActivityArtwork(manual,loaded,true,locale),
-              "manually selected Taiwan artwork remains available and is never overridden by locale");
+        Check(!AutomaticActivityArtwork(manual,priority,true,locale),"manual artwork always survives automatic refresh");
     }
     automatic.manualCover=true;
     Check(!AutomaticActivityArtwork(automatic,loaded,true,L"zh-TW"),"batch completion never overrides a manual cover");
     automatic.manualCover=false;automatic.finalImageKey=std::wstring(64,L'a');
     Check(!AutomaticActivityArtwork(automatic,loaded,true,L"zh-TW"),"batch completion preserves an existing custom edit");
+    Check(IsAccountGameKey("nintendo-BEE-0400000000000001")&&IsAccountGameKey("playstation-PPSA21568_00")&&IsAccountGameKey("xbox-2014350744")&&!IsAccountGameKey("nintendo-HAC-bad"),"platform IDs have separate persistent namespaces");
+    SavedGame linked;linked.id=5483943;linked.name=L"Example";linked.accountGameKey="xbox-2014350744";
+    linked.provider=L"xbox-account";linked.isOfficial=true;linked.coverShape=L"square";
+    linked.coverUrl=linked.coverThumb=L"https://store-images.s-microsoft.com/image/apps.1.test";
+    Check(ValidSavedGame("sgdb-5483943",linked),"linked artwork does not replace the selected catalogue game's identity");
+    linked.accountGameKey="playstation-PPSA21568_00";
+    Check(!ValidSavedGame("sgdb-5483943",linked),"account artwork provenance must match its provider");
     Check(ParseSettingsMessage(LR"({"action":"applyAutoGameCover","value":{"gameId":5303117,"request":7,"coverId":82}})").has_value(),
           "image readiness acknowledgment carries only IDs");
     for(const auto* invalid:{LR"({"action":"applyAutoGameCover","value":{"gameId":5303117,"request":0,"coverId":82}})",
@@ -204,9 +214,13 @@ int main() {
     game.coverUrl = url; game.coverThumb = url; game.coverId = 694138; game.manualCover = true;
     saved.gameSettings["spider-man-2"].nisEnabled = true;
     saved.gameSettings[saved.currentGameId].colorExpansion = false;
+    auto& oldAccount=saved.onlineGames["nintendo-BEE-0400000000000001"];
+    oldAccount.key="nintendo-BEE-0400000000000001";oldAccount.name=L"Mario Kart World";
+    oldAccount.displayNames={{L"zh-TW",L"Mario Kart World"},{L"ja-JP",L"マリオカート ワールド"}};
     Check(saved.Save(path.string()), "persist online game");
     Config restored;
     Check(restored.Load(path.string()), "restore online game");
+    Check(!restored.onlineGames.at(oldAccount.key).displayNames.contains(L"zh-TW")&&restored.onlineGames.at(oldAccount.key).DisplayName(L"ja-JP")==L"マリオカート ワールド","old mislabeled English account names no longer block catalogue localization after settings reload");
     const auto found = restored.onlineGames.find(saved.currentGameId);
     Check(found != restored.onlineGames.end() && found->second.manualCover && found->second.coverUrl == url &&
           found->second.coverId == 694138 && found->second.DisplayName(L"zh-TW") == game.displayNames[L"zh-TW"], "manual art and locale roundtrip");
@@ -276,18 +290,31 @@ int main() {
     cached->png={137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,
         0,0,0,11,73,68,65,84,120,156,99,96,0,2,0,0,5,0,1,165,246,69,64,0,0,0,0,73,69,78,68,174,66,96,130};
     galleryService.CacheDiscordImage(cached,communitySquare.url);galleryService.CacheDiscordImage(cached,officialPortrait.url);
+    std::atomic<bool> labelsStarted=false;
+    GameService libraryFirst(std::make_unique<SlowProvider>(labelsStarted));
+    libraryFirst.CacheDiscordImage(cached,communitySquare.url);
+    Request libraryBatch;libraryBatch.operation=Operation::LibraryImages;libraryBatch.locale=L"zh-TW";libraryBatch.accountOriginal=true;
+    SavedGame first;first.key="xbox-1";first.name=L"slow";first.provider=L"xbox-account";first.coverUrl=communitySquare.url;
+    auto second=first;second.key="xbox-2";second.name=L"Second";second.displayNames[L"zh-TW"]=L"第二款";
+    libraryBatch.library={first,second};libraryFirst.Submit(libraryBatch);
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+    while(!labelsStarted&&std::chrono::steady_clock::now()<deadline)std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    unsigned readyBeforeLabels=0;for(const auto& result:libraryFirst.TakeResults())if(result.operation==Operation::LibraryImages&&!result.imageUri.empty())++readyBeforeLabels;
+    Check(labelsStarted&&readyBeforeLabels==2,"all account library images are published before a slow name lookup");libraryFirst.Cancel();
     Request batch;batch.operation=Operation::Covers;batch.gameId=5303117;batch.request=91;batch.locale=L"zh-TW";batch.shape=L"all";
+    SavedGame visible;visible.key="xbox-1";visible.name=L"Visible library image";visible.coverUrl=communitySquare.url;visible.displayNames[L"zh-TW"]=visible.name;batch.library={visible};
     galleryService.Submit(batch);
-    bool complete=false,header=false;unsigned imageCount=0;
+    bool complete=false,header=false,libraryReady=false;unsigned imageCount=0;
     deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
     while(!complete&&std::chrono::steady_clock::now()<deadline){
         for(const auto& result:galleryService.TakeResults()){
-            if(result.operation==Operation::Covers)header=true;
+            if(result.operation==Operation::LibraryImages&&result.key==visible.key){Check(!result.imageUri.empty(),"cached library art remains immediately available");libraryReady=true;}
+            if(result.operation==Operation::Covers){Check(libraryReady,"visible library images precede the gallery catalogue and image batch");header=true;}
             if(result.operation==Operation::Image){Check(!complete,"all native image results precede completion");++imageCount;}
             if(result.operation==Operation::CoverImagesComplete){
                 complete=true;
                 Check(header&&imageCount==2&&result.request==91&&result.reply.covers.size()==2&&
-                    PreferredActivityArtwork(result.reply.covers,result.locale)->id==officialPortrait.id,
+                    PreferredActivityArtwork(result.reply.covers,result.locale)->id==officialPortrait.id&&result.reply.covers[0].shape==L"square",
                     "real native worker exposes the complete loaded candidate set only after every image");
             }
         }
@@ -295,6 +322,32 @@ int main() {
     }
     Check(complete,"cover batch always publishes a terminal readiness notification");
     galleryService.Cancel();Check(galleryService.TakeResults().empty(),"cancellation removes stale batch completion");
+    batch.request=92;batch.searchRequest=93;Game pendingThumbnail;pendingThumbnail.id=200;pendingThumbnail.name=L"Pending thumbnail";batch.searchGames={pendingThumbnail};
+    galleryService.Submit(batch);bool resumedThumbnail=false;
+    deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+    while(!resumedThumbnail&&std::chrono::steady_clock::now()<deadline){
+        for(const auto& result:galleryService.TakeResults())if(result.operation==Operation::Image&&!result.coverId&&result.request==93&&result.gameId==200)resumedThumbnail=true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    Check(resumedThumbnail,"cover requests resume pending search thumbnails using the original search request ID");
+    {
+        auto provider=std::make_unique<OfficialThumbnailProvider>();auto* observed=provider.get();
+        provider->game={700001u,0,L"Official square fixture",L"官方正方形測試",L"fixture"};
+        provider->game.artworkSources={taiwanLandscape};
+        GameService thumbnails(std::move(provider));
+        auto accountSquare=taiwanLandscape;accountSquare.provider=L"nintendo-account";accountSquare.shape.clear();
+        accountSquare.url=accountSquare.thumb=L"https://atum-img-lp1.cdn.nintendo.net/i/c/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_512";
+        thumbnails.CacheDiscordImage(cached,accountSquare.url);
+        Request search;search.operation=Operation::Search;search.request=94;search.query=L"Official square fixture";search.locale=L"zh-TW";search.platform=L"switch";
+        SavedGame account;account.key="nintendo-BEE-0400000000000001";account.name=L"Official square fixture";account.provider=L"nintendo-account";account.coverUrl=accountSquare.url;account.displayNames[L"zh-TW"]=L"官方正方形測試";
+        search.library={account};search.libraryArtworks[account.key]={accountSquare};thumbnails.Submit(search);
+        bool ready=false;deadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+        while(!ready&&std::chrono::steady_clock::now()<deadline){
+            for(const auto& result:thumbnails.TakeResults())if(result.operation==Operation::Image&&result.gameId==700001u)ready=result.imageStatus==L"ok"&&result.shape==L"square"&&!result.reply.covers.empty()&&result.reply.covers.front().provider==L"nintendo-account";
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        Check(ready&&observed->communityRequests==0,"native search selects a decoded official account square ahead of a landscape and avoids community requests");
+    }
     auto officialProvider=CreateOfficialArtworkProvider();
     for(const auto gameId:{5454475u,5296432u}){
         const auto officialGame=officialProvider->Lookup(gameId,L"zh-TW");

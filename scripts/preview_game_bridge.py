@@ -88,6 +88,33 @@ def fetch_json(path):
         result = {'status':'ok','data':reply['data'], 'lookups':reply.get('lookups',{}),
                   'resolvedQueries':reply.get('resolvedQueries',[]), 'page':reply.get('page',0),
                   'hasMore':reply.get('hasMore',False), 'total':reply.get('total',len(reply['data']))}
+        locale=urllib.parse.parse_qs(urllib.parse.urlsplit(path).query).get('lang',[''])[0]
+        if path.startswith('/games/search?') and locale in ('zh-TW','zh-CN'):
+            missing={game['wikidataId']:game for game in result['data'] if isinstance(game,dict) and re.fullmatch(r'Q[0-9]{1,19}',str(game.get('wikidataId',''))) and not re.search(r'[\u3040-\u9fff]',str(game.get('displayName','')))}
+            entity_ids=list(missing)
+            for offset in range(0,len(entity_ids),50):
+                ids=entity_ids[offset:offset+50]
+                metadata_url='https://www.wikidata.org/w/api.php?'+urllib.parse.urlencode({'action':'wbgetentities','props':'labels','languages':'zh-hant|zh-tw|zh-hans|zh-cn|zh','format':'json','ids':'|'.join(ids)})
+                metadata_request=urllib.request.Request(metadata_url,headers={'User-Agent':'NitLink-HolyBear-GameSearch/1','Accept':'application/json'})
+                try:
+                    with OPENER.open(metadata_request,timeout=4) as response:
+                        if response.headers.get_content_type()!='application/json':continue
+                        metadata_body=response.read(256*1024+1)
+                        if len(metadata_body)>256*1024:continue
+                        entities=json.loads(metadata_body.decode('utf-8')).get('entities',{})
+                    if not isinstance(entities,dict):continue
+                    languages=('zh-hant','zh-tw','zh') if locale=='zh-TW' else ('zh-hans','zh-cn','zh')
+                    for entity_id in ids:
+                        entity=entities.get(entity_id,{})
+                        labels=entity.get('labels',{}) if isinstance(entity,dict) else {}
+                        if not isinstance(labels,dict):continue
+                        for language in languages:
+                            label=labels.get(language,{})
+                            title=label.get('value') if isinstance(label,dict) else None
+                            if not text(title) or not title:continue
+                            game=missing[entity_id];game['displayName']=localized_game_name(game.get('name',''),title,locale,language);game['displayNameLanguage']=locale;game['displayNameSource']='wikidata'
+                            break
+                except (OSError,ValueError):continue
         with LOCK:
             if len(CACHE) >= 64:
                 CACHE.pop(next(iter(CACHE)))
@@ -119,6 +146,7 @@ def expansion(query):
     return list(dict.fromkeys(terms))[:6], list(dict.fromkeys(suggestions))[:8]
 
 def search(query, locale, platform='unknown'):
+    query=cover_search_title(query)
     terms, suggestions = expansion(query)
     primary = fetch_json('/games/search?' + urllib.parse.urlencode({'q':query,'lang':locale}))
     # Worker v5 already expands series queries. Preserve its complete response;
@@ -179,27 +207,45 @@ def search(query, locale, platform='unknown'):
     return {'status':status,'games':games,'workerCount':worker_count,'lookups':lookups,'queriedTerms':terms,
             'resolvedQueries':list(dict.fromkeys(resolved))[:24], 'suggestions':suggestions,'total':len(games),'dataMode':'real'}
 
+def base_game_title(value):
+    return re.sub(r'[\s:·|—–-]*(?:[（(]\s*)?(?:Nintendo\s+)?Switch\s*2\s*(?:Edition|版|エディション|에디션)\s*[）)]?$', '', value,flags=re.I).strip()
+
+def cover_search_title(value):
+    return base_game_title(re.sub(r'(?:^|[\s:·|—–（(-]+)(?:demo(?:\s*(?:ver\.?|version))?|trial(?:\s*version)?)[\s.）)]*$|[\s:·|—–（(-]*(?:體驗版|体验版|試玩版|试玩版|体験版|체험판)[\s）)]*$', '',base_game_title(value),flags=re.I))
+
 def covers(game_id, shape, locale, page, provider='all', official_query='', platform='unknown'):
+    official_query=cover_search_title(official_query)
     primary=OFFICIAL.candidates(game_id,platform) if provider!='community' else []
-    catalog=TW_LINEUP.search(official_query,page) if platform=='switch' and provider!='community' and official_query else None
+    def match_catalog(catalog):
+        if not catalog or not official_query:return catalog
+        normalize=lambda value:re.sub(r'[^a-z0-9\u3040-\u9fff\uac00-\ud7af]','',cover_search_title(value).lower())
+        expected=normalize(official_query)
+        candidates=[cover for cover in catalog.get('covers',[]) if expected and normalize(cover.get('productTitle',''))==expected]
+        return {**catalog,'covers':candidates,'status':'empty' if not candidates and catalog['status']=='ok' else catalog['status']}
+    catalog=match_catalog(TW_LINEUP.search(official_query,page)) if platform=='switch' and provider!='community' and (official_query or provider=='nintendo') else None
+    if platform=='switch' and provider!='community' and catalog and (catalog['status']!='ok' or not catalog['covers']):
+        fallback=match_catalog(HK_STORE.search(official_query,page))
+        if fallback['covers'] or catalog['status']!='ok':catalog=fallback
+        catalog.setdefault('officialProvider','nintendo-hk-store')
     if provider=='nintendo':
         if catalog is None:catalog={'status':'idle','covers':[],'total':0,'page':page,'hasMore':False,'officialProvider':''}
         if platform=='switch' and (catalog['status']!='ok' or not catalog['covers']):
-            fallback=HK_STORE.search(official_query,page)
+            fallback=match_catalog(HK_STORE.search(official_query,page))
             if fallback['covers'] or catalog['status']!='ok':catalog=fallback
             catalog.setdefault('officialProvider','nintendo-hk-store')
-        candidates=[cover for cover in catalog.get('covers',[]) if shape=='all' or cover.get('shape')==shape]
+        candidates=[cover for cover in catalog.get('covers',[]) if shape=='all' or not cover.get('shape') or cover.get('shape')==shape]
         seen={cover.get('url') for cover in candidates}
         if page==0 and not candidates:
             for cover in preferred_sources(primary,platform):
-                if (shape=='all' or cover.get('shape')==shape) and cover.get('url') not in seen:
+                if (shape=='all' or not cover.get('shape') or cover.get('shape')==shape) and cover.get('url') not in seen:
                     candidates.append(cover);seen.add(cover.get('url'))
         provider_name=(candidates[0].get('provider','') if candidates else '') or catalog.get('officialProvider') or (primary[0]['provider'] if primary else '')
         status=catalog.get('status','idle')
         if candidates and status in ('empty','idle'):status='ok'
         return {'status':status,'page':page,'hasMore':catalog.get('hasMore',False),'total':catalog.get('total',len(candidates))+max(0,len(candidates)-len(catalog.get('covers',[]))),
                 'artworkSources':candidates,'covers':[],'dataMode':'real','officialStatus':catalog.get('status','idle'),'officialProvider':provider_name}
-    reply = fetch_json(f'/games/{game_id}/covers?shape={shape}&page={page}')
+    reply = fetch_json(f'/games/{game_id}/covers?shape={shape}&page={page}') if game_id else {'status':'empty','data':[]}
+    if game_id and shape=='landscape' and reply['status']=='invalid':reply=fetch_json(f'/games/{game_id}/covers?shape=all&page={page}')
     rows, seen = [], set()
     for cover in reply['data']:
         if not isinstance(cover,dict) or not number(cover.get('id')) or cover['id'] in seen or not text(cover.get('url'),512) or not URL_RE.fullmatch(cover['url']):
@@ -218,9 +264,8 @@ def covers(game_id, shape, locale, page, provider='all', official_query='', plat
     status = reply['status'] if reply['status']!='ok' else 'ok' if rows else 'invalid' if reply['data'] else 'empty'
     official=preferred_sources(primary,platform)
     if provider=='all' and catalog:
-        official.extend(cover for cover in catalog.get('covers',[]) if (shape=='all' or cover['shape']==shape) and not any(existing['url']==cover['url'] for existing in official))
-        official=preferred_sources(official,platform)
-    official=[cover for cover in official if shape=='all' or cover['shape']==shape]
+        official.extend(cover for cover in catalog.get('covers',[]) if (shape=='all' or not cover.get('shape') or cover['shape']==shape) and not any(existing['url']==cover['url'] for existing in official))
+    official=[cover for cover in official if shape=='all' or not cover.get('shape') or cover['shape']==shape]
     if official and status=='empty':status='ok'
     elif official and status!='ok':status='partial'
     official_status=catalog.get('status','idle') if catalog else 'ok' if primary else 'idle'
@@ -270,7 +315,9 @@ def image(url):
                 path.write_bytes(data)
         except (OSError, ValueError, Image.DecompressionBombError):
             return {'status':'failed','image':''}
-    return {'status':'ok','image':'preview/api-images/'+key+'.png'}
+    with Image.open(path) as cached:
+        shape='square' if cached.width==cached.height else 'landscape' if cached.width>cached.height else 'portrait'
+    return {'status':'ok','image':'preview/api-images/'+key+'.png','shape':shape}
 
 def dispatch(params):
     operation=params.get('operation',[''])[0]
@@ -299,13 +346,13 @@ def dispatch(params):
                 if not record or record.get('id')!=int(params.get('gameId',['0'])[0]) or record.get('coverId')!=int(params.get('coverId',['0'])[0]):return {'status':'invalid'}
                 return render_artwork(record,params.get('renderMode',[''])[0],float(params.get('x',['.5'])[0]),float(params.get('y',['.5'])[0]),float(params.get('zoom',['1'])[0]),image,IMAGES)
             except (ValueError,OSError):return {'status':'failed'}
-        if operation=='search':
+        if operation in ('search','accountNames'):
             query=params.get('query',[''])[0].strip()
             platform=params.get('platform',['unknown'])[0]
             return search(query,locale,platform) if text(query) and query and platform in ('switch','playstation','unknown','other') else {'status':'invalid','games':[]}
-        if operation=='covers':
+        if operation in ('covers','accountCovers'):
             id_text=params.get('gameId',[''])[0]; shape=params.get('shape',[''])[0]; page=params.get('page',['0'])[0]
-            if not re.fullmatch(r'[1-9]\d{0,9}',id_text) or not number(int(id_text)) or shape not in ('square','portrait','landscape','all') or not re.fullmatch(r'\d{1,4}',page) or int(page)>1000:
+            if not (re.fullmatch(r'[1-9]\d{0,9}',id_text) or operation=='accountCovers' and id_text=='0') or not (operation=='accountCovers' and id_text=='0' or number(int(id_text))) or shape not in ('square','portrait','landscape','all') or not re.fullmatch(r'\d{1,4}',page) or int(page)>1000:
                 return {'status':'invalid','covers':[]}
             provider=params.get('provider',['all'])[0];official_query=params.get('officialQuery',[''])[0]
             if provider not in ('all','nintendo','community') or (provider=='nintendo' and not text(official_query)):return {'status':'invalid','covers':[]}
@@ -324,8 +371,8 @@ def library(params):
         return {'status':'invalid'}
     folder=ROOT/'out/game-preview-api'; folder.mkdir(parents=True,exist_ok=True)
     profile_name=params.get('profile',['default'])[0]
-    if profile_name not in ('default','checks'):return {'status':'invalid'}
-    path=folder/(mode+'-library'+('' if profile_name=='default' else '-checks')+'.json')
+    if not re.fullmatch(r'[a-z0-9_-]{1,48}',profile_name):return {'status':'invalid'}
+    path=folder/(mode+'-library'+('' if profile_name=='default' else '-'+profile_name)+'.json')
     with PROFILE_LOCK:
         profile={'records':{},'currentKey':'','currentStartUnix':int(time.time())}
         try:

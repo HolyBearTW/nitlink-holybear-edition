@@ -6,7 +6,9 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <cwctype>
 #include <map>
+#include <regex>
 #include <string>
 #include <string_view>
 #include <cmath>
@@ -27,9 +29,41 @@ inline uint32_t DynamicId(std::string_view id) {
     return id.starts_with("sgdb-") ? ParseId(id.substr(5)) : 0;
 }
 inline std::string GameKey(uint32_t id) { return "sgdb-" + std::to_string(id); }
+inline bool IsAccountGameKey(std::string_view key) {
+    if(key.starts_with("nintendo-HAC-")||key.starts_with("nintendo-BEE-")){
+        const auto id=key.substr(13);return id.size()==16&&std::all_of(id.begin(),id.end(),[](char c){return(c>='0'&&c<='9')||(c>='A'&&c<='F');});
+    }
+    if(key.starts_with("playstation-")){
+        const auto id=key.substr(12);return id.size()==12&&(id.starts_with("CUSA")||id.starts_with("PPSA"))&&id[9]=='_'&&
+            std::all_of(id.begin()+4,id.begin()+9,[](char c){return c>='0'&&c<='9';})&&id[10]>='0'&&id[10]<='9'&&id[11]>='0'&&id[11]<='9';
+    }
+    return key.starts_with("xbox-")&&ParseId(key.substr(5))!=0;
+}
+inline std::wstring BaseGameTitle(std::wstring_view name){
+    static const std::wregex edition(LR"([\s:·|—–-]*(?:[（(]\s*)?(?:Nintendo\s+)?Switch\s*2\s*(?:Edition|版|エディション|에디션)\s*[）)]?$)",std::regex_constants::icase);
+    return std::regex_replace(std::wstring(name),edition,L"");
+}
+inline std::wstring CoverSearchTitle(std::wstring_view name){
+    static const std::wregex demo(LR"((?:^|[\s:·|—–（(-]+)(?:demo(?:\s*(?:ver\.?|version))?|trial(?:\s*version)?)[\s.）)]*$|[\s:·|—–（(-]*(?:體驗版|体验版|試玩版|试玩版|体験版|체험판)[\s）)]*$)",std::regex_constants::icase);
+    return BaseGameTitle(std::regex_replace(BaseGameTitle(name),demo,L""));
+}
+inline bool MatchesCoverTitle(std::wstring_view product,std::wstring_view game) {
+    const auto normalize=[](std::wstring_view value){
+        std::wstring key;
+        for(auto c:CoverSearchTitle(value))if((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||(c>=0x3040&&c<=0x9fff)||(c>=0xac00&&c<=0xd7af))key+=static_cast<wchar_t>(std::towlower(c));
+        return key;
+    };
+    const auto title=normalize(product);
+    return !title.empty()&&title==normalize(game);
+}
 inline bool IsLocale(std::wstring_view locale) {
     return locale == L"zh-TW" || locale == L"zh-CN" || locale == L"en-US" || locale == L"de-DE" ||
         locale == L"ko-KR" || locale == L"ja-JP";
+}
+inline bool NeedsLocalizedTitle(std::wstring_view title,std::wstring_view locale) {
+    if(locale==L"zh-TW"||locale==L"zh-CN"||locale==L"ja-JP")return std::none_of(title.begin(),title.end(),[](wchar_t c){return c>=0x3040&&c<=0x9fff;});
+    if(locale==L"ko-KR")return std::none_of(title.begin(),title.end(),[](wchar_t c){return (c>=0x1100&&c<=0x11ff)||(c>=0x3130&&c<=0x318f)||(c>=0xac00&&c<=0xd7af);});
+    return false;
 }
 inline bool IsCoverLanguage(std::wstring_view language) {
     return IsLocale(language) || language == L"zxx";
@@ -170,8 +204,23 @@ inline bool IsPlayStationArtworkUrl(std::wstring_view url) {
     if(!std::all_of(url.begin(),url.end(),[](wchar_t c){return(c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||c==L'/'||c==L'-'||c==L'_'||c==L'.';}))return false;
     return url.ends_with(L".png")||url.ends_with(L".jpg")||url.ends_with(L".webp");
 }
-inline bool IsCoverUrl(std::wstring_view url) { return IsSteamGridCoverUrl(url)||IsNintendoArtworkUrl(url)||IsPlayStationArtworkUrl(url); }
+inline bool IsAccountArtworkUrl(std::wstring_view url) {
+    if(url.size()>2048)return false;
+    for(const auto prefix:{std::wstring_view(L"https://atum-img-lp1.cdn.nintendo.net/i/c/"),
+        std::wstring_view(L"https://image.api.playstation.com/vulcan/"),std::wstring_view(L"https://image.api.playstation.com/cdn/"),
+        std::wstring_view(L"https://store-images.s-microsoft.com/image/"),std::wstring_view(L"https://images-eds-ssl.xboxlive.com/image/"),
+        std::wstring_view(L"https://images-eds.xboxlive.com/image/"),
+        std::wstring_view(L"https://images-eds.xboxlive.com/image?"),std::wstring_view(L"https://images-eds-ssl.xboxlive.com/image?")}) {
+        if(!url.starts_with(prefix))continue;const auto path=url.substr(prefix.size());
+        return !path.empty()&&path.find(L"..") == path.npos&&path.find(L"//")==path.npos&&std::all_of(path.begin(),path.end(),[](wchar_t c){
+            return(c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||std::wstring_view(L"/_.-?=&%+").find(c)!=std::wstring_view::npos;
+        });
+    }
+    return false;
+}
+inline bool IsCoverUrl(std::wstring_view url) { return IsSteamGridCoverUrl(url)||IsNintendoArtworkUrl(url)||IsPlayStationArtworkUrl(url)||IsAccountArtworkUrl(url); }
 struct ArtworkMetadata {
+    std::string accountGameKey;
     std::wstring provider=L"steamgriddb", sourceLabel=L"SteamGridDB", language, region, kind=L"cover";
     bool isOfficial=false;
 };
@@ -184,6 +233,7 @@ inline bool IsImageResource(std::wstring_view uri) {
         std::all_of(uri.begin(), uri.end(), [](wchar_t c) { return c >= L'0' && c <= L'9'; });
 }
 struct SavedGame : ArtworkMetadata {
+    std::string key; // The persistent selection key, independent of artwork catalogue IDs.
     uint32_t id = 0;
     std::wstring name;
     std::map<std::wstring, std::wstring> displayNames;
@@ -208,16 +258,23 @@ struct SavedGame : ArtworkMetadata {
     }
 };
 inline bool ValidSavedGame(std::string_view key, const SavedGame& game) {
+    const bool account=IsAccountGameKey(key);
     const bool builtin = game.id == 0 && !key.empty() && key.size() <= 64 && !key.starts_with("sgdb-") &&
         std::all_of(key.begin(),key.end(),[](char c){return (c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='_';});
-    if ((!builtin && (!game.id || DynamicId(key) != game.id)) || game.name.empty() || !ValidText(game.name) ||
+    if ((!builtin && !account && (!game.id || DynamicId(key) != game.id)) || game.name.empty() || !ValidText(game.name) ||
         !ValidText(game.customName) || game.lastUsedUtc > 253402300799ull ||
         game.displayNames.size() > 6 || (!game.coverUrl.empty() && !IsCoverUrl(game.coverUrl)) ||
         (!game.coverThumb.empty() && !IsCoverUrl(game.coverThumb))) return false;
     if(!game.coverShape.empty()&&game.coverShape!=L"square"&&game.coverShape!=L"portrait"&&game.coverShape!=L"landscape")return false;
     if(!ValidText(game.sourceLabel,128)||(!game.language.empty()&&!IsCoverLanguage(game.language))||
        (!game.region.empty()&&(game.region.size()!=2||!std::all_of(game.region.begin(),game.region.end(),[](wchar_t c){return c>=L'A'&&c<=L'Z';}))))return false;
-    if(IsNintendoArtworkUrl(game.coverUrl)){
+    if(game.provider==L"nintendo-account"||game.provider==L"playstation-account"||game.provider==L"xbox-account"){
+        const std::string_view origin=game.accountGameKey.empty()?key:std::string_view(game.accountGameKey);
+        if(!IsAccountGameKey(origin))return false;
+        const auto source=origin.substr(0,origin.find('-'));
+        if(game.provider!=std::wstring(source.begin(),source.end())+L"-account"||!game.isOfficial||
+           (!game.coverUrl.empty()&&!IsAccountArtworkUrl(game.coverUrl))||(!game.coverThumb.empty()&&!IsAccountArtworkUrl(game.coverThumb)))return false;
+    }else if(IsNintendoArtworkUrl(game.coverUrl)){
         const bool tw=game.provider==L"nintendo-tw"&&game.region==L"TW"&&game.sourceLabel==L"Official Nintendo Taiwan";
         const bool hk=game.provider==L"nintendo-hk-eshop"&&game.region==L"HK"&&game.sourceLabel==L"Official Nintendo eShop CDN";
         const bool store=game.provider==L"nintendo-hk-store"&&game.region==L"HK"&&game.sourceLabel==L"Official Nintendo Hong Kong Store"&&IsNintendoStoreImageUrl(game.coverUrl);

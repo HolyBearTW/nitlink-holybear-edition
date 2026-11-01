@@ -9,6 +9,7 @@
 
 #include "app/application.h"
 #include "app/localization.h"
+#include "app/nintendo_auth_callback.h"
 #include <windows.h>
 #include <shellscalingapi.h>
 #pragma comment(lib, "shcore.lib")
@@ -25,6 +26,8 @@ int WINAPI WinMain(
         MessageBoxW(nullptr, L"Unable to configure secure library loading.", L"NitLink", MB_ICONERROR);
         return 1;
     }
+
+    if(const auto callback=NitLink::Accounts::ForwardNintendoAuthCallback())return *callback;
 
     // Opt into per-monitor DPI awareness BEFORE creating any windows.
     // Without this, Windows lies about pixel sizes when DPI scaling is

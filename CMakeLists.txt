@@ -34,6 +34,8 @@ set(NITLINK_SOURCES
     src/app/game_service.cpp
     src/app/xbox_auth_callback.cpp
     src/app/xbox_auth_callback.h
+    src/app/nintendo_auth_callback.cpp
+    src/app/nintendo_auth_callback.h
     src/app/artwork_renderer.cpp
     src/app/nintendo_tw_artwork.cpp
     src/app/source_cadence.h
@@ -142,6 +144,7 @@ target_link_libraries(NitLink PRIVATE
     dwmapi
     windowscodecs
     winhttp
+    shell32
     bcrypt
     windowsapp
     # hid + setupapi: Windows HID Class API for the Elgato 4K S vendor

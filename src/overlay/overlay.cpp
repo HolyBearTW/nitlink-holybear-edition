@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <debugapi.h>
 #include <limits>
@@ -604,8 +605,8 @@ void Overlay::Render(const Stats& stats)
         m_contentFpsHistory.clear();
     }
 
-    float totalLatency = (float)(stats.captureLatencyMs + stats.renderLatencyMs);
-    m_latencyHistory.push_back(stats.signalActive ? totalLatency : 0.0f);
+    // The curve uses the same card-to-app measurement as its headline and tooltip.
+    m_latencyHistory.push_back(stats.signalActive ? static_cast<float>(std::max(0.0,stats.appIngestMs)) : 0.0f);
     if (m_latencyHistory.size() > kHistorySize) m_latencyHistory.pop_front();
 
     // HUD layout, matched to the F1 panel: a 280 x 162 collapsed card or
@@ -647,6 +648,41 @@ void Overlay::Render(const Stats& stats)
         return m.widthIncludingTrailingWhitespace;
     };
 
+    POINT cursor{};
+    const bool overWindow=GetCursorPos(&cursor)&&WindowFromPoint(cursor)==m_hwnd&&ScreenToClient(m_hwnd,&cursor);
+    const wchar_t* hoveredHelp=nullptr;
+    const auto hoverMetric=[&](const D2D1_RECT_F& rect,const wchar_t* key){
+        if(overWindow&&cursor.x>=rect.left&&cursor.x<rect.right&&cursor.y>=rect.top&&cursor.y<rect.bottom)hoveredHelp=key;
+    };
+    if(m_compactHud){
+        std::array<std::wstring,4> parts={
+            Tr(L"overlay.contentFps")+L" "+(haveContentFps?std::to_wstring(fps):L"--"),
+            Tr(L"overlay.captureFps")+L" "+(sig?std::to_wstring(stats.frameRates.captureFps):L"--"),
+            Tr(L"overlay.presentFps")+L" "+(sig?std::to_wstring(stats.frameRates.presentFps):L"--"),L""};
+        std::wstringstream ingest;ingest<<Tr(L"overlay.appIngest")<<L" ";
+        if(sig)ingest<<std::fixed<<std::setprecision(1)<<std::max(0.0,stats.appIngestMs)<<L" "<<Tr(L"overlay.ms");else ingest<<L"--";
+        parts[3]=ingest.str();
+        constexpr const wchar_t* help[]={L"overlay.help.contentFps",L"overlay.help.captureFps",L"overlay.help.presentFps",L"overlay.help.appIngest"};
+        std::array<float,4> widths{},heights{};std::array<ComPtr<IDWriteTextLayout>,4> layouts;bool first=true;
+        for(size_t i=0;i<parts.size();++i)if(stats.compactHudMetrics&(1u<<i)){
+            if(!first)parts[i]=L"  |  "+parts[i];first=false;
+            if(SUCCEEDED(m_dwriteFactory->CreateTextLayout(parts[i].c_str(),static_cast<UINT32>(parts[i].size()),m_textFormat.Get(),10000.0f,100.0f,&layouts[i]))){
+                layouts[i]->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);layouts[i]->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);layouts[i]->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+                layouts[i]->SetFontSize(static_cast<float>(stats.compactHudTextSize),DWRITE_TEXT_RANGE{0,static_cast<UINT32>(parts[i].size())});
+                DWRITE_TEXT_METRICS metrics{};layouts[i]->GetMetrics(&metrics);widths[i]=metrics.widthIncludingTrailingWhitespace+1.0f;heights[i]=metrics.height;
+            }
+        }
+        ComPtr<ID2D1SolidColorBrush> color;
+        m_d2dContext->CreateSolidColorBrush(D2D1::ColorF(((stats.compactHudColor>>16)&255)/255.0f,((stats.compactHudColor>>8)&255)/255.0f,(stats.compactHudColor&255)/255.0f),&color);
+        float x=16;
+        for(size_t i=0;i<parts.size();++i)if(widths[i]>0){
+            m_d2dContext->DrawTextLayout(D2D1::Point2F(x+1,17),layouts[i].Get(),m_brushBg.Get());
+            m_d2dContext->DrawTextLayout(D2D1::Point2F(x,16),layouts[i].Get(),color.Get());
+            hoverMetric(D2D1::RectF(x,16,x+widths[i],16+heights[i]),help[i]);
+            x+=widths[i];
+        }
+    }
+    if(!m_compactHud){
     // ---- 1. Surfaces -------------------------------------------------------
     // Body, band, and rules mirror the drawer tokens (--bg, --band, --hair,
     // --hair2) so the HUD reads as the same material as the panel.
@@ -734,7 +770,8 @@ void Overlay::Render(const Stats& stats)
     // One metric column: label, big value, unit hung off the value's baseline.
     auto drawMetric = [&](float left, float right, const std::wstring& label,
                           const std::wstring& value, const std::wstring& unit,
-                          ID2D1SolidColorBrush* valueBrush) {
+                          ID2D1SolidColorBrush* valueBrush,const wchar_t* help) {
+        hoverMetric(D2D1::RectF(left,labelY,right,valueY+valueH),help);
         drawText(label, m_textFormatUnit.Get(),
                  D2D1::RectF(left, labelY, right, labelY + 14.0f),
                  m_brushDim.Get(), DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
@@ -748,7 +785,7 @@ void Overlay::Render(const Stats& stats)
     };
 
     drawMetric(panel.left + pad, colMid - 4.0f, Tr(L"overlay.contentFps"),
-               haveContentFps ? std::to_wstring(fps) : L"--", Tr(L"overlay.fps"), fpsBrush());
+               haveContentFps ? std::to_wstring(fps) : L"--", Tr(L"overlay.fps"), fpsBrush(),L"overlay.help.contentFps");
     {
         std::wstring v = L"--";
         if (sig) {
@@ -757,7 +794,7 @@ void Overlay::Render(const Stats& stats)
             v = ss.str();
         }
         drawMetric(colMid + 4.0f, panel.right - pad, Tr(L"overlay.appIngest"), v,
-                   Tr(L"overlay.ms"), appIngestBrush());
+                   Tr(L"overlay.ms"), appIngestBrush(),L"overlay.help.appIngest");
     }
 
     // ---- 4. Sparklines (frame rate left, ingest right) ---------------------
@@ -838,6 +875,7 @@ void Overlay::Render(const Stats& stats)
     auto drawFpsRow = [&](const wchar_t* key, uint32_t value, bool available, float top) {
         const auto row = D2D1::RectF(panel.left + pad, panel.top + top,
                                    panel.right - pad, panel.top + top + 18.0f);
+        hoverMetric(row,std::wstring_view(key)==L"overlay.captureFps"?L"overlay.help.captureFps":L"overlay.help.presentFps");
         drawText(Tr(key), m_smallTextFormat.Get(), row, m_brushDim.Get(),
                  DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
         drawText(available ? std::to_wstring(value) : L"--", m_smallTextFormat.Get(),
@@ -895,6 +933,22 @@ void Overlay::Render(const Stats& stats)
         }
     }
 
+    }
+    const std::wstring tooltipKey=hoveredHelp?hoveredHelp:L"";const auto now=GetTickCount64();
+    if(tooltipKey!=m_hudTooltipKey){m_hudTooltipKey=tooltipKey;m_hudTooltipStart=now;}
+    if(!tooltipKey.empty()&&now-m_hudTooltipStart>=400){
+        const auto size=m_d2dContext->GetSize();const float width=std::min(340.0f,size.width-32.0f);
+        const auto description=Tr(tooltipKey.c_str());ComPtr<IDWriteTextLayout> layout;
+        if(SUCCEEDED(m_dwriteFactory->CreateTextLayout(description.c_str(),static_cast<UINT32>(description.size()),m_smallTextFormat.Get(),width-24.0f,200.0f,&layout))){
+            layout->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+            DWRITE_TEXT_METRICS metrics{};layout->GetMetrics(&metrics);
+            const float height=metrics.height+20.0f;
+            const float left=std::min(static_cast<float>(cursor.x)+12.0f,size.width-width-12.0f);
+            const float top=std::min(static_cast<float>(cursor.y)+22.0f,size.height-height-12.0f);
+            m_d2dContext->FillRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(left,top,left+width,top+height),5,5),m_brushBg.Get());
+            m_d2dContext->DrawTextLayout(D2D1::Point2F(left+12.0f,top+10.0f),layout.Get(),m_brushText.Get());
+        }
+    }
     HRESULT hr = m_d2dContext->EndDraw();
     if (hr == D2DERR_RECREATE_TARGET || hr == DXGI_ERROR_DEVICE_REMOVED ||
         hr == DXGI_ERROR_DEVICE_RESET) {
@@ -1089,7 +1143,7 @@ void Overlay::DrawNoSignal(uint32_t windowW, uint32_t windowH)
             cardX + ipx + S(88.0f), brandY + S(5.0f),
             cardX + ipx + S(180.0f), brandY + S(22.0f));
         fBrandTag->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-        const wchar_t* tag = L"1.2.5.1-holybear";
+        const wchar_t* tag = L"1.2.5.2-holybear";
         m_d2dContext->DrawText(tag, (UINT32)wcslen(tag),
             fBrandTag.Get(), rTag, bFgMuted.Get());
     }

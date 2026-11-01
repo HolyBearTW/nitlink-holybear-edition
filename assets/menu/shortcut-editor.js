@@ -1,5 +1,5 @@
 window.NitLinkShortcutEditor=(()=>{
-  let post,t,definitions=[],saved=[],draft=[],recording=-1,armed=false,pending=null,saving=false,notice='';
+  let post,t,definitions=[],saved=[],draft=[],recording=-1,armed=false,pending=null,saving=false,notice='',hudMode;
   const rows=new Map(),el=id=>document.getElementById(id);
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const defaults=()=>definitions.map(item=>({key:item.defaultKey,modifiers:item.defaultModifiers}));
@@ -14,6 +14,7 @@ window.NitLinkShortcutEditor=(()=>{
   const cancel=()=>{if(recording<0)return;recording=-1;armed=false;pending=null;sendContext();render();};
   const render=()=>{
     if(!t)return;
+    if(hudMode!==undefined)el('hud-mode').textContent=t('shortcut.hudMode'+hudMode);
     const conflicts=new Set(),seen=new Map();
     draft.forEach((chord,index)=>{const key=chord.key+':'+chord.modifiers;if(seen.has(key)){conflicts.add(index);conflicts.add(seen.get(key));}else seen.set(key,index);});
     const dirty=!same(draft,saved);
@@ -37,6 +38,16 @@ window.NitLinkShortcutEditor=(()=>{
       ({post,t}=options);
       el('shortcut-save').addEventListener('click',()=>{saving=true;notice='';render();post('saveShortcuts',draft.map((chord,index)=>`${definitions[index].id}:${chord.key},${chord.modifiers}`).join(';'));});
       el('shortcut-reset').addEventListener('click',()=>{draft=defaults();notice='';render();});
+      el('hud-mode').addEventListener('click',()=>post('cycleHudMode'));
+      el('hud-text-color').addEventListener('change',event=>post('setCompactHudColor',event.target.value));
+      el('hud-text-size').addEventListener('input',event=>{el('hud-text-size-value').value=event.target.value+'px';});
+      el('hud-text-size').addEventListener('change',event=>post('setCompactHudTextSize',Number(event.target.value)));
+      el('hud-metrics-all').addEventListener('click',()=>post('setCompactHudMetrics',15));
+      for(const checkbox of document.querySelectorAll('[data-hud-metric]'))checkbox.addEventListener('change',()=>{
+        let mask=0;for(const item of document.querySelectorAll('[data-hud-metric]'))if(item.checked)mask|=Number(item.dataset.hudMetric);
+        if(!mask){checkbox.checked=true;return;}
+        post('setCompactHudMetrics',mask);
+      });
       document.addEventListener('focusin',()=>queueMicrotask(sendContext));
       document.addEventListener('focusout',()=>queueMicrotask(sendContext));
       document.addEventListener('pointerdown',event=>{if(recording>=0&&event.target.closest('.shortcut-key')!==rows.get(recording)?.button)cancel();},true);
@@ -71,6 +82,16 @@ window.NitLinkShortcutEditor=(()=>{
         row.append(caption,button);el(['shortcut-general','shortcut-pip','shortcut-diagnostics'][item.group]).append(row);rows.set(index,{label,detail,button});
       });
       render();
+    },
+    hud(state){
+      if(state.hudMode===undefined)return;
+      hudMode=state.hudMode;el('hud-mode').textContent=t('shortcut.hudMode'+hudMode);
+      el('hud-color-row').hidden=state.hudMode!==2;el('hud-metrics-row').hidden=state.hudMode!==2;
+      el('hud-size-row').hidden=state.hudMode!==2;
+      el('hud-text-color').value=state.compactHudColor;
+      el('hud-text-size').value=state.compactHudTextSize;el('hud-text-size-value').value=state.compactHudTextSize+'px';
+      for(const checkbox of document.querySelectorAll('[data-hud-metric]'))checkbox.checked=!!(state.compactHudMetrics&Number(checkbox.dataset.hudMetric));
+      el('hud-metrics-all').disabled=state.compactHudMetrics===15;
     },
     message(value){
       if(value.shortcutContext===2&&recording>=0){armed=true;render();}

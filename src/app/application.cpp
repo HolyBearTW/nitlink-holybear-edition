@@ -491,10 +491,11 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         m_renderer->EndFrame();
     }
     m_showOverlay = startupOverlayOk && m_config->showOverlay;
+    m_overlay->SetHudMode(m_config->hudMode);
     Window::InputCallbacks overlayInput{};
     overlayInput.onMouseDown = [this](int x, int y) {
         if (m_showOverlay && !m_isPiP && m_overlay) {
-            m_overlay->HandleMouseDown(x, y);
+            if(m_overlay->HandleMouseDown(x,y)){m_config->hudMode=m_overlay->HudMode();m_config->Save("nitlink.json");}
         }
     };
     // Window captures the mouse whenever a mouse-down callback is installed;
@@ -1202,6 +1203,17 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         const std::wstring& action = message->action;
 
         AppLog(L"WebView2 msg: " + action);
+        if(action==L"cycleHudMode"){
+            m_config->hudMode=(m_config->hudMode+1)%3;
+            if(m_overlay)m_overlay->SetHudMode(m_config->hudMode);
+            m_config->Save("nitlink.json");PushSettingsState();return;
+        }
+        if(action==L"setCompactHudColor"||action==L"setCompactHudMetrics"||action==L"setCompactHudTextSize"){
+            if(action==L"setCompactHudColor")m_config->compactHudColor=static_cast<unsigned>(message->number);
+            else if(action==L"setCompactHudMetrics")m_config->compactHudMetrics=static_cast<unsigned>(message->number);
+            else m_config->compactHudTextSize=static_cast<unsigned>(message->number);
+            m_config->Save("nitlink.json");PushSettingsState();return;
+        }
         if(action==L"setShortcutContext"){
             m_shortcutInputContext=static_cast<ShortcutInputContext>(static_cast<unsigned>(message->number));
             m_webviewSettings->PostMessage(L"{\"shortcutContext\":"+std::to_wstring(static_cast<unsigned>(message->number))+L"}");return;
@@ -1674,7 +1686,9 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // Bare Tab uses the existing foreground, exact-modifier, nonrepeat path.
     // Leave F1 keyboard navigation alone, and ignore hidden/PiP HUDs.
     m_hotkeyManager->Register(ShortcutAction::toggle_fps_details, [this]() {
-        if (m_overlay) m_overlay->HandleTab(m_showOverlay, m_isPiP, m_settingsVisible);
+        if(m_overlay&&m_overlay->HandleTab(m_showOverlay,m_isPiP,m_settingsVisible)){
+            m_config->hudMode=m_overlay->HudMode();m_config->Save("nitlink.json");
+        }
     });
     m_hotkeyManager->Register(ShortcutAction::toggle_settings, [this]() { ToggleSettings(); });
     // ALT+H toggles HDR instantly (works even when settings panel is hidden in HDR).
@@ -3015,6 +3029,7 @@ void Application::Run()
             // normally when PiP is off.
             else if (m_showOverlay && m_overlay && !m_isPiP) {
                 Overlay::Stats stats{};
+                stats.compactHudColor=m_config->compactHudColor;stats.compactHudMetrics=m_config->compactHudMetrics;stats.compactHudTextSize=m_config->compactHudTextSize;
                 stats.captureLatencyMs = m_captureLatencyMs;
                 stats.renderLatencyMs  = m_renderLatencyMs;
                 stats.appIngestMs      = m_mfDeliveryLatencyMs;
@@ -5007,6 +5022,7 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
         std::string(NormalizeManualHdmiSource(m_config->manualHdmiSource)));
     coreState.manualHdmiSourceCustom = Utf8ToWide(m_config->manualHdmiSourceCustom);
     coreState.shortcutBindings=m_config->shortcutBindings;
+    coreState.hudMode=m_config->hudMode;coreState.compactHudColor=m_config->compactHudColor;coreState.compactHudMetrics=m_config->compactHudMetrics;coreState.compactHudTextSize=m_config->compactHudTextSize;
     coreState.effectiveHdmiSource = GetEffectiveHdmiSourceLabel();
     coreState.manualHdmiSourceOptions.reserve(kManualHdmiSources.size());
     for (const auto& [value, label] : kManualHdmiSources) {

@@ -241,6 +241,10 @@ struct Config {
     
     // Performance overlay
     bool showOverlay = false;
+    unsigned hudMode=0; // Standard, detailed, compact text.
+    unsigned compactHudColor=0x76b900;
+    unsigned compactHudMetrics=15; // Content, capture, present FPS, card-to-app ingest.
+    unsigned compactHudTextSize=14;
     
     // PSN (for game detection)
     std::string psnNpsso = ""; // Auth token

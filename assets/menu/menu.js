@@ -1677,6 +1677,7 @@
 
     const applyState = s => {
       window.NitLinkShortcutEditor?.update(s.shortcuts);
+      window.NitLinkShortcutEditor?.hud(s);
       if (!s) return;
       if (s.holyBearUpdate) { holyBearUpdateState = s.holyBearUpdate; renderHolyBearUpdate(); }
       if (s.locale) applyTranslations(s.locale);

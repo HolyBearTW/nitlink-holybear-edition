@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <locale>
+#include <iomanip>
 
 namespace NitLink {
 
@@ -63,6 +64,9 @@ std::wstring SerializeWebViewCoreSettingsProperties(const WebViewCoreSettingsSta
             <<L",\"defaultKey\":"<<definition.defaults.key<<L",\"defaultModifiers\":"<<definition.defaults.modifiers<<L"}";
     }
     json<<L"]";
+    json<<L",\"hudMode\":"<<state.hudMode<<L",\"compactHudMetrics\":"<<state.compactHudMetrics;
+    json<<L",\"compactHudTextSize\":"<<state.compactHudTextSize;
+    json<<L",\"compactHudColor\":\"#"<<std::hex<<std::setw(6)<<std::setfill(L'0')<<state.compactHudColor<<std::dec<<L"\"";
 
     separator();
     const auto& update = state.holyBearUpdate;

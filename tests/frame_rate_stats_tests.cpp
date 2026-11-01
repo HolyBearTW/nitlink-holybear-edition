@@ -142,12 +142,14 @@ int main()
                     localization.Get(L"overlay.captureFps") ==
                         (english ? L"Capture FPS" : simplified ? L"采集 FPS" : L"擷取 FPS") &&
                     localization.Get(L"overlay.contentFps") ==
-                        (english ? L"Content Changes" : simplified
-                            ? L"内容变化" : L"內容變化") &&
+                        (english ? L"Content FPS" : simplified
+                            ? L"内容 FPS" : L"內容 FPS") &&
                     localization.Get(L"overlay.appIngest") ==
-                        (english ? L"App Latency" : simplified
-                            ? L"程序延迟" : L"程式延遲"),
-                    "all three languages must label content changes, app latency and the distinct capture/present metrics");
+                        (english ? L"App ingest" : simplified
+                            ? L"采集耗时" : L"擷取耗時"),
+                    "all three languages must distinguish ingest time, estimated content FPS and capture/present metrics");
+            Require(localization.Get(L"overlay.help.appIngest")!=L"overlay.help.appIngest"&&
+                    localization.Get(L"overlay.help.contentFps")!=L"overlay.help.contentFps","HUD metrics resolve their hover descriptions");
         }
         std::cout << "PASS independent rates, missing differ, resets, sample intervals and dropped frames\n";
     } catch (const std::exception& error) {

@@ -47,6 +47,7 @@ public:
         bool         hdrActive        = false;
         bool         nisActive        = false;
         bool         lowLatency       = false;
+        unsigned compactHudColor=0x76b900,compactHudMetrics=15,compactHudTextSize=14;
     };
 
     bool Initialize(ID3D11Device* device, ID3D11DeviceContext* context,
@@ -74,10 +75,16 @@ public:
 
     void Render(const Stats& stats);
     bool HandleMouseDown(int clientX, int clientY) noexcept {
-        return m_fpsDetailsToggle.ToggleAt(clientX, clientY);
+        return !m_compactHud&&m_fpsDetailsToggle.ToggleAt(clientX, clientY);
     }
     bool HandleTab(bool hudVisible, bool pipMode, bool settingsVisible) noexcept {
-        return m_fpsDetailsToggle.ToggleFromTab(hudVisible, pipMode, settingsVisible);
+        if(!hudVisible||pipMode||settingsVisible)return false;
+        SetHudMode((HudMode()+1)%3);return true;
+    }
+    unsigned HudMode() const noexcept { return m_compactHud?2:m_fpsDetailsToggle.IsExpanded()?1:0; }
+    void SetHudMode(unsigned mode) noexcept {
+        m_compactHud=mode==2;
+        if(m_fpsDetailsToggle.IsExpanded()!=(mode==1))m_fpsDetailsToggle.ToggleFromTab(true,false,false);
     }
 
     // Draw a localized full-window status frame before capture initialization
@@ -209,6 +216,9 @@ private:
 
     bool m_initialized = false;
     HudFpsDetailsToggle m_fpsDetailsToggle;
+    bool m_compactHud=false;
+    std::wstring m_hudTooltipKey;
+    ULONGLONG m_hudTooltipStart=0;
 
     // Content-change FPS history; Unknown breaks this sparkline.
     std::deque<float> m_contentFpsHistory;

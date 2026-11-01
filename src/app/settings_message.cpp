@@ -178,7 +178,21 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
     SettingsMessage result;
     result.action = actionIt->second.text;
     const auto& action = result.action;
-    if(action==L"saveShortcuts"){
+    if(action==L"cycleHudMode"){
+        if(value)return std::nullopt;
+    }else if(action==L"setCompactHudMetrics"){
+        if(!value||value->kind!=Value::Kind::Number||value->number<1||value->number>15||std::trunc(value->number)!=value->number)return std::nullopt;
+        result.number=value->number;
+    }else if(action==L"setCompactHudTextSize"){
+        if(!value||value->kind!=Value::Kind::Number||value->number<10||value->number>32||std::trunc(value->number)!=value->number)return std::nullopt;
+        result.number=value->number;
+    }else if(action==L"setCompactHudColor"){
+        if(!value||!Text(*value,7)||value->text.size()!=7||value->text.front()!=L'#')return std::nullopt;
+        std::string hex;for(size_t i=1;i<7;++i){if(value->text[i]>127)return std::nullopt;hex+=static_cast<char>(value->text[i]);}
+        unsigned color=0;const auto parsed=std::from_chars(hex.data(),hex.data()+hex.size(),color,16);
+        if(parsed.ec!=std::errc{}||parsed.ptr!=hex.data()+hex.size())return std::nullopt;
+        result.number=color;
+    }else if(action==L"saveShortcuts"){
         if(!value||!Text(*value,4096))return std::nullopt;
         std::string packed;for(const auto c:value->text){if(c>127)return std::nullopt;packed+=static_cast<char>(c);}
         const auto parsed=ParseShortcutBindings(packed);

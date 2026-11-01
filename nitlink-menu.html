@@ -208,7 +208,7 @@
     }
     .slider-val { width: 30px; text-align: right; color: var(--ink); font-size: 13px; font-weight: 500; }
     .slider[type="range"] { min-width: 0; width: 100%; margin: 0; accent-color: var(--accent); }
-    #slider-pip-opacity-val { width: 42px; flex: none; }
+    #slider-pip-opacity-val, #hud-text-size-value { width: 42px; flex: none; }
 
     .about-hero { padding: 18px 22px 14px; border-bottom: 1px solid var(--hair); }
     .about-hero h2 { color: var(--ink); font-size: 19px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
@@ -1162,6 +1162,11 @@
               <details class="shortcut-group"><summary data-i18n="section.diagnostics"></summary><div id="shortcut-diagnostics"></div></details>
             </div>
             <div class="shortcut-column">
+              <div class="band"><span class="band-title" data-i18n="shortcut.hudAppearance"></span></div>
+              <div class="row kv"><span class="row-name" data-i18n="shortcut.hudMode"></span><button type="button" class="game-button" id="hud-mode"></button></div>
+              <div class="row kv" id="hud-color-row" hidden><label class="row-name" for="hud-text-color" data-i18n="shortcut.hudColor"></label><input type="color" id="hud-text-color" value="#76b900"></div>
+              <div class="row kv" id="hud-size-row" hidden><label class="row-name" for="hud-text-size" data-i18n="shortcut.hudSize"></label><div class="slider-wrap"><input class="slider" type="range" id="hud-text-size" min="10" max="32" step="1" value="14"><output class="slider-val" id="hud-text-size-value" for="hud-text-size">14px</output></div></div>
+              <div id="hud-metrics-row" class="hud-metrics-section" hidden><div class="hud-metrics-heading"><span data-i18n="shortcut.hudMetrics"></span><button type="button" class="game-button" id="hud-metrics-all" data-i18n="shortcut.hudAll"></button></div><div class="hud-metrics"><label><input type="checkbox" data-hud-metric="1" checked><span data-i18n="shortcut.hudContent"></span></label><label><input type="checkbox" data-hud-metric="2" checked><span data-i18n="shortcut.hudCapture"></span></label><label><input type="checkbox" data-hud-metric="4" checked><span data-i18n="shortcut.hudPresent"></span></label><label><input type="checkbox" data-hud-metric="8" checked><span data-i18n="shortcut.hudIngest"></span></label></div><p data-i18n="shortcut.hudAtLeastOne"></p></div>
               <details class="shortcut-group"><summary data-i18n="shortcut.pipControls"></summary><div id="shortcut-pip"></div><p class="shortcut-help" data-i18n="shortcut.tapHold"></p></details>
             </div>
           </div>

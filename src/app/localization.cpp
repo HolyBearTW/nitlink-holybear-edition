@@ -12,6 +12,10 @@ using Table = std::map<std::wstring, std::wstring>;
 const Table& EnglishTable()
 {
     static const Table table = {
+        {L"overlay.help.contentFps", L"Estimated from changes between captured pictures, not the game engine frame rate."},
+        {L"overlay.help.captureFps", L"Frames delivered by the capture card each second, including duplicate pictures."},
+        {L"overlay.help.presentFps", L"Successful frame submissions by NitLink each second, including repeated pictures; not monitor scan-out."},
+        {L"overlay.help.appIngest", L"Time from the capture-card driver timestamp until NitLink receives the frame; not total controller-to-display latency."},
         {L"game.switch2Edition", L"Switch 2 Edition"},
         {L"discord.totalPlaytime", L"Total playtime: {hours} h {minutes} min"},
         {L"discord.sourcePrefix", L"Source: "},
@@ -26,8 +30,8 @@ const Table& EnglishTable()
         {L"overlay.presentRate", L"Present rate"},
         {L"overlay.presentFps", L"Present FPS"},
         {L"overlay.captureFps", L"Capture FPS"},
-        {L"overlay.contentFps", L"Content Changes"},
-        {L"overlay.appIngest", L"App Latency"},
+        {L"overlay.contentFps", L"Content FPS"},
+        {L"overlay.appIngest", L"App ingest"},
         {L"overlay.fps", L"FPS"},
         {L"overlay.ms", L"MS"},
         {L"overlay.gpu", L"GPU"},
@@ -107,6 +111,10 @@ const Table& EnglishTable()
 const Table& TraditionalChineseTable()
 {
     static const Table table = {
+        {L"overlay.help.contentFps", L"依擷取畫面的變化估計，不代表遊戲引擎實際產生的幀率。"},
+        {L"overlay.help.captureFps", L"擷取卡每秒傳入程式的影格數，包含重複畫面。"},
+        {L"overlay.help.presentFps", L"NitLink 每秒成功提交的畫面數，包含重複畫面，不代表螢幕實際掃描次數。"},
+        {L"overlay.help.appIngest", L"從擷取卡驅動的影格時間戳記，到 NitLink 收到影格的時間，不代表控制器到螢幕的完整延遲。"},
         {L"game.switch2Edition", L"Switch 2 版"},
         {L"discord.totalPlaytime", L"遊玩總時數：{hours} 小時 {minutes} 分鐘"},
         {L"discord.sourcePrefix", L"來源："},
@@ -121,8 +129,8 @@ const Table& TraditionalChineseTable()
         {L"overlay.presentRate", L"呈現幀率"},
         {L"overlay.presentFps", L"呈現 FPS"},
         {L"overlay.captureFps", L"擷取 FPS"},
-        {L"overlay.contentFps", L"內容變化"},
-        {L"overlay.appIngest", L"程式延遲"},
+        {L"overlay.contentFps", L"內容 FPS"},
+        {L"overlay.appIngest", L"擷取耗時"},
         {L"overlay.fps", L"FPS"},
         {L"overlay.ms", L"毫秒"},
         {L"overlay.gpu", L"GPU"},
@@ -202,13 +210,17 @@ const Table& TraditionalChineseTable()
 const Table& SimplifiedChineseTable()
 {
     static const Table table = {
+        {L"overlay.help.contentFps", L"根据采集画面的变化估计，不代表游戏引擎实际生成的帧率。"},
+        {L"overlay.help.captureFps", L"采集卡每秒传入程序的帧数，包含重复画面。"},
+        {L"overlay.help.presentFps", L"NitLink 每秒成功提交的画面数，包含重复画面，不代表屏幕实际扫描次数。"},
+        {L"overlay.help.appIngest", L"从采集卡驱动的帧时间戳到 NitLink 收到该帧的时间，不代表控制器到屏幕的完整延迟。"},
         {L"game.switch2Edition", L"Switch 2 版"},
         {L"discord.totalPlaytime", L"游玩总时数：{hours} 小时 {minutes} 分钟"},
         {L"discord.sourcePrefix", L"来源："},
         {L"overlay.presentRate", L"呈现帧率"},
         {L"overlay.presentFps", L"呈现 FPS"},
         {L"overlay.captureFps", L"采集 FPS"},
-        {L"overlay.contentFps", L"内容变化"},
+        {L"overlay.contentFps", L"内容 FPS"},
         {L"overlay.resyncingSignal", L"正在重新同步信号…"},
         {L"error.com", L"COM 运行时初始化失败。"},
         {L"error.mediaFoundation", L"Media Foundation 初始化失败。"},
@@ -218,7 +230,7 @@ const Table& SimplifiedChineseTable()
         {L"dialog.allFilesFilter", L"所有文件（*.*）"},
         {L"overlay.noSignal", L"无信号"},
         {L"overlay.frameRate", L"帧率"},
-        {L"overlay.appIngest", L"程序延迟"},
+        {L"overlay.appIngest", L"采集耗时"},
         {L"overlay.fps", L"FPS"},
         {L"overlay.ms", L"毫秒"},
         {L"overlay.gpu", L"GPU"},
@@ -298,6 +310,10 @@ const Table& SimplifiedChineseTable()
 const Table& GermanTable()
 {
     static const Table table = {
+        {L"overlay.help.contentFps", L"Aus Änderungen der aufgenommenen Bilder geschätzt, nicht die Bildrate der Spiel-Engine."},
+        {L"overlay.help.captureFps", L"Pro Sekunde von der Capture-Karte gelieferte Frames, einschließlich doppelter Bilder."},
+        {L"overlay.help.presentFps", L"Erfolgreiche Bildübergaben von NitLink pro Sekunde, einschließlich Wiederholungen; nicht die Bildschirmausgabe."},
+        {L"overlay.help.appIngest", L"Zeit vom Frame-Zeitstempel des Capture-Treibers bis zum Empfang in NitLink; nicht die gesamte Controller-zu-Bildschirm-Latenz."},
         {L"game.switch2Edition", L"Switch 2 Edition"},
         {L"discord.totalPlaytime", L"Gesamtspielzeit: {hours} Std. {minutes} Min."},
         {L"discord.sourcePrefix", L"Quelle: "},
@@ -313,8 +329,8 @@ const Table& GermanTable()
         {L"overlay.presentRate", L"Ausgaberate"},
         {L"overlay.presentFps", L"Ausgabe-FPS"},
         {L"overlay.captureFps", L"Aufnahme-FPS"},
-        {L"overlay.contentFps", L"Inhaltsänderungen"},
-        {L"overlay.appIngest", L"App-Latenz"},
+        {L"overlay.contentFps", L"Inhalts-FPS"},
+        {L"overlay.appIngest", L"Frame-Übertragungszeit"},
         {L"overlay.fps", L"FPS"},
         {L"overlay.ms", L"MS"},
         {L"overlay.gpu", L"GPU"},
@@ -393,6 +409,10 @@ const Table& GermanTable()
 const Table& KoreanTable()
 {
     static const Table table = {
+        {L"overlay.help.contentFps", L"캡처된 화면의 변화를 바탕으로 추정한 값이며 게임 엔진의 실제 프레임 속도가 아닙니다."},
+        {L"overlay.help.captureFps", L"캡처 카드가 초당 전달한 프레임 수입니다. 중복 화면도 포함합니다."},
+        {L"overlay.help.presentFps", L"NitLink가 초당 성공적으로 제출한 화면 수입니다. 반복 화면을 포함하며 모니터의 실제 출력 횟수가 아닙니다."},
+        {L"overlay.help.appIngest", L"캡처 카드 드라이버의 프레임 타임스탬프부터 NitLink가 프레임을 받을 때까지의 시간입니다. 전체 입력 지연이 아닙니다."},
         {L"game.switch2Edition", L"Switch 2 에디션"},
         {L"discord.totalPlaytime", L"누적 플레이 시간: {hours}시간 {minutes}분"},
         {L"discord.sourcePrefix", L"출처: "},
@@ -407,8 +427,8 @@ const Table& KoreanTable()
         {L"overlay.presentRate", L"출력 빈도"},
         {L"overlay.presentFps", L"출력 FPS"},
         {L"overlay.captureFps", L"캡처 FPS"},
-        {L"overlay.contentFps", L"콘텐츠 FPS (추정)"},
-        {L"overlay.appIngest", L"앱 전달 지연"},
+        {L"overlay.contentFps", L"콘텐츠 FPS"},
+        {L"overlay.appIngest", L"프레임 전달 시간"},
         {L"overlay.fps", L"FPS"},
         {L"overlay.ms", L"MS"},
         {L"overlay.gpu", L"GPU"},
@@ -488,6 +508,10 @@ const Table& KoreanTable()
 const Table& JapaneseTable()
 {
     static const Table table = {
+        {L"overlay.help.contentFps", L"キャプチャ画像の変化から推定した値で、ゲームエンジンの実際のフレームレートではありません。"},
+        {L"overlay.help.captureFps", L"キャプチャカードから毎秒届くフレーム数です。同じ画像の繰り返しも含みます。"},
+        {L"overlay.help.presentFps", L"NitLink が毎秒正常に提出した画像数です。繰り返し画像を含み、モニターの走査回数ではありません。"},
+        {L"overlay.help.appIngest", L"キャプチャドライバーのフレーム時刻から NitLink が受信するまでの時間です。操作から表示までの全遅延ではありません。"},
         {L"game.switch2Edition", L"Switch 2 Edition"},
         {L"discord.totalPlaytime", L"累計プレイ時間：{hours} 時間 {minutes} 分"},
         {L"discord.sourcePrefix", L"入力元："},
@@ -502,8 +526,8 @@ const Table& JapaneseTable()
         {L"overlay.presentRate", L"表示レート"},
         {L"overlay.presentFps", L"表示 FPS"},
         {L"overlay.captureFps", L"キャプチャ FPS"},
-        {L"overlay.contentFps", L"映像の変化"},
-        {L"overlay.appIngest", L"アプリへの入力遅延"},
+        {L"overlay.contentFps", L"コンテンツ FPS"},
+        {L"overlay.appIngest", L"フレーム受信時間"},
         {L"overlay.fps", L"FPS"},
         {L"overlay.ms", L"ms"},
         {L"overlay.gpu", L"GPU"},

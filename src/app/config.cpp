@@ -362,6 +362,10 @@ bool Config::Load(const std::string& path)
             else preserve();
             continue;
         }
+        if(key=="hud_mode")hudMode=ParseU32(val,hudMode,0,2);
+        if(key=="hud_compact_color")compactHudColor=ParseU32(val,compactHudColor,0,0xffffff);
+        if(key=="hud_compact_metrics")compactHudMetrics=ParseU32(val,compactHudMetrics,1,15);
+        if(key=="hud_compact_text_size")compactHudTextSize=ParseU32(val,compactHudTextSize,10,32);
 
         if (key.starts_with("online_game.")) {
             const auto dot = key.find('.', 12);
@@ -652,6 +656,10 @@ bool Config::Save(const std::string& path)
     file << "language = " << language << "\n\n";
     file << "# Keyboard shortcuts: edit in Settings > Shortcuts\n";
     file << "shortcut_bindings = " << SerializeShortcutBindings(shortcutBindings) << "\n\n";
+    file << "hud_mode = " << hudMode << "\n";
+    file << "hud_compact_color = " << compactHudColor << "\n";
+    file << "hud_compact_metrics = " << compactHudMetrics << "\n\n";
+    file << "hud_compact_text_size = " << compactHudTextSize << "\n\n";
     file << "# HolyBear: optional GitHub release check; never downloads/installs updates\n";
     file << "holybear_auto_update_check = " << (holyBearAutoUpdateCheck ? "true" : "false") << "\n";
     file << "holybear_update_last_check_utc = " << holyBearUpdateLastCheckUtc << "\n";

@@ -32,6 +32,7 @@ struct ManualHdmiSourceOptionState {
 // test exercise the exact JSON that PushSettingsState sends.
 struct WebViewCoreSettingsState {
     ShortcutBindings shortcutBindings=DefaultShortcutBindings;
+    unsigned hudMode=0,compactHudColor=0x76b900,compactHudMetrics=15,compactHudTextSize=14;
     std::wstring languagePreference;
     std::wstring locale;
     HolyBearUpdateSettingsState holyBearUpdate;

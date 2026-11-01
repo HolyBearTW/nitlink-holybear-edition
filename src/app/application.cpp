@@ -3198,6 +3198,7 @@ void Application::Run()
         // dominates a 480x270 PiP window. Suppress while PiP is active.
         else if (m_showOverlay && !m_isPiP) {
             Overlay::Stats stats{};
+            stats.compactHudColor=m_config->compactHudColor;stats.compactHudMetrics=m_config->compactHudMetrics;stats.compactHudTextSize=m_config->compactHudTextSize;
             stats.captureLatencyMs = m_captureLatencyMs;
             stats.renderLatencyMs  = m_renderLatencyMs;
             stats.appIngestMs      = m_mfDeliveryLatencyMs;

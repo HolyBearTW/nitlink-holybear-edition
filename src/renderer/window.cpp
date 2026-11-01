@@ -1,4 +1,6 @@
 #include "window.h"
+#include "window_composition.h"
+#include "window_motion.h"
 #include "../resource.h"
 #include <algorithm>
 #include <cmath>
@@ -16,6 +18,7 @@ namespace NitLink {
 
 namespace {
 constexpr int kResizeLeft = 1, kResizeRight = 2, kResizeTop = 4, kResizeBottom = 8;
+constexpr UINT_PTR kWindowMotionTimer = 0x4e4c4d4f;
 
 std::pair<int, int> ScalePiPSize(double width, double aspect, int maxWidth, int maxHeight)
 {
@@ -33,7 +36,9 @@ Window::Window(PlaybackPowerRequest::SetStateFn setPowerState)
 
 Window::~Window()
 {
+    StopMotion();
     SetVideoAvailable(false);
+    m_composition.reset();
     if (m_hwnd) {
         DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
@@ -94,7 +99,6 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     DWORD style = WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN;
     const UINT dpi=GetDpiForSystem();
     rc.bottom+=MulDiv(36,static_cast<int>(dpi),96);
-    AdjustWindowRectExForDpi(&rc, style, FALSE, 0, dpi);
 
     m_hwnd = CreateWindowExW(
         0,
@@ -111,7 +115,8 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     WNDCLASSEXW videoClass{};videoClass.cbSize=sizeof(videoClass);videoClass.lpfnWndProc=VideoWndProc;
     videoClass.hInstance=hInstance;videoClass.hCursor=LoadCursorW(nullptr,IDC_ARROW);
     videoClass.hbrBackground=static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));videoClass.lpszClassName=L"NitLinkVideoSurface";
-    if(!RegisterClassExW(&videoClass))return false;
+    WNDCLASSEXW registeredVideo{sizeof(registeredVideo)};
+    if(!GetClassInfoExW(hInstance,videoClass.lpszClassName,&registeredVideo)&&!RegisterClassExW(&videoClass))return false;
     const auto content=GetContentBounds();
     m_videoWindow=CreateWindowExW(0,videoClass.lpszClassName,L"",WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS|WS_CLIPCHILDREN,
         content.left,content.top,content.right-content.left,content.bottom-content.top,m_hwnd,nullptr,hInstance,this);
@@ -132,17 +137,28 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
             &darkMode, sizeof(darkMode));
     }
 
-    // Set rounded corners (Windows 11)
-    auto cornerPref = 2; // DWMWCP_ROUNDSMALL
+    m_composition=std::make_unique<WindowComposition>();
+    if(!m_composition->Initialize(m_hwnd))m_composition.reset();
+
+    // The separate glass surface owns the rounded edge and shadow. The
+    // content window must stay transparent wherever it has no picture/text.
+    auto cornerPref = m_composition?1:2;
     DwmSetWindowAttribute(m_hwnd, 
         33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, 
         &cornerPref, sizeof(cornerPref));
-    int backdrop=3; // DWMSBT_TRANSIENTWINDOW: Windows desktop Acrylic.
+    int backdrop=m_composition?1:3; // NONE for separate glass, transient fallback.
     m_desktopGlass=SUCCEEDED(DwmSetWindowAttribute(m_hwnd,38,&backdrop,sizeof(backdrop)));
-    MARGINS glass{0,0,CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
+    if(m_composition){
+        const COLORREF noBorder=0xfffffffe;
+        DwmSetWindowAttribute(m_hwnd,34,&noBorder,sizeof(noBorder));
+        BOOL noPeek=TRUE;DwmSetWindowAttribute(m_hwnd,11,&noPeek,sizeof(noPeek));
+        BOOL customTransitions=TRUE;
+        DwmSetWindowAttribute(m_hwnd,DWMWA_TRANSITIONS_FORCEDISABLED,&customTransitions,sizeof(customTransitions));
+    }
     // Apply the custom client frame before the first visible paint.
     SetWindowPos(m_hwnd,nullptr,0,0,0,0,
         SWP_FRAMECHANGED|SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+    LayoutContent();
 
     m_windowedStyle = style;
     GetWindowRect(m_hwnd, &m_windowedRect);
@@ -152,10 +168,106 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
 
 void Window::Show(int nCmdShow)
 {
+    const bool animate=ShouldAnimate()&&nCmdShow!=SW_SHOWMINIMIZED&&nCmdShow!=SW_MINIMIZE&&nCmdShow!=SW_SHOWMINNOACTIVE;
+    if(animate){
+        SetWindowLongW(m_hwnd,GWL_EXSTYLE,GetWindowLongW(m_hwnd,GWL_EXSTYLE)|WS_EX_LAYERED);
+        SetLayeredWindowAttributes(m_hwnd,0,0,LWA_ALPHA);m_contentOpacity=0;
+    }
     ShowWindow(m_hwnd, nCmdShow);
     LayoutContent();
     UpdateWindow(m_hwnd);
+    if(IsWindowVisible(m_hwnd)&&!IsIconic(m_hwnd)){
+        BeginFade(true);
+        // The initial status picture is already presented. Complete this short
+        // entrance before synchronous capture initialization starts; otherwise
+        // its timer would wait behind device enumeration with an invisible UI.
+        // The independent glass spring continues on the system compositor.
+        while(m_fade.active){AdvanceMotion();if(m_fade.active)DwmFlush();}
+    }
     UpdatePlaybackPower();
+}
+
+bool Window::ShouldAnimate() const
+{
+    return m_composition&&!m_isFullscreen&&!m_isPiP&&m_composition->AnimationsEnabled();
+}
+
+void Window::BeginFade(bool show,UINT completionCommand)
+{
+    const bool animate=ShouldAnimate();
+    if(m_composition){UpdateGlassPosition();m_composition->AnimateGlass(show,animate);}
+    m_fade={true,GetTickCount64(),animate?(show?WindowMotion::NormalMs:WindowMotion::FastMs):0,
+        m_contentOpacity,show?1.f:0.f,completionCommand};
+    if(animate){
+        SetWindowLongW(m_hwnd,GWL_EXSTYLE,GetWindowLongW(m_hwnd,GWL_EXSTYLE)|WS_EX_LAYERED);
+        SetLayeredWindowAttributes(m_hwnd,0,static_cast<BYTE>(std::lround(m_contentOpacity*255)),LWA_ALPHA);
+    }
+    SetTimer(m_hwnd,kWindowMotionTimer,16,nullptr);
+    AdvanceMotion();
+}
+
+void Window::AdvanceMotion()
+{
+    const auto now=GetTickCount64();
+    if(m_glide.active){
+        const double time=static_cast<double>(now-m_glide.started)/WindowMotion::GlideMs;
+        if(time>=1)EndGlide();
+        else{
+            const double progress=WindowMotion::Progress(WindowMotion::Glide,time);
+            const auto interpolate=[&](LONG from,LONG to){return static_cast<LONG>(std::lround(from+(to-from)*progress));};
+            m_glide.drawn={interpolate(m_glide.from.left,m_glide.to.left),interpolate(m_glide.from.top,m_glide.to.top),
+                interpolate(m_glide.from.right,m_glide.to.right),interpolate(m_glide.from.bottom,m_glide.to.bottom)};
+            const int x=m_glide.drawn.left-m_glide.host.left,y=m_glide.drawn.top-m_glide.host.top;
+            const int diameter=static_cast<int>(std::lround(2*WindowMotion::Radius*GetDpiForWindow(m_hwnd)/96.f));
+            auto region=CreateRoundRectRgn(x,y,x+m_glide.drawn.right-m_glide.drawn.left+1,
+                y+m_glide.drawn.bottom-m_glide.drawn.top+1,diameter,diameter);
+            if(!SetWindowRgn(m_hwnd,region,TRUE))DeleteObject(region);
+            UpdateGlassPosition();
+        }
+    }
+    if(m_fade.active){
+        const double time=m_fade.duration?static_cast<double>(now-m_fade.started)/m_fade.duration:1;
+        const double progress=WindowMotion::Progress(WindowMotion::Smooth,time);
+        m_contentOpacity=static_cast<float>(m_fade.from+(m_fade.to-m_fade.from)*progress);
+        SetLayeredWindowAttributes(m_hwnd,0,static_cast<BYTE>(std::lround(m_contentOpacity*255)),LWA_ALPHA);
+        if(time>=1){
+            const auto command=m_fade.completionCommand;m_fade.active=false;
+            if(command){
+                if(m_composition)m_composition->HideGlass();
+                // Windows still owns taskbar/minimized state and normal close
+                // handling, after both visual layers have faded out.
+                DefWindowProcW(m_hwnd,WM_SYSCOMMAND,command,0);
+                if(command==SC_CLOSE)return;
+            }
+            m_contentOpacity=1;
+            SetLayeredWindowAttributes(m_hwnd,0,255,LWA_ALPHA);
+            SetWindowLongW(m_hwnd,GWL_EXSTYLE,GetWindowLongW(m_hwnd,GWL_EXSTYLE)&~WS_EX_LAYERED);
+        }
+    }
+    if(!m_fade.active&&!m_glide.active)KillTimer(m_hwnd,kWindowMotionTimer);
+}
+
+void Window::EndGlide()
+{
+    if(!m_glide.active)return;
+    const auto target=m_glide.to;m_glide.active=false;
+    m_regionSize={};
+    SetWindowPos(m_hwnd,nullptr,target.left,target.top,target.right-target.left,target.bottom-target.top,
+        SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
+    LayoutContent();m_wasResized=true;
+    if(m_onMove)m_onMove();
+}
+
+void Window::StopMotion()
+{
+    EndGlide();m_fade.active=false;
+    if(!m_hwnd)return;
+    KillTimer(m_hwnd,kWindowMotionTimer);
+    if(!m_isPiP){
+        SetLayeredWindowAttributes(m_hwnd,0,255,LWA_ALPHA);
+        SetWindowLongW(m_hwnd,GWL_EXSTYLE,GetWindowLongW(m_hwnd,GWL_EXSTYLE)&~WS_EX_LAYERED);
+    }
+    m_contentOpacity=1;
 }
 
 void Window::SetPreventSleep(bool enabled)
@@ -188,20 +300,34 @@ int Window::CaptionHeight() const
     return MulDiv(36,static_cast<int>(m_hwnd?GetDpiForWindow(m_hwnd):GetDpiForSystem()),96);
 }
 
-RECT Window::GetContentBounds() const
+RECT Window::LayoutBounds() const
 {
     RECT bounds{};GetClientRect(m_hwnd,&bounds);
-    bounds.top=std::min(bounds.bottom,static_cast<LONG>(CaptionHeight()));
+    if(m_glide.active){
+        // One final content layout throughout the glide. Only its visible
+        // window region and the separate glass move frame by frame.
+        bounds.left=m_glide.to.left-m_glide.host.left;
+        bounds.top=m_glide.to.top-m_glide.host.top;
+        bounds.right=bounds.left+m_glide.client.cx;
+        bounds.bottom=bounds.top+m_glide.client.cy;
+    }
+    return bounds;
+}
+
+RECT Window::GetContentBounds() const
+{
+    auto bounds=LayoutBounds();
+    bounds.top=std::min(bounds.bottom,bounds.top+CaptionHeight());
     return bounds;
 }
 
 RECT Window::CaptionButtonRect(int index) const
 {
-    RECT client{};GetClientRect(m_hwnd,&client);
+    const auto client=LayoutBounds();
     const int dpi=static_cast<int>(GetDpiForWindow(m_hwnd));
     const int unit=MulDiv(42,dpi,96),gap=MulDiv(8,dpi,96);
     const int left=client.right-5*unit-gap+index*unit+(index>=2?gap:0);
-    return {left,0,left+unit,CaptionHeight()};
+    return {left,client.top,left+unit,client.top+CaptionHeight()};
 }
 
 int Window::CaptionButtonAt(POINT point) const
@@ -214,8 +340,8 @@ int Window::CaptionButtonAt(POINT point) const
 void Window::RefreshCaption()
 {
     if(!m_hwnd)return;
-    RECT rect{};GetClientRect(m_hwnd,&rect);rect.bottom=CaptionHeight();
-    if(rect.bottom)InvalidateRect(m_hwnd,&rect,FALSE);
+    auto rect=LayoutBounds();rect.bottom=rect.top+CaptionHeight();
+    if(CaptionHeight())InvalidateRect(m_hwnd,&rect,FALSE);
 }
 
 void Window::UpdateCaptionTooltips()
@@ -247,8 +373,30 @@ void Window::LayoutContent()
     const auto bounds=GetContentBounds();
     if(m_videoWindow)SetWindowPos(m_videoWindow,nullptr,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,
         SWP_NOZORDER|SWP_NOACTIVATE);
-    MARGINS glass{0,0,CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
+    MARGINS glass{0,0,m_composition?0:CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
+    if(m_composition&&!m_glide.active){
+        RECT rect{};GetWindowRect(m_hwnd,&rect);
+        const SIZE size{rect.right-rect.left,rect.bottom-rect.top};
+        if(!CaptionHeight()){
+            if(m_regionSize.cx){m_regionSize={};SetWindowRgn(m_hwnd,nullptr,TRUE);}
+        }else if(size.cx!=m_regionSize.cx||size.cy!=m_regionSize.cy){
+            m_regionSize=size;
+            const int diameter=static_cast<int>(std::lround(2*WindowMotion::Radius*GetDpiForWindow(m_hwnd)/96.f));
+            auto region=CreateRoundRectRgn(0,0,rect.right-rect.left+1,rect.bottom-rect.top+1,diameter,diameter);
+            if(!SetWindowRgn(m_hwnd,region,TRUE))DeleteObject(region);
+        }
+    }
+    UpdateGlassPosition();
     UpdateCaptionTooltips();RefreshCaption();
+}
+
+void Window::UpdateGlassPosition()
+{
+    if(!m_composition)return;
+    if(!CaptionHeight()||!IsWindowVisible(m_hwnd)||IsIconic(m_hwnd)){m_composition->HideGlass();return;}
+    RECT bounds{};GetWindowRect(m_hwnd,&bounds);
+    if(m_glide.active)bounds=m_glide.drawn;
+    m_composition->PlaceGlass(bounds,GetDpiForWindow(m_hwnd)/96.f);
 }
 
 void Window::InvokeCaptionButton(int index)
@@ -263,13 +411,13 @@ void Window::InvokeCaptionButton(int index)
 void Window::PaintCaption(HDC dc)
 {
     using namespace Gdiplus;
-    RECT client{};GetClientRect(m_hwnd,&client);const int width=client.right,height=CaptionHeight();
+    const auto client=LayoutBounds();const int width=client.right-client.left,height=CaptionHeight();
     if(width<=0||height<=0)return;
     const float scale=GetDpiForWindow(m_hwnd)/96.f;
     Bitmap bitmap(width,height,PixelFormat32bppPARGB);Graphics graphics(&bitmap);
     graphics.SetSmoothingMode(SmoothingModeAntiAlias);graphics.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     graphics.SetInterpolationMode(InterpolationModeHighQualityBicubic);
-    graphics.Clear(m_desktopGlass?Color(26,18,18,22):Color(255,30,30,34));
+    graphics.Clear(m_composition?Color(0,0,0,0):m_desktopGlass?Color(26,18,18,22):Color(255,30,30,34));
     const BYTE alpha=GetForegroundWindow()==m_hwnd?240:180;
     SolidBrush ink(Color(alpha,245,245,248));Pen line(Color(alpha,235,235,240),1.25f*scale);
     wchar_t title[1024]{};GetWindowTextW(m_hwnd,title,1024);
@@ -291,10 +439,11 @@ void Window::PaintCaption(HDC dc)
         m_chromeLabels.fontFamily==L"Archivo"?m_captionFonts.get():nullptr);StringFormat format;
     format.SetFormatFlags(StringFormatFlagsNoWrap);format.SetTrimming(StringTrimmingEllipsisCharacter);format.SetLineAlignment(StringAlignmentCenter);
     const auto first=CaptionButtonRect(0);
-    RectF titleRect(textLeft,0,std::max(0.f,first.left-textLeft-10*scale),static_cast<float>(height));
+    RectF titleRect(textLeft,0,std::max(0.f,first.left-client.left-textLeft-10*scale),static_cast<float>(height));
     graphics.DrawString(captionText,-1,&font,titleRect,&format,&ink);
     for(int i=0;i<5;++i){
-        const auto rect=CaptionButtonRect(i);const float cx=(rect.left+rect.right)/2.f,cy=height/2.f;
+        auto rect=CaptionButtonRect(i);OffsetRect(&rect,-client.left,-client.top);
+        const float cx=(rect.left+rect.right)/2.f,cy=height/2.f;
         if(m_captionHover==i||m_captionPressed==i||(i==1&&m_settingsVisible)){
             SolidBrush hover(i==4?Color(220,196,43,45):i==1&&m_settingsVisible?Color(65,100,170,230):Color(m_captionPressed==i?55:30,255,255,255));
             graphics.FillRectangle(&hover,Rect(rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top));
@@ -313,9 +462,13 @@ void Window::PaintCaption(HDC dc)
     Pen border(Color(28,255,255,255));graphics.DrawLine(&border,0,height-1,width,height-1);graphics.Flush();
     BitmapData data;Rect area(0,0,width,height);
     if(bitmap.LockBits(&area,ImageLockModeRead,PixelFormat32bppPARGB,&data)==Ok){
-        BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;
-        info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
-        SetDIBitsToDevice(dc,0,0,width,height,0,0,0,height,data.Scan0,&info,DIB_RGB_COLORS);bitmap.UnlockBits(&data);
+        if(m_composition)m_composition->PaintCaption(data.Scan0,data.Stride,width,height,client.left,client.top);
+        else{
+            BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;
+            info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
+            SetDIBitsToDevice(dc,client.left,client.top,width,height,0,0,0,height,data.Scan0,&info,DIB_RGB_COLORS);
+        }
+        bitmap.UnlockBits(&data);
     }
 }
 
@@ -336,6 +489,7 @@ void Window::SetIcon(const std::wstring& iconPath)
 void Window::SetFullscreen(bool fullscreen)
 {
     if (fullscreen == m_isFullscreen) return;
+    StopMotion();
     m_isFullscreen = fullscreen;
 
     if (fullscreen) {
@@ -366,8 +520,8 @@ void Window::SetFullscreen(bool fullscreen)
             mi.rcMonitor.bottom - mi.rcMonitor.top,
             SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
     } else {
-        // Restore rounded corners (Win11 default)
-        DWORD cornerPref = 0; // DWMWCP_DEFAULT
+        // The separate glass keeps owning corners after fullscreen returns.
+        DWORD cornerPref = m_composition?1:0;
         DwmSetWindowAttribute(m_hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/,
                               &cornerPref, sizeof(cornerPref));
 
@@ -381,11 +535,13 @@ void Window::SetFullscreen(bool fullscreen)
 
     m_wasResized = true;
     LayoutContent();
+    if(!fullscreen&&m_composition&&CaptionHeight())m_composition->AnimateGlass(true,false);
 }
 
 void Window::SetPiP(bool enabled, uint32_t width, uint32_t height, float opacity)
 {
     if (enabled == m_isPiP) return; // No-op if already in target state
+    StopMotion();
     EndPiPResize();
     m_pipScaleAspect = 0.0;
     m_isPiP = enabled;
@@ -481,6 +637,7 @@ void Window::SetPiP(bool enabled, uint32_t width, uint32_t height, float opacity
     }
 
     LayoutContent();
+    if(!enabled&&m_composition&&CaptionHeight())m_composition->AnimateGlass(true,false);
     m_wasResized = true;
 }
 
@@ -688,6 +845,10 @@ LRESULT CALLBACK Window::VideoWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lP
     auto* self=reinterpret_cast<Window*>(GetWindowLongPtrW(hwnd,GWLP_USERDATA));
     if(msg==WM_NCCREATE){self=static_cast<Window*>(reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams);SetWindowLongPtrW(hwnd,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self));}
     if(self){
+        if(msg==WM_NCHITTEST&&self->CaptionHeight()){
+            const auto hit=SendMessageW(self->m_hwnd,msg,wParam,lParam);
+            if(hit!=HTCLIENT)return HTTRANSPARENT;
+        }
         if(msg==WM_MOUSEMOVE||msg==WM_LBUTTONDOWN||msg==WM_LBUTTONUP){
             POINT point{static_cast<short>(LOWORD(lParam)),static_cast<short>(HIWORD(lParam))};
             MapWindowPoints(hwnd,self->m_hwnd,&point,1);
@@ -714,32 +875,48 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     }
 
     switch (msg) {
-    case WM_NCCALCSIZE:
-        if(self&&!self->m_isFullscreen&&!self->m_isPiP){
-            auto* client=wParam?&reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam)->rgrc[0]:reinterpret_cast<RECT*>(lParam);
-            const UINT dpi=GetDpiForWindow(hwnd);
-            const int borderX=GetSystemMetricsForDpi(SM_CXSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi);
-            const int borderY=GetSystemMetricsForDpi(SM_CYSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi);
-            client->left+=borderX;client->right-=borderX;client->bottom-=borderY;
-            if(IsZoomed(hwnd))client->top+=borderY;
-            return 0;
-        }
+    case WM_TIMER:
+        if(self&&wParam==kWindowMotionTimer){self->AdvanceMotion();return 0;}
         break;
+    case WM_NCCALCSIZE:
+        // The entire window is our client, including all resize grips.
+        // Windows must never reserve or paint a native caption above it.
+        return 0;
     case WM_NCHITTEST:
         if(self&&self->CaptionHeight()){
             POINT point{static_cast<short>(LOWORD(lParam)),static_cast<short>(HIWORD(lParam))};ScreenToClient(hwnd,&point);
             if(self->CaptionButtonAt(point)>=0)return HTCLIENT;
-            RECT client{};GetClientRect(hwnd,&client);const UINT dpi=GetDpiForWindow(hwnd);
-            const int edge=GetSystemMetricsForDpi(SM_CXSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi);
-            if(!IsZoomed(hwnd)&&point.y<edge){if(point.x<edge)return HTTOPLEFT;if(point.x>=client.right-edge)return HTTOPRIGHT;return HTTOP;}
-            if(point.y<self->CaptionHeight()&&point.x>=0&&point.x<client.right)return HTCAPTION;
+            const auto client=self->LayoutBounds();const UINT dpi=GetDpiForWindow(hwnd);
+            const int edge=MulDiv(8,dpi,96),corner=MulDiv(24,dpi,96);
+            if(!IsZoomed(hwnd)&&!self->m_glide.active){
+                const bool left=point.x<corner,right=point.x>=client.right-corner;
+                if(point.y<corner&&left)return HTTOPLEFT;
+                if(point.y<corner&&right)return HTTOPRIGHT;
+                if(point.y>=client.bottom-corner&&left)return HTBOTTOMLEFT;
+                if(point.y>=client.bottom-corner&&right)return HTBOTTOMRIGHT;
+                if(point.y<edge)return HTTOP;
+                if(point.y>=client.bottom-edge)return HTBOTTOM;
+                if(point.x<edge)return HTLEFT;
+                if(point.x>=client.right-edge)return HTRIGHT;
+            }
+            if(point.y>=client.top&&point.y<client.top+self->CaptionHeight()&&point.x>=client.left&&point.x<client.right)return HTCAPTION;
+            return HTCLIENT;
+        }
+        break;
+    case WM_NCLBUTTONDBLCLK:
+        if(self&&wParam==HTCAPTION&&self->CaptionHeight()){
+            SendMessageW(hwnd,WM_SYSCOMMAND,IsZoomed(hwnd)?SC_RESTORE:SC_MAXIMIZE,0);return 0;
         }
         break;
     case WM_PAINT:
         if(self){PAINTSTRUCT paint{};HDC dc=BeginPaint(hwnd,&paint);self->PaintCaption(dc);EndPaint(hwnd,&paint);return 0;}
         break;
     case WM_DPICHANGED:
-        if(self){const auto* rect=reinterpret_cast<RECT*>(lParam);SetWindowPos(hwnd,nullptr,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top,SWP_NOACTIVATE|SWP_NOZORDER);self->LayoutContent();return 0;}
+        if(self){self->StopMotion();const auto* rect=reinterpret_cast<RECT*>(lParam);SetWindowPos(hwnd,nullptr,rect->left,rect->top,rect->right-rect->left,rect->bottom-rect->top,SWP_NOACTIVATE|SWP_NOZORDER);self->LayoutContent();return 0;}
+        break;
+    case WM_SETTINGCHANGE:
+    case WM_THEMECHANGED:
+        if(self&&self->m_composition)self->m_composition->RefreshTheme();
         break;
     case WM_MOUSELEAVE:
         if(self&&self->m_captionHover!=-1){self->m_captionHover=-1;self->RefreshCaption();}
@@ -775,16 +952,20 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
     case WM_SIZE:
         if (self) {
-            if (wParam == SIZE_MINIMIZED) self->m_playbackPower.SetActive(false);
+            if (wParam == SIZE_MINIMIZED) {
+                self->m_playbackPower.SetActive(false);
+                if(self->m_composition)self->m_composition->HideGlass();
+            }
             else self->UpdatePlaybackPower();
         }
         // Set the resize flag for any size change EXCEPT minimize (which
         // gives 0x0 dimensions and would crash the renderer)
         if (self && wParam != SIZE_MINIMIZED) {
             self->LayoutContent();
+            if(self->m_onMove)self->m_onMove();
             self->m_wasResized = true;
             // Only the normal window size belongs to the next windowed launch.
-            if (wParam == SIZE_RESTORED && !self->m_isFullscreen && !self->m_isPiP) {
+            if (wParam == SIZE_RESTORED && !self->m_isFullscreen && !self->m_isPiP && !self->m_glide.active) {
                 const auto bounds=self->GetContentBounds();
                 const uint32_t width = bounds.right-bounds.left, height = bounds.bottom-bounds.top;
                 if (width > 0 && height > 0) self->m_windowedClientSize = {width, height};
@@ -804,49 +985,64 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         if (self) {
             if (!wParam) self->m_playbackPower.SetActive(false);
             else self->UpdatePlaybackPower();
+            if(!wParam&&self->m_composition)self->m_composition->HideGlass();
         }
         break;
 
     case WM_SYSCOMMAND:
+        if(self){
+            const UINT command=static_cast<UINT>(wParam)&0xfff0;
+            if(self->ShouldAnimate()&&(command==SC_MINIMIZE||command==SC_CLOSE)&&!IsIconic(hwnd)){
+                if(self->m_fade.active&&self->m_fade.completionCommand==command)return 0;
+                self->EndGlide();self->BeginFade(false,command);return 0;
+            }
+            if(self->m_composition&&self->CaptionHeight()){
+                const bool iconic=IsIconic(hwnd)!=FALSE;
+                if((command==SC_MAXIMIZE&&(!IsZoomed(hwnd)||iconic))||
+                    (command==SC_RESTORE&&(IsZoomed(hwnd)||iconic))){
+                    self->StopMotion();
+                    RECT from{};GetWindowRect(hwnd,&from);
+                    const UINT dpi=GetDpiForWindow(hwnd);
+                    if(iconic){
+                        SetWindowLongW(hwnd,GWL_EXSTYLE,GetWindowLongW(hwnd,GWL_EXSTYLE)|WS_EX_LAYERED);
+                        SetLayeredWindowAttributes(hwnd,0,0,LWA_ALPHA);self->m_contentOpacity=0;
+                    }
+                    // Establish the final layout once; renderer dimensions do
+                    // not change on the following clipped boundary frames.
+                    const auto result=DefWindowProcW(hwnd,msg,wParam,lParam);
+                    RECT to{};GetWindowRect(hwnd,&to);
+                    if(iconic)self->BeginFade(true);
+                    else if(self->ShouldAnimate()&&dpi==GetDpiForWindow(hwnd)&&!EqualRect(&from,&to)){
+                        RECT client{},host{};GetClientRect(hwnd,&client);UnionRect(&host,&from,&to);
+                        self->m_glide={true,from,to,host,from,{client.right,client.bottom},GetTickCount64()};
+                        SetWindowPos(hwnd,nullptr,host.left,host.top,host.right-host.left,host.bottom-host.top,
+                            SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
+                        self->LayoutContent();UpdateWindow(hwnd);
+                        SetTimer(hwnd,kWindowMotionTimer,16,nullptr);self->AdvanceMotion();
+                    }
+                    return result;
+                }
+            }
+        }
         if (self && self->m_playbackPower.SuppressesScreenSaver(wParam)) return 0;
         break;
 
     case WM_MOVE:
-        // The main window moved on screen. The renderer doesn't care about
-        // window position, but the WebView2 settings popup is a separate
-        // top-level window pinned to main's client rect: when main moves,
-        // the popup must follow or it ends up stranded at its old screen
-        // position, appearing to "disappear" because it's no longer over
-        // main's client area.
-        //
-        // Fire the synchronous callback HERE inside WndProc, not via the
-        // m_wasMoved flag. During a title-bar drag, Windows runs a modal
-        // message loop and the app's PeekMessage pump is suspended: the
-        // flag wouldn't be consumed until the drag finished, making the
-        // popup look stranded mid-drag. The callback fires on every WM_MOVE
-        // including the ones delivered inside the modal loop.
+        // Native dragging runs a modal message loop. Notify the child browser
+        // here, while deferred monitor detection waits for the application loop.
         if (self) {
             self->m_wasMoved = true;
+            self->UpdateGlassPosition();
             if (self->m_onMove) self->m_onMove();
         }
         return 0;
 
     case WM_ENTERSIZEMOVE:
-        // User started dragging the window edge. WM_SIZE won't fire again
-        // until they release. No-op for now but kept for symmetry.
+        if(self)self->StopMotion();
         return 0;
 
     case WM_EXITSIZEMOVE:
-        // User finished dragging. Two things to do:
-        //   1. Flag a resize so the renderer + overlay catch up to the
-        //      final dimensions (in case WM_SIZE didn't fire for a
-        //      same-size drag, or fired multiple times during drag).
-        //   2. Fire the move callback once more. During the drag the
-        //      popup was tracking via WM_MOVE, but on drag release
-        //      Windows reactivates the main window and may shuffle
-        //      z-order, leaving the popup hidden behind main. The
-        //      callback's TrackOwnerRect call re-asserts the popup
-        //      above its owner via SetWindowPos(popup, owner).
+        // Reconcile the picture and child browser at the final dragged size.
         if (self) {
             self->m_wasResized = true;
             if (self->m_onMove) self->m_onMove();
@@ -854,13 +1050,8 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         return 0;
 
     case WM_ACTIVATE:
-        if(self)self->RefreshCaption();
-        // Main window gained or lost activation. If GAINED (e.g. user
-        // clicked away then back, or finished a title-bar drag), the
-        // popup may have ended up underneath in z-order. Re-assert by
-        // calling the same TrackOwnerRect path. LOWORD(wParam) ==
-        // WA_INACTIVE means focus was just LOST: ignore that case;
-        // only re-stack on a GAIN-focus transition.
+        if(self){self->RefreshCaption();self->UpdateGlassPosition();}
+        // Reconcile child-controller position when activation returns.
         if (self && self->m_onMove && LOWORD(wParam) != WA_INACTIVE) {
             self->m_onMove();
         }
@@ -873,6 +1064,12 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             MINMAXINFO* mmi = (MINMAXINFO*)lParam;
             mmi->ptMinTrackSize.x = 320;
             mmi->ptMinTrackSize.y = 240;
+            if(self&&!self->m_isFullscreen&&!self->m_isPiP){
+                MONITORINFO monitor{sizeof(monitor)};
+                GetMonitorInfoW(MonitorFromWindow(hwnd,MONITOR_DEFAULTTONEAREST),&monitor);
+                mmi->ptMaxPosition={monitor.rcWork.left-monitor.rcMonitor.left,monitor.rcWork.top-monitor.rcMonitor.top};
+                mmi->ptMaxSize={monitor.rcWork.right-monitor.rcWork.left,monitor.rcWork.bottom-monitor.rcWork.top};
+            }
         }
         return 0;
 
@@ -899,8 +1096,9 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             return 0;
         }
         if (self && self->m_inputCb.onMouseMove) {
-            int x = (short)LOWORD(lParam);
-            int y = (short)HIWORD(lParam)-self->CaptionHeight();
+            const auto bounds=self->GetContentBounds();
+            int x = (short)LOWORD(lParam)-bounds.left;
+            int y = (short)HIWORD(lParam)-bounds.top;
             self->m_inputCb.onMouseMove(x, y);
         }
         return 0;
@@ -913,8 +1111,9 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             if (ClientToScreen(hwnd, &point) && self->BeginPiPResize(point)) return 0;
         }
         if (self && self->m_inputCb.onMouseDown) {
-            int x = (short)LOWORD(lParam);
-            int y = (short)HIWORD(lParam)-self->CaptionHeight();
+            const auto bounds=self->GetContentBounds();
+            int x = (short)LOWORD(lParam)-bounds.left;
+            int y = (short)HIWORD(lParam)-bounds.top;
             // Capture the mouse so drags keep working when cursor leaves the window
             SetCapture(hwnd);
             self->m_inputCb.onMouseDown(x, y);
@@ -931,8 +1130,9 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             return 0;
         }
         if (self && self->m_inputCb.onMouseUp) {
-            int x = (short)LOWORD(lParam);
-            int y = (short)HIWORD(lParam)-self->CaptionHeight();
+            const auto bounds=self->GetContentBounds();
+            int x = (short)LOWORD(lParam)-bounds.left;
+            int y = (short)HIWORD(lParam)-bounds.top;
             ReleaseCapture();
             self->m_inputCb.onMouseUp(x, y);
         }
@@ -954,12 +1154,19 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         break;
 
     case WM_CLOSE:
+        if(self){
+            self->EndGlide();self->m_fade.active=false;KillTimer(hwnd,kWindowMotionTimer);
+            if(self->m_composition)self->m_composition->HideGlass();
+        }
         // Pending settings are committed while the child browser is still alive.
         if (self && self->m_onClose) self->m_onClose();
         break;
 
     case WM_DESTROY:
-        if (self) self->SetVideoAvailable(false);
+        if (self) {
+            self->SetVideoAvailable(false);
+            if(self->m_composition)self->m_composition->HideGlass();
+        }
         PostQuitMessage(0);
         return 0;
 

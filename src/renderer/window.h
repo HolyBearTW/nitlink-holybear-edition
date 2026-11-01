@@ -13,6 +13,8 @@ namespace Gdiplus { class Bitmap; class PrivateFontCollection; }
 
 namespace NitLink {
 
+class WindowComposition;
+
 class Window {
 public:
     struct Desc {
@@ -81,14 +83,8 @@ public:
     bool GetPiPPosition(int32_t& outX, int32_t& outY) const;
 
     void SetInputCallbacks(InputCallbacks cb) { m_inputCb = std::move(cb); }
-    // Synchronous WM_MOVE notifier. Set this to a function that
-    // repositions the WebView2 popup (or anything else that must follow
-    // the main window's screen position). Called DIRECTLY from inside
-    // WndProc on every WM_MOVE (not deferred through the flag below),
-    // because during a title-bar drag Windows enters a modal message
-    // loop and the application's PeekMessage pump is blocked. The flag
-    // wouldn't get consumed until the drag ended, leaving the popup
-    // stranded mid-drag.
+    // Synchronous position notification, including native modal dragging.
+    // WebView2 tracks its hosting picture HWND through this callback.
     void SetMoveCallback(std::function<void()> cb) { m_onMove = std::move(cb); }
     void SetCloseCallback(std::function<void()> cb) { m_onClose = std::move(cb); }
 
@@ -103,7 +99,7 @@ public:
     void AcknowledgeResize() { m_wasResized = false; }
     // Deferred monitor-crossing detection for the present cap. WebView2
     // tracks the owner synchronously through the separate move callback.
-    bool WasMoved() const { return m_wasMoved; }
+    bool WasMoved() const { return m_wasMoved && !m_glide.active; }
     void AcknowledgeMove() { m_wasMoved = false; }
     bool WasDisplayChanged() const { return m_displayChanged; }
     void AcknowledgeDisplayChange() { m_displayChanged = false; }
@@ -121,6 +117,7 @@ private:
     void UpdatePiPResize(POINT screenPoint);
     void EndPiPResize();
     int CaptionHeight() const;
+    RECT LayoutBounds() const;
     RECT CaptionButtonRect(int index) const;
     int CaptionButtonAt(POINT point) const;
     void LayoutContent();
@@ -128,13 +125,35 @@ private:
     void RefreshCaption();
     void UpdateCaptionTooltips();
     void InvokeCaptionButton(int index);
+    void UpdateGlassPosition();
+    bool ShouldAnimate() const;
+    void BeginFade(bool show, UINT completionCommand = 0);
+    void AdvanceMotion();
+    void EndGlide();
+    void StopMotion();
+    struct FadeState {
+        bool active = false;
+        ULONGLONG started = 0;
+        unsigned duration = 0;
+        float from = 1, to = 1;
+        UINT completionCommand = 0;
+    } m_fade;
+    struct GlideState {
+        bool active = false;
+        RECT from{},to{},host{},drawn{};
+        SIZE client{};
+        ULONGLONG started = 0;
+    } m_glide;
+    float m_contentOpacity = 1;
 
     HWND       m_hwnd = nullptr;
     HWND       m_videoWindow = nullptr, m_captionTooltip = nullptr;
     ULONG_PTR  m_gdiplusToken = 0;
     std::unique_ptr<Gdiplus::Bitmap> m_captionLogo;
     std::unique_ptr<Gdiplus::PrivateFontCollection> m_captionFonts;
+    std::unique_ptr<WindowComposition> m_composition;
     bool       m_desktopGlass = false;
+    SIZE       m_regionSize{};
     unsigned   m_hudMode = 0;
     bool       m_hudVisible = false, m_settingsVisible = false;
     int        m_captionHover = -1, m_captionPressed = -1;

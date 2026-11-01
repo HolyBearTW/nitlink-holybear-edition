@@ -95,6 +95,9 @@ set(NITLINK_SOURCES
     src/renderer/hdr_tone_map.h
     src/renderer/hdr_tone_map_hlsl.h
     src/renderer/window.cpp
+    src/renderer/window_composition.cpp
+    src/renderer/window_composition.h
+    src/renderer/window_motion.h
     src/renderer/window.h
     src/renderer/playback_power.h
     src/input/hotkey_manager.cpp
@@ -494,6 +497,7 @@ if(BUILD_TESTING)
     add_executable(NitLinkWindowSizeTests
         tests/window_size_tests.cpp
         src/renderer/window.cpp
+        src/renderer/window_composition.cpp
         src/app/config.cpp
     )
     target_include_directories(NitLinkWindowSizeTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -503,6 +507,7 @@ if(BUILD_TESTING)
     add_executable(NitLinkPlaybackPowerTests
         tests/playback_power_tests.cpp
         src/renderer/window.cpp
+        src/renderer/window_composition.cpp
         src/app/config.cpp
     )
     target_include_directories(NitLinkPlaybackPowerTests PRIVATE ${CMAKE_SOURCE_DIR}/src)

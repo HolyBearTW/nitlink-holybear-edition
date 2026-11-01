@@ -13,13 +13,16 @@ static void Require(bool condition, const char* message)
     if (!condition) throw std::runtime_error(message);
 }
 
-static void ResizeClient(HWND window, uint32_t width, uint32_t height)
+static void ResizeClient(Window& window, uint32_t width, uint32_t height)
 {
-    RECT rect{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
-    Require(AdjustWindowRectEx(&rect, static_cast<DWORD>(GetWindowLongW(window, GWL_STYLE)),
-                              FALSE, static_cast<DWORD>(GetWindowLongW(window, GWL_EXSTYLE))) != FALSE,
-            "Window frame dimensions are available");
-    Require(SetWindowPos(window, nullptr, 0, 0, rect.right - rect.left, rect.bottom - rect.top,
+    // Request picture dimensions: the custom caption is outside the picture,
+    // and Windows' default frame calculation does not describe this window.
+    RECT outer{};
+    Require(GetWindowRect(window.GetHWND(), &outer) != FALSE, "Window dimensions are available");
+    const auto [pictureWidth,pictureHeight]=window.GetClientSize();
+    Require(SetWindowPos(window.GetHWND(), nullptr, 0, 0,
+                         static_cast<int>(width)+outer.right-outer.left-static_cast<int>(pictureWidth),
+                         static_cast<int>(height)+outer.bottom-outer.top-static_cast<int>(pictureHeight),
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
             "Client resize succeeds");
 }
@@ -36,6 +39,8 @@ static void CheckClose(CloseState state, const std::filesystem::path& configPath
         desc.width = 640;
         desc.height = 360;
         Require(window.Create(instance, desc), "Window creates");
+        Require(window.GetClientSize() == std::pair<uint32_t, uint32_t>{640, 360},
+                "The reserved custom caption does not consume picture dimensions");
         window.AcknowledgeDisplayChange();
         window.AcknowledgeMove();
         SendMessageW(window.GetHWND(), WM_DISPLAYCHANGE, 32, MAKELPARAM(1920, 1080));
@@ -48,8 +53,8 @@ static void CheckClose(CloseState state, const std::filesystem::path& configPath
                 "Same-size moves schedule monitor-crossing detection");
         window.AcknowledgeMove();
         Require(!window.WasMoved(), "Move notifications acknowledge once");
-        ResizeClient(window.GetHWND(), 800, 500);
-        ResizeClient(window.GetHWND(), expected.first, expected.second);
+        ResizeClient(window, 800, 500);
+        ResizeClient(window, expected.first, expected.second);
         Require(window.GetClientSize() == expected, "Resize produces the requested client dimensions");
 
         switch (state) {

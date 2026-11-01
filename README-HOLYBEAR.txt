@@ -1,4 +1,4 @@
-NitLink 1.2.5.1 HolyBear Edition (1.2.5.1-holybear)
+NitLink 1.2.5.2 HolyBear Edition (1.2.5.2-holybear)
 Unofficial community integration build based on NitLink 1.2.5.
 Not an official nitlink-dev release.
 
@@ -22,7 +22,24 @@ Required release Microsoft VC++ DLLs are included with their notices.
 
 F1 opens settings. Choose capture device/format and language there.
 Ctrl+F3 toggles the FPS HUD; Alt+L toggles low latency; Alt+V toggles VSync;
-Tab toggles the HUD's auxiliary FPS rows while it is visible and F1 is closed.
+Tab cycles Standard HUD, Detailed HUD and the transparent compact text row
+while the HUD is visible and settings are closed. In Settings > Shortcuts,
+select which compact metrics to show, their text color and size (10-32 px).
+The compact row defaults to green text. These controls
+appear only in compact mode. Hover over a metric for its definition.
+The HUD selector also offers Off and reflects the actual visibility state.
+Selecting a visible mode enables the HUD. Metric selection, color and size
+apply on the next drawn frame in both SDR and HDR.
+The keys listed here are defaults. Settings > Shortcuts supports recording
+custom combinations. Save applies and persists changed bindings; Reset
+restores the default draft, which takes effect after Save. Duplicate or
+reserved system combinations cannot be saved. Shortcuts remain foreground-only.
+Save and Reset are in the Shortcuts heading; the information button explains
+recording and foreground-only operation. Wide Full mode places shortcuts and
+HUD settings in two columns. The HUD text-size slider matches PiP opacity.
+Video > Panel includes opacity above panel position. It defaults to 100%,
+supports 10-100%, applies while dragging and is saved on normal exit. Lower
+opacity reveals the playing picture in Full and either docked position.
 F11 / Alt+Enter toggles fullscreen. Audio defaults to shared mode, drift
 correction on, 12 ms FIFO and 10 ms render targets. Optional exclusive output
 requests the sound device's supported minimum period; it falls back to shared
@@ -34,6 +51,36 @@ Enable them to allow one background GitHub check per 24 hours, or check manually
 Only HolyBearTW/nitlink-holybear-edition's formal Releases are queried; no token, personal settings,
 device IDs or game information is sent. View/Download opens the release webpage;
 there is no automatic download or installation. See docs/HOLYBEAR-UPDATES.md.
+
+To link Xbox, choose Open sign-in page and sign in with your personal
+Microsoft account in the system browser. NitLink receives the result and
+syncs your games automatically. No application registration or code entry
+is required from the user.
+
+Nintendo linking opens the system browser. Sign in, select your account,
+and allow the browser to open NitLink when prompted. The result returns to
+the running application automatically, which then syncs Play Activity.
+
+PlayStation linking prefers your default Edge/Chrome, or uses another
+installed Edge/Chrome, with its own temporary browser profile. Sign in to
+Sony there; NitLink receives the
+NPSSO session automatically and syncs PS4/PS5 play history. Edge or Chrome
+must be installed. The ordinary browser profile is not used for this flow.
+
+Nintendo and PlayStation also offer Enter link code manually if automatic
+linking is unavailable. Automatic attempts offer Cancel and expire after
+five minutes. Closing the link dialog cancels a pending attempt. For a
+Nintendo/Xbox system-browser tab, use Cancel if you close only the tab.
+
+When the console source is still Auto, NitLink selects the linked platform
+with the most games, including accounts already saved at startup. A manual
+source choice is kept. Automatic selection shows a brief notification.
+
+Local acceptance checks still needed: complete each automatic sign-in and
+confirm game sync; try cancellation, timeout and retry; close NitLink while
+waiting; verify Nintendo callback ownership and the isolated Sony browser
+cleanup; check repeated callbacks, occupied local ports and both manual
+alternatives. BUILD.txt identifies checks actually run.
 
 Present FPS is successful DXGI submissions, not game FPS or scan-out rate.
 Content FPS is an estimate. Actual capture rate and monitor refresh are separate.

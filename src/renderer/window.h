@@ -33,7 +33,7 @@ public:
     };
     struct ChromeLabels {
         std::array<std::wstring,3> hud{L"Standard HUD",L"Detailed HUD",L"Compact HUD"};
-        std::wstring settings=L"Settings",hidden=L"Hidden",minimize=L"Minimize",maximize=L"Maximize",restore=L"Restore",close=L"Close";
+        std::wstring settings=L"Settings",hidden=L"Hidden";
         bool operator==(const ChromeLabels&) const = default;
     };
 
@@ -133,7 +133,7 @@ private:
     bool       m_hudVisible = false, m_settingsVisible = false;
     int        m_captionHover = -1, m_captionPressed = -1;
     ChromeLabels m_chromeLabels;
-    std::array<std::wstring,5> m_captionTooltips;
+    std::array<std::wstring,2> m_captionTooltips;
     PlaybackPowerRequest m_playbackPower;
     bool m_preventSleep = true;
     bool m_videoAvailable = false;

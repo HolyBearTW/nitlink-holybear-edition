@@ -71,10 +71,12 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
 
     // Calculate window size for desired client area
     RECT rc = {0, 0, (LONG)desc.width, (LONG)desc.height};
-    DWORD style = (WS_OVERLAPPEDWINDOW & ~WS_CAPTION) | WS_CLIPCHILDREN;
+    // Keep native system commands/animations; WM_NCCALCSIZE removes the
+    // caption row. Windows owns minimize/maximize/close in the shared row.
+    DWORD style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
     const UINT dpi=GetDpiForSystem();
     rc.bottom+=MulDiv(36,static_cast<int>(dpi),96);
-    AdjustWindowRectExForDpi(&rc, style, FALSE, 0, dpi);
+    AdjustWindowRectExForDpi(&rc, style & ~WS_CAPTION, FALSE, 0, dpi);
 
     m_hwnd = CreateWindowExW(
         0,
@@ -100,7 +102,7 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     INITCOMMONCONTROLSEX controls{sizeof(controls),ICC_WIN95_CLASSES};InitCommonControlsEx(&controls);
     m_captionTooltip=CreateWindowExW(WS_EX_TOPMOST,TOOLTIPS_CLASSW,nullptr,WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX,
         CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,m_hwnd,nullptr,hInstance,nullptr);
-    for(int i=0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;tool.uFlags=TTF_SUBCLASS;
+    for(int i=0;i<2;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;tool.uFlags=TTF_SUBCLASS;
         tool.rect=CaptionButtonRect(i);tool.lpszText=const_cast<wchar_t*>(L"");SendMessageW(m_captionTooltip,TTM_ADDTOOLW,0,reinterpret_cast<LPARAM>(&tool));}
     UpdateCaptionTooltips();
 
@@ -120,6 +122,9 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     int backdrop=3; // DWMSBT_TRANSIENTWINDOW: Windows desktop Acrylic.
     m_desktopGlass=SUCCEEDED(DwmSetWindowAttribute(m_hwnd,38,&backdrop,sizeof(backdrop)));
     MARGINS glass{0,0,CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
+    // Apply the custom client frame before the first visible paint.
+    SetWindowPos(m_hwnd,nullptr,0,0,0,0,
+        SWP_FRAMECHANGED|SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
 
     m_windowedStyle = style;
     GetWindowRect(m_hwnd, &m_windowedRect);
@@ -130,6 +135,7 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
 void Window::Show(int nCmdShow)
 {
     ShowWindow(m_hwnd, nCmdShow);
+    LayoutContent();
     UpdateWindow(m_hwnd);
     UpdatePlaybackPower();
 }
@@ -176,14 +182,21 @@ RECT Window::CaptionButtonRect(int index) const
     RECT client{};GetClientRect(m_hwnd,&client);
     const int dpi=static_cast<int>(GetDpiForWindow(m_hwnd));
     const int unit=MulDiv(42,dpi,96),gap=MulDiv(8,dpi,96);
-    const int left=client.right-5*unit-gap+index*unit+(index>=2?gap:0);
+    LONG systemLeft=client.right-MulDiv(138,dpi,96);
+    RECT systemButtons{},outer{};
+    if(IsWindowVisible(m_hwnd)&&!IsIconic(m_hwnd)&&SUCCEEDED(DwmGetWindowAttribute(m_hwnd,5,&systemButtons,sizeof(systemButtons)))&&
+        !IsRectEmpty(&systemButtons)&&GetWindowRect(m_hwnd,&outer)){
+        POINT clientOrigin{};ClientToScreen(m_hwnd,&clientOrigin);
+        systemLeft=systemButtons.left+outer.left-clientOrigin.x;
+    }
+    const int left=systemLeft-gap-(2-index)*unit;
     return {left,0,left+unit,CaptionHeight()};
 }
 
 int Window::CaptionButtonAt(POINT point) const
 {
     if(!CaptionHeight())return -1;
-    for(int i=0;i<5;++i){const auto rect=CaptionButtonRect(i);if(PtInRect(&rect,point))return i;}
+    for(int i=0;i<2;++i){const auto rect=CaptionButtonRect(i);if(PtInRect(&rect,point))return i;}
     return -1;
 }
 
@@ -196,10 +209,9 @@ void Window::RefreshCaption()
 
 void Window::UpdateCaptionTooltips()
 {
-    m_captionTooltips={m_chromeLabels.hud[m_hudMode]+(m_hudVisible?L"":L" ("+m_chromeLabels.hidden+L")"),m_chromeLabels.settings,
-        m_chromeLabels.minimize,IsZoomed(m_hwnd)?m_chromeLabels.restore:m_chromeLabels.maximize,m_chromeLabels.close};
+    m_captionTooltips={m_chromeLabels.hud[m_hudMode]+(m_hudVisible?L"":L" ("+m_chromeLabels.hidden+L")"),m_chromeLabels.settings};
     if(!m_captionTooltip)return;
-    for(int i=0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;
+    for(int i=0;i<2;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;
         tool.lpszText=m_captionTooltips[i].data();tool.rect=CaptionButtonRect(i);
         SendMessageW(m_captionTooltip,TTM_UPDATETIPTEXTW,0,reinterpret_cast<LPARAM>(&tool));
         SendMessageW(m_captionTooltip,TTM_NEWTOOLRECTW,0,reinterpret_cast<LPARAM>(&tool));}
@@ -221,8 +233,8 @@ void Window::SetChromeLabels(ChromeLabels labels)
 void Window::LayoutContent()
 {
     const auto bounds=GetContentBounds();
-    if(m_videoWindow)SetWindowPos(m_videoWindow,nullptr,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,
-        SWP_NOZORDER|SWP_NOACTIVATE);
+    if(m_videoWindow)SetWindowPos(m_videoWindow,HWND_BOTTOM,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,
+        SWP_NOACTIVATE);
     MARGINS glass{0,0,CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
     UpdateCaptionTooltips();RefreshCaption();
 }
@@ -231,9 +243,6 @@ void Window::InvokeCaptionButton(int index)
 {
     if(index==0){if(m_inputCb.onCycleHud)m_inputCb.onCycleHud();}
     else if(index==1){if(m_inputCb.onSettings)m_inputCb.onSettings();}
-    else if(index==2)ShowWindow(m_hwnd,SW_MINIMIZE);
-    else if(index==3)ShowWindow(m_hwnd,IsZoomed(m_hwnd)?SW_RESTORE:SW_MAXIMIZE);
-    else if(index==4)PostMessageW(m_hwnd,WM_CLOSE,0,0);
 }
 
 void Window::PaintCaption(HDC dc)
@@ -246,7 +255,7 @@ void Window::PaintCaption(HDC dc)
     graphics.SetSmoothingMode(SmoothingModeAntiAlias);graphics.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     graphics.Clear(m_desktopGlass?Color(26,18,18,22):Color(255,30,30,34));
     const BYTE alpha=GetForegroundWindow()==m_hwnd?240:180;
-    SolidBrush ink(Color(alpha,245,245,248));Pen line(Color(alpha,235,235,240),1.25f*scale);
+    SolidBrush ink(Color(alpha,245,245,248));
     HICON icon=reinterpret_cast<HICON>(SendMessageW(m_hwnd,WM_GETICON,ICON_SMALL,0));
     if(!icon)icon=LoadIconW(m_hInstance,MAKEINTRESOURCEW(101));
     if(icon){Bitmap brand(icon);graphics.DrawImage(&brand,12*scale,(height-18*scale)/2,18*scale,18*scale);}
@@ -256,10 +265,10 @@ void Window::PaintCaption(HDC dc)
     const auto first=CaptionButtonRect(0);
     RectF titleRect(39*scale,0,std::max(0.f,first.left-49*scale),static_cast<float>(height));
     graphics.DrawString(title,-1,&font,titleRect,&format,&ink);
-    for(int i=0;i<5;++i){
+    for(int i=0;i<2;++i){
         const auto rect=CaptionButtonRect(i);const float cx=(rect.left+rect.right)/2.f,cy=height/2.f;
         if(m_captionHover==i||m_captionPressed==i||(i==1&&m_settingsVisible)){
-            SolidBrush hover(i==4?Color(220,196,43,45):i==1&&m_settingsVisible?Color(65,100,170,230):Color(m_captionPressed==i?55:30,255,255,255));
+            SolidBrush hover(i==1&&m_settingsVisible?Color(65,100,170,230):Color(m_captionPressed==i?55:30,255,255,255));
             graphics.FillRectangle(&hover,Rect(rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top));
         }
         if(i==0){
@@ -269,9 +278,7 @@ void Window::PaintCaption(HDC dc)
             else {graphics.DrawLine(&hud,cx-8*scale,cy,cx-4*scale,cy);graphics.DrawLine(&hud,cx-1*scale,cy,cx+3*scale,cy);graphics.DrawLine(&hud,cx+6*scale,cy,cx+9*scale,cy);}
         }else if(i==1){Font gear(L"Segoe MDL2 Assets",15*scale,FontStyleRegular,UnitPixel);StringFormat centered;centered.SetAlignment(StringAlignmentCenter);centered.SetLineAlignment(StringAlignmentCenter);
             graphics.DrawString(L"\uE713",1,&gear,RectF(static_cast<float>(rect.left),0,static_cast<float>(rect.right-rect.left),static_cast<float>(height)),&centered,&ink);
-        }else if(i==2)graphics.DrawLine(&line,cx-5*scale,cy,cx+5*scale,cy);
-        else if(i==3){if(IsZoomed(m_hwnd)){graphics.DrawRectangle(&line,cx-3*scale,cy-5*scale,8*scale,8*scale);graphics.DrawRectangle(&line,cx-5*scale,cy-3*scale,8*scale,8*scale);}else graphics.DrawRectangle(&line,cx-5*scale,cy-5*scale,10*scale,10*scale);}
-        else {graphics.DrawLine(&line,cx-4.5f*scale,cy-4.5f*scale,cx+4.5f*scale,cy+4.5f*scale);graphics.DrawLine(&line,cx+4.5f*scale,cy-4.5f*scale,cx-4.5f*scale,cy+4.5f*scale);}
+        }
     }
     Pen border(Color(28,255,255,255));graphics.DrawLine(&border,0,height-1,width,height-1);graphics.Flush();
     BitmapData data;Rect area(0,0,width,height);
@@ -678,11 +685,13 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
     switch (msg) {
     case WM_NCCALCSIZE:
-        if(self&&!self->m_isFullscreen&&!self->m_isPiP&&wParam){
-            auto* parameters=reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);const LONG top=parameters->rgrc[0].top;
-            DefWindowProcW(hwnd,msg,wParam,lParam);
+        if(self&&!self->m_isFullscreen&&!self->m_isPiP){
+            auto* client=wParam?&reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam)->rgrc[0]:reinterpret_cast<RECT*>(lParam);
             const UINT dpi=GetDpiForWindow(hwnd);
-            parameters->rgrc[0].top=top+(IsZoomed(hwnd)?GetSystemMetricsForDpi(SM_CYSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi):0);
+            const int borderX=GetSystemMetricsForDpi(SM_CXSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi);
+            const int borderY=GetSystemMetricsForDpi(SM_CYSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi);
+            client->left+=borderX;client->right-=borderX;client->bottom-=borderY;
+            if(IsZoomed(hwnd))client->top+=borderY;
             return 0;
         }
         break;
@@ -690,11 +699,16 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         if(self&&self->CaptionHeight()){
             POINT point{static_cast<short>(LOWORD(lParam)),static_cast<short>(HIWORD(lParam))};ScreenToClient(hwnd,&point);
             if(self->CaptionButtonAt(point)>=0)return HTCLIENT;
+            LRESULT nativeHit=0;
+            if(DwmDefWindowProc(hwnd,msg,wParam,lParam,&nativeHit))return nativeHit;
             RECT client{};GetClientRect(hwnd,&client);const UINT dpi=GetDpiForWindow(hwnd);
             const int edge=GetSystemMetricsForDpi(SM_CXSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi);
             if(!IsZoomed(hwnd)&&point.y<edge){if(point.x<edge)return HTTOPLEFT;if(point.x>=client.right-edge)return HTTOPRIGHT;return HTTOP;}
             if(point.y<self->CaptionHeight()&&point.x>=0&&point.x<client.right)return point.x<MulDiv(34,dpi,96)?HTSYSMENU:HTCAPTION;
         }
+        break;
+    case WM_NCMOUSELEAVE:
+        if(self&&self->CaptionHeight()){LRESULT result=0;DwmDefWindowProc(hwnd,msg,wParam,lParam,&result);}
         break;
     case WM_PAINT:
         if(self){PAINTSTRUCT paint{};HDC dc=BeginPaint(hwnd,&paint);self->PaintCaption(dc);EndPaint(hwnd,&paint);return 0;}

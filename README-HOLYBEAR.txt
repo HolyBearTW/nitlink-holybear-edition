@@ -92,6 +92,9 @@ F1; its HUD icon cycles Standard, Detailed and Compact, or restores the
 stored mode when the HUD is hidden. Fullscreen and PiP hide the title bar.
 Supported Windows 11 systems use the desktop Acrylic background; older
 systems use a solid dark title bar.
+Minimize, maximize, restore and close use Windows' own caption controls
+and window transitions. Harbor's custom spring/glide animations are not
+included in this acceptance build.
 
 Video > Panel > Panel background selects Blur glass (default) or Classic
 transparency. Glass blurs the game behind F1 and changes only background

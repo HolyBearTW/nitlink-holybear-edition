@@ -3499,6 +3499,10 @@ void Application::ToggleSettings()
     m_shortcutInputContext=ShortcutInputContext::Normal;
     if(!m_settingsVisible)m_webviewSettings->PostMessage(L"{\"shortcutCaptureCancelled\":true}");
     if (m_webviewSettings) {
+        // The picture and WebView are sibling HWNDs. Keep the picture below
+        // the browser before showing F1, including its first activation.
+        if(m_settingsVisible)SetWindowPos(m_window->GetRenderHWND(),HWND_BOTTOM,0,0,0,0,
+            SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
         m_webviewSettings->Show(m_settingsVisible);
         // Push current state every time the menu opens so toggles reflect
         // the truth: important for things that can change outside the menu
@@ -6051,7 +6055,7 @@ void Application::UpdateWindowTitle(bool refreshDiscord)
 {
     if (!m_window) return;
     m_window->SetChromeLabels({{Tr(L"window.hud0"),Tr(L"window.hud1"),Tr(L"window.hud2")},
-        Tr(L"window.settings"),Tr(L"window.hidden"),Tr(L"window.minimize"),Tr(L"window.maximize"),Tr(L"window.restore"),Tr(L"window.close")});
+        Tr(L"window.settings"),Tr(L"window.hidden")});
     RefreshGameArtworkContext();
 
     m_lastHdmiDisplayRange = GetConfirmedHdmiRange();

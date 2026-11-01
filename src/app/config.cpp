@@ -493,6 +493,7 @@ bool Config::Load(const std::string& path)
         if (key == "no_signal_dim_image") noSignalDimImage = ParseBool(val);
         if (key == "panel_side")     panelSide    = val.substr(0, 8);
         if (key == "panel_width")    panelWidth   = ParseI32(val, panelWidth, 500, 1200);
+        if (key == "panel_opacity")  panelOpacity = ParseFloatClamped(val, panelOpacity, 0.1f, 1.0f);
         if (key == "enable_shaders")  enableShaders = ParseBool(val);
         if (key == "show_overlay")    showOverlay   = ParseBool(val);
         if (key == "current_game" && IsGameId(val)) currentGameId = val;
@@ -636,7 +637,7 @@ bool Config::Save(const std::string& path)
         !IsConfigText(holyBearUpdateSeenTag) || holyBearUpdateSeenTag.size() > 40 ||
         !IsConfigText(noSignalMode) || !IsConfigText(noSignalFit) || !IsConfigText(panelSide) ||
         gameSettings.size() > 1024 || captureFormatOverrides.size() > 128 ||
-        !std::isfinite(audioVolume) || !std::isfinite(pipOpacity) || !std::isfinite(nisSharpness))
+        !std::isfinite(audioVolume) || !std::isfinite(pipOpacity) || !std::isfinite(panelOpacity) || !std::isfinite(nisSharpness))
         return false;
     for (const auto& [id, settings] : gameSettings) if (!IsGameId(id)) return false;
     if (onlineGames.size() > 256) return false;
@@ -798,7 +799,9 @@ bool Config::Save(const std::string& path)
     file << "# F1 panel placement: right or left docks it beside the picture,\n";
     file << "# full covers the window. panel_width is in device-independent pixels.\n";
     file << "panel_side = " << panelSide << "\n";
-    file << "panel_width = " << panelWidth << "\n\n";
+    file << "panel_width = " << panelWidth << "\n";
+    file << "# Panel opacity: 0.1..1.0 (1.0 is opaque).\n";
+    file << "panel_opacity = " << panelOpacity << "\n\n";
 
     file << "# Shaders\n";
     file << "enable_shaders = " << (enableShaders ? "true" : "false") << "\n\n";

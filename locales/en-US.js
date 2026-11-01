@@ -13,6 +13,8 @@ window.NitLinkLocales['en-US'] = {
   "game.xboxOfficial": "Official Xbox",
   "game.coverLanguage.de-DE": "German",
   "panel.resizeHelp": "Drag to resize the panel",
+  "row.panelOpacity": "Panel opacity",
+  "tooltip.panelOpacity": "Adjusts the whole settings panel immediately. 100% is opaque; lower values reveal the game underneath.",
   "discord.totalPlaytime": "Total playtime: {hours} h {minutes} min",
   "account.demoGameName": "Demo: playtime unavailable",
   "account.switch2Edition": "Switch 2 Edition",

@@ -12,6 +12,8 @@ window.NitLinkLocales['de-DE'] = {
   "game.xboxOfficial": "Offizielles Xbox",
   "game.coverLanguage.de-DE": "Deutsch",
   "panel.resizeHelp": "Ziehen, um die Breite anzupassen",
+  "row.panelOpacity": "Deckkraft des Panels",
+  "tooltip.panelOpacity": "Passt die Deckkraft des gesamten Einstellungsbereichs sofort an. 100% ist undurchsichtig; niedrigere Werte lassen das Spiel durchscheinen.",
   "discord.totalPlaytime": "Gesamtspielzeit: {hours} Std. {minutes} Min.",
   "account.demoGameName": "Demo: Spielzeit nicht verfügbar",
   "account.switch2Edition": "Switch 2 Edition",

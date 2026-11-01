@@ -12,6 +12,8 @@ window.NitLinkLocales['ja-JP'] = {
   "game.xboxOfficial": "Xbox 公式",
   "game.coverLanguage.de-DE": "ドイツ語",
   "panel.resizeHelp": "ドラッグしてパネルの幅を調整",
+  "row.panelOpacity": "パネルの不透明度",
+  "tooltip.panelOpacity": "設定パネル全体の不透明度をすぐに調整します。100% は不透明で、下げると背後のゲーム画面が透けて見えます。",
   "discord.totalPlaytime": "累計プレイ時間：{hours} 時間 {minutes} 分",
   "account.demoGameName": "デモ：プレイ時間の情報なし",
   "account.switch2Edition": "Switch 2 Edition",

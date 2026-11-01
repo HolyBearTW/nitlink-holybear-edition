@@ -12,6 +12,8 @@ window.NitLinkLocales['zh-CN'] = {
   "game.xboxOfficial": "Xbox 官方",
   "game.coverLanguage.de-DE": "德语",
   "panel.resizeHelp": "拖动调整面板宽度",
+  "row.panelOpacity": "面板不透明度",
+  "tooltip.panelOpacity": "立即调整整个设置面板的不透明度；100% 为不透明，降低时可透出游戏画面。",
   "discord.totalPlaytime": "游玩总时数：{hours} 小时 {minutes} 分钟",
   "account.demoGameName": "示例：未提供时长的游戏",
   "account.switch2Edition": "Switch 2 版",

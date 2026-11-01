@@ -307,9 +307,9 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
     } else if (action == L"setAudioDrift" || action == L"setAudioExclusive" || action == L"setHolyBearAutoUpdateCheck") {
         if (!value || value->kind != Value::Kind::Boolean) return std::nullopt;
         result.number = value->boolean ? 1 : 0;
-    } else if (action == L"setVolume" || action == L"setPiPOpacity") {
+    } else if (action == L"setVolume" || action == L"setPiPOpacity" || action == L"setPanelOpacity") {
         if (!value || value->kind != Value::Kind::Number || value->number > 1 ||
-            value->number < (action == L"setPiPOpacity" ? 0.1 : 0.0)) return std::nullopt;
+            value->number < (action == L"setVolume" ? 0.0 : 0.1)) return std::nullopt;
         result.number = value->number;
     } else if (action == L"setCaptureFormatOverride") {
         if (!value || value->kind != Value::Kind::Object) return std::nullopt;

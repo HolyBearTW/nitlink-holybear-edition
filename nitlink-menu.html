@@ -39,7 +39,7 @@
     html, body { height: 100%; }
     body { container: shell / inline-size; }
     body {
-      background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 13px;
+      background: transparent; color: var(--ink); font-family: var(--sans); font-size: 13px;
       line-height: 1.4; overflow: hidden; -webkit-font-smoothing: antialiased;
     }
     a { color: var(--accent-text); }
@@ -76,7 +76,7 @@
     ::-webkit-scrollbar-thumb:hover { background: #5F5F5F; }
 
     /* Shell: left rail, then a column of top bar, signal strip, scrolling panes. */
-    .app { position: fixed; inset: 0; display: flex; align-items: stretch; background: var(--bg); }
+    .app { position: fixed; inset: 0; display: flex; align-items: stretch; background: var(--bg); opacity: var(--panel-opacity, 1); }
 
     .rail { width: 76px; flex: none; display: flex; flex-direction: column; background: var(--chrome); }
     .rail-brand { display: flex; align-items: center; justify-content: center; height: 60px; }
@@ -208,7 +208,7 @@
     }
     .slider-val { width: 30px; text-align: right; color: var(--ink); font-size: 13px; font-weight: 500; }
     .slider[type="range"] { min-width: 0; width: 100%; margin: 0; accent-color: var(--accent); }
-    #slider-pip-opacity-val, #hud-text-size-value { width: 42px; flex: none; }
+    #slider-pip-opacity-val, #slider-panel-opacity-val, #hud-text-size-value { width: 42px; flex: none; }
 
     .about-hero { padding: 18px 22px 14px; border-bottom: 1px solid var(--hair); }
     .about-hero h2 { color: var(--ink); font-size: 19px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
@@ -1075,6 +1075,14 @@
             <div class="band">
               <span class="band-title" data-i18n="section.panel"></span>
               <span class="band-hint" data-i18n="section.thisMenu"></span>
+            </div>
+
+            <div class="row" data-i18n-title="tooltip.panelOpacity">
+              <label class="row-name" for="slider-panel-opacity" data-i18n="row.panelOpacity"></label>
+              <div class="slider-wrap">
+                <input class="slider" id="slider-panel-opacity" type="range" min="10" max="100" step="1" value="100" data-action="setPanelOpacity">
+                <output class="slider-val" id="slider-panel-opacity-val" for="slider-panel-opacity">100%</output>
+              </div>
             </div>
 
             <div class="row" data-action="cyclePanelSide"

@@ -1447,6 +1447,13 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             SetPiPOpacity(static_cast<float>(message->number));
             return;
         }
+        if (action == L"setPanelOpacity") {
+            m_config->panelOpacity = static_cast<float>(message->number);
+            ApplyPanelLayout();
+            // Like PiP opacity, persist on exit rather than writing during a drag.
+            m_webviewSettings->PostMessage(L"{\"panelOpacity\":" + std::to_wstring(m_config->panelOpacity) + L"}");
+            return;
+        }
         if (action == L"cycleAspect") {
             CycleAspectRatio();
             return;
@@ -2518,7 +2525,7 @@ void Application::Run()
         // and the branch the render section will select. This is deliberately
         // not emitted for every render iteration.
         const bool panelCoversPicture = m_settingsVisible && m_webviewSettings &&
-            m_webviewSettings->GetDock() == WebViewSettings::Dock::Full;
+            m_webviewSettings->GetDock() == WebViewSettings::Dock::Full && m_config->panelOpacity == 1.0f;
         m_window->SetVideoAvailable(
             presentationState == PresentationState::Capture && !panelCoversPicture);
         if (!m_hasPresentationStateDiagnostic ||
@@ -4580,7 +4587,7 @@ std::wstring Application::ApplyPanelLayout()
     else                     side = "right";
     if (m_webviewSettings) {
         m_webviewSettings->SetDock(dock, m_config ? m_config->panelWidth : 500);
-        m_webviewSettings->SetTransparentBackground(dock != WebViewSettings::Dock::Full);
+        m_webviewSettings->SetTransparentBackground(dock != WebViewSettings::Dock::Full || (m_config && m_config->panelOpacity < 1.0f));
     }
     if (side == "left") return L"Left";
     if (side == "full") return L"Full";
@@ -5096,6 +5103,7 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     js << L"\"aspectRatio\":\"" << JsonEscapeWide(ApplyAspectRatio()) << L"\",";
     js << L"\"panelSide\":\"" << ApplyPanelLayout() << L"\",";
     js << L"\"panelWidth\":" << m_config->panelWidth << L",";
+    js << L"\"panelOpacity\":" << m_config->panelOpacity << L",";
     js << L"\"configWarning\":\"" << JsonEscapeWide(ConfigWarning()) << L"\",";
     if (m_captureDevice) {
         auto fmt = m_captureDevice->GetOutputFormat();

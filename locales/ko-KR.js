@@ -12,6 +12,8 @@ window.NitLinkLocales['ko-KR'] = {
   "game.xboxOfficial": "Xbox 공식",
   "game.coverLanguage.de-DE": "독일어",
   "panel.resizeHelp": "드래그하여 패널 너비 조절",
+  "row.panelOpacity": "패널 불투명도",
+  "tooltip.panelOpacity": "설정 패널 전체의 불투명도를 즉시 조절합니다. 100%는 불투명하며 값을 낮추면 뒤의 게임 화면이 비칩니다.",
   "discord.totalPlaytime": "누적 플레이 시간: {hours}시간 {minutes}분",
   "account.demoGameName": "데모: 플레이 시간 정보 없음",
   "account.switch2Edition": "Switch 2 에디션",

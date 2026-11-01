@@ -554,8 +554,8 @@ void WebViewSettings::ReceiveMessage(const std::wstring& json) {
         return;
     }
     if (!m_ready) return;
-    if (parsed && (parsed->action == L"setVolume" || parsed->action == L"setPiPOpacity" || parsed->action == L"setPanelWidth")) {
-        const size_t index = parsed->action == L"setVolume" ? 0 : parsed->action == L"setPiPOpacity" ? 1 : 2;
+    if (parsed && (parsed->action == L"setVolume" || parsed->action == L"setPiPOpacity" || parsed->action == L"setPanelWidth" || parsed->action == L"setPanelOpacity")) {
+        const size_t index = parsed->action == L"setVolume" ? 0 : parsed->action == L"setPiPOpacity" ? 1 : parsed->action == L"setPanelWidth" ? 2 : 3;
         const bool replaced = m_pendingSliders.Store(index, json);
         if (replaced) ++m_sliderReplacements;
         DispatchPendingMessages();

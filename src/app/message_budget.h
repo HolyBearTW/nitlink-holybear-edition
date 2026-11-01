@@ -33,7 +33,7 @@ public:
         return replaced;
     }
     bool Has(size_t index) const { return index < m_values.size() && !m_values[index].empty(); }
-    bool Empty() const { return !Has(0) && !Has(1) && !Has(2); }
+    bool Empty() const { return !Has(0) && !Has(1) && !Has(2) && !Has(3); }
     void Clear() { m_values = {}; }
     template<class Callback>
     void Drain(MessageBudget& budget, uint64_t now, bool closing, Callback&& dispatch) {
@@ -48,7 +48,7 @@ public:
         }
     }
 private:
-    std::array<std::wstring, 3> m_values;
+    std::array<std::wstring, 4> m_values;
     size_t m_next = 0;
 };
 } // namespace NitLink

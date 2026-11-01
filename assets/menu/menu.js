@@ -479,6 +479,22 @@
       post('setPiPOpacity', pct / 100);
     });
 
+    const panelOpacitySlider = document.getElementById('slider-panel-opacity');
+    const panelOpacityValue = document.getElementById('slider-panel-opacity-val');
+    const setPanelOpacityVisual = opacity => {
+      if (typeof opacity !== 'number' || panelOpacitySlider.matches(':active')) return;
+      const pct = Math.round(opacity * 100);
+      panelOpacitySlider.value = pct;
+      panelOpacityValue.textContent = pct + '%';
+      document.documentElement.style.setProperty('--panel-opacity', opacity);
+    };
+    panelOpacitySlider.addEventListener('input', () => {
+      const opacity = Number(panelOpacitySlider.value) / 100;
+      panelOpacityValue.textContent = panelOpacitySlider.value + '%';
+      document.documentElement.style.setProperty('--panel-opacity', opacity);
+      post('setPanelOpacity', opacity);
+    });
+
     // Capture source picker + manual format override.
     //
     // The popover hosts two related pieces: a device list (only rendered
@@ -1755,6 +1771,7 @@
         if (slider && slider._setFromCpp) slider._setFromCpp(s.volume * 100);
       }
       setPiPOpacityVisual(s.pipOpacity);
+      setPanelOpacityVisual(s.panelOpacity);
       if (s.aspectRatio) setText('aspect-val', localizeValue(s.aspectRatio));
       if (s.panelSide) {
         setText('panel-side-val', localizeValue(s.panelSide));
@@ -1867,6 +1884,7 @@
         if (msg && msg.gameNotice) window._gameNotice(msg.gameNotice);
         if (msg && msg.gamePageReset) window._resetGamePage();
         if (msg && typeof msg.pipOpacity === 'number') setPiPOpacityVisual(msg.pipOpacity);
+        if (msg && typeof msg.panelOpacity === 'number') setPanelOpacityVisual(msg.panelOpacity);
       });
       post('ready');
     }

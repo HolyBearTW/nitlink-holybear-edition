@@ -1197,7 +1197,7 @@
         readyCoverBatch=0;appliedCoverBatch=0;
         clearTimeout(coverTimer); clearTimeout(coverImageTimer); coverRequest = ++sequence;
         const pending=settleImages(covers, coverCards);
-        if (coverStatus === 'loading'||pending) coverStatus = 'cancelled';
+        if (coverStatus === 'loading'||coverStatus === 'resolving'||pending) coverStatus = 'cancelled';
       };
       const renderResults = () => {
         gameCards.clear(); el('game-results').replaceChildren();
@@ -1357,8 +1357,10 @@
         const matching=covers.filter(cover=>{const entry=coverCards.get(cover.id);return shape==='all'||loadedCoverOrientation(entry)===shape||(entry?.art.dataset.imageState==='failed'&&cover.shape===shape);});
         const visible=matching.filter(cover=>coverCards.get(cover.id)?.art.dataset.imageState!=='failed');
         const imageFailures=matching.length-visible.length;
-        const waitingForShape=shape!=='all'&&covers.some(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='loading');
-        el('game-cover-status').textContent = t(waitingForShape?'game.status.loading':`game.status.${coverStatus}`) + (visible.length ? ` · ${t('game.coverCount').replace('{count}',visible.length)}` : '')+
+        const pendingImages=covers.some(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='loading');
+        const loadedImages=covers.filter(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='ok').length;
+        const busy=coverStatus==='loading'||coverStatus==='resolving'||pendingImages;
+        el('game-cover-status').textContent = (pendingImages?t('game.coverLoadingProgress').replace('{loaded}',loadedImages).replace('{total}',covers.length):t(`game.status.${coverStatus}`)) + (!busy&&visible.length ? ` · ${t('game.coverCount').replace('{count}',visible.length)}` : '')+
           (!visible.length&&imageFailures?' · '+t('game.failedCoverCount').replace('{count}',imageFailures):'');
         el('game-query-trace').hidden = !window.NitLinkPreview || !queriedTerms.length;
         el('game-query-trace').textContent = `${t('game.queriedTerms')} · ${queriedTerms.join(' / ')}`;
@@ -1366,11 +1368,12 @@
           const key = window.NitLinkPreview.mode === 'real' ? 'game.realPreview' : 'game.fixture';
           el('game-preview-mode-note').dataset.i18n = key; el('game-preview-mode-note').textContent = t(key);
         }
-        el('game-cover-status').hidden = visible.length > 0;
+        el('game-cover-status').hidden = !busy;
+        el('game-cover-status').dataset.busy = String(busy);
         el('game-cover-status').dataset.error = String(failed.includes(coverStatus)||(!visible.length&&imageFailures>0));
-        el('game-cover-empty').hidden = visible.length > 0;
+        el('game-cover-empty').hidden = visible.length > 0||busy;
         el('game-cover-empty').textContent = t(imageFailures&&!visible.length?'game.noUsableCovers':covers.length&&!visible.length&&['ok','partial'].includes(coverStatus)?'game.noShapeCovers':coverStatus === 'idle' ? 'game.coverIdle' : `game.status.${coverStatus}`);
-        el('game-gallery').setAttribute('aria-busy', String(coverStatus === 'loading'||waitingForShape));
+        el('game-gallery').setAttribute('aria-busy', String(busy));
         el('game-cover-prev').disabled = !current.id || !coverPage || coverStatus === 'loading';
         el('game-cover-next').disabled = !current.id || !coverHasMore || coverStatus === 'loading';
         el('game-cover-page').textContent = current.id ? t('game.pageCount').replace('{page}',coverPage+1).replace('{total}',coverTotal) : '';
@@ -1415,7 +1418,7 @@
         searchStatus = 'loading'; updateStatus();
         post('searchGames', {query: text, request: requested});
         searchTimer = setTimeout(() => {
-          if (requested === searchRequest) { searchStatus = 'timeout'; updateStatus(); }
+          if (requested === searchRequest) { searchStatus = 'timeout';if(coverStatus==='resolving')coverStatus='timeout';updateStatus(); }
         }, 30000); // Primary (12s) plus bounded fallback searches (12s), including bridge delivery.
       };
       query.addEventListener('input', () => {
@@ -1452,7 +1455,13 @@
         shape = value; coverPage = 0; renderGameUI(); loadCovers();
       }));
       el('game-cover-retry').addEventListener('click', () => { coverPage=0;loadCovers(true); });
-      document.addEventListener('accountcoverschanged',()=>{if(current.key){coverPage=0;loadCovers();}});
+      document.addEventListener('accountcoverlookup',()=>{if(current.key){coverStatus='resolving';covers=[];renderCovers();updateStatus();}});
+      document.addEventListener('accountcoverschanged',event=>{if(current.key){
+        if(event.detail?.lookupStatus&&!current.id&&(coverProvider==='community'||event.detail.lookupStatus==='matchRequired')){
+          coverStatus=event.detail.lookupStatus;covers=[];renderCovers();updateStatus();return;
+        }
+        coverPage=0;loadCovers();
+      }});
       el('game-cover-prev').addEventListener('click',()=>{if(coverPage){--coverPage;loadCovers();}});
       el('game-cover-next').addEventListener('click',()=>{if(coverHasMore){++coverPage;loadCovers();}});
       document.querySelectorAll('[data-cover-provider]').forEach(button=>button.addEventListener('click',()=>{coverProvider=button.dataset.coverProvider;shape='all';coverPage=0;renderGameUI();loadCovers(true);}));
@@ -1607,7 +1616,7 @@
             button.addEventListener('click', () => { query.value = term; search(); }); el('game-suggestions').appendChild(button);
           });
           renderResults(); renderGameUI(); updateStatus();
-          window.NitLinkAccountLibrary?.searchResults(results);
+          window.NitLinkAccountLibrary?.searchResults(results,searchStatus);
           el('game-search-status').title = Object.entries(event.lookups || {}).map(([source, status]) => `${source}: ${status}`).join(' · ');
         } else if (event.kind === 'covers' && event.request === coverRequest && event.gameId === current.id && event.shape === shape) {
           clearTimeout(coverTimer); coverStatus = event.status; covers = [...event.artworkSources||[],...event.covers||[]];

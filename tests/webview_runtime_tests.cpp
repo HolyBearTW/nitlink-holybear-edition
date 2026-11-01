@@ -428,6 +428,11 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
                 if(message&&message->action==L"searchGames"&&message->text==queries[i]){request=message->request;return true;}
             }return false;
         }),"community/all requests resolve missing catalogue IDs even when official account artwork exists on Nintendo, PlayStation and Xbox");
+        Check(Script(view,LR"JS((()=>{
+            const status=document.getElementById('game-cover-status');
+            return !status.hidden&&status.dataset.busy==='true'&&status.textContent===window.NitLinkLocales['zh-TW']['game.status.resolving']&&
+                document.getElementById('game-gallery').getAttribute('aria-busy')==='true'&&document.getElementById('game-cover-empty').hidden;
+        })())JS")==L"true","switching to community/all immediately shows lookup feedback before any search response arrives");
         NitLink::Games::Result search;search.operation=NitLink::Games::Operation::Search;
         search.request=request;search.locale=L"zh-TW";search.reply.status=L"ok";
         search.reply.games={{799900u,0,L"Unrelated World",L"不相關的遊戲",L"fixture"},
@@ -439,6 +444,8 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
             host.PostMessage(NitLink::SerializeGameResult(unrelated));
             Check(PumpUntil([&]{return Script(view,L"document.querySelectorAll('.game-result').length===1&&!document.getElementById('account-match-note').hidden")==L"true";}),
                 "a lone unrelated catalogue result stays available for manual review instead of being linked automatically");
+            Check(Script(view,L"document.getElementById('game-cover-empty').textContent===window.NitLinkLocales['zh-TW']['game.status.matchRequired']&&document.getElementById('game-cover-status').hidden")==L"true",
+                "an unresolved catalogue choice shows one selection prompt instead of a false empty gallery or endless loading");
             for(size_t n=unrelatedStart;n<messages.size();++n){
                 const auto message=NitLink::ParseSettingsMessage(messages[n]);
                 Check(!message||message->action!=L"linkAccountGame","a shared title word never maps an unrelated game");
@@ -481,8 +488,12 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
         }),"the resolved catalogue ID is immediately used for the requested community gallery");
         auto gallery=search;gallery.operation=NitLink::Games::Operation::Covers;gallery.request=galleryRequest;
         gallery.gameId=800000u+i;gallery.shape=i==0?L"square":L"all";gallery.reply.games.clear();
-        NitLink::Games::Cover cover;cover.id=810000u+i;cover.shape=L"square";gallery.reply.covers={cover};
+        NitLink::Games::Cover cover;cover.id=810000u+i;cover.shape=L"square";auto second=cover;second.id+=100;gallery.reply.covers={cover,second};
         host.PostMessage(NitLink::SerializeGameResult(gallery));
+        Check(PumpUntil([&]{return Script(view,LR"JS((()=>{
+            const status=document.getElementById('game-cover-status');
+            return !status.hidden&&status.dataset.busy==='true'&&status.textContent.endsWith('0/2');
+        })())JS")==L"true";}),"cover metadata starts a visible 0/2 image progress indicator");
         auto image=gallery;image.operation=NitLink::Games::Operation::Image;image.coverId=cover.id;
         image.imageUri=L"assets/nitlink.svg";image.imageStatus=L"ok";
         host.PostMessage(NitLink::SerializeGameResult(image));
@@ -490,6 +501,11 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
             const card=document.querySelector('#game-gallery .game-cover'),img=card?.querySelector('img');
             return card&&!card.disabled&&img?.complete&&img.naturalWidth>0&&!document.getElementById('game-gallery').hidden;
         })())JS")==L"true";}),"decoded community artwork becomes selectable in the real native WebView");
+        Check(Script(view,L"!document.getElementById('game-cover-status').hidden&&document.getElementById('game-cover-status').textContent.endsWith('1/2')&&document.getElementById('game-gallery').getAttribute('aria-busy')==='true'")==L"true",
+            "the first selectable image keeps the remaining image progress visible");
+        image.coverId=second.id;image.reply.covers={second};host.PostMessage(NitLink::SerializeGameResult(image));
+        Check(PumpUntil([&]{return Script(view,L"document.getElementById('game-cover-status').hidden&&document.getElementById('game-gallery').getAttribute('aria-busy')==='false'")==L"true";}),
+            "loading feedback clears only after the last image settles");
     }
     Script(view, LR"JS((()=>{
         window._updateGameState({key:'',id:0,name:'',displayName:'',locale:'zh-TW',artworkPlatform:'unknown',dataMode:'real'});

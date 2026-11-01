@@ -59,6 +59,7 @@ window.NitLinkGameTitles = (() => {
   const logo = provider => { const image=document.createElement('img');image.src=`assets/menu/platforms/${provider==='nintendo'?'nintendo-switch':provider}.svg`;image.alt='';image.className='account-platform-logo';return image; };
   const findCovers = scroll => {
     linkTarget=current.key;el('game-query').value=titles.coverQuery(current.name);el('game-search').click();
+    document.dispatchEvent(new Event('accountcoverlookup'));
     if(scroll)el('game-query').scrollIntoView({block:'center',behavior:'smooth'});
     render();
   };
@@ -280,15 +281,15 @@ window.NitLinkGameTitles = (() => {
       if(!community&&model.games.find(game=>game.key===current.key)?.artworks.length)return false;
       findCovers(false);return true;
     },
-    searchResults(games) {
+    searchResults(games,status='ok') {
       if(!linkTarget)return;
-      if(games.length&&games.every(game=>game.accountKey)){linkTarget='';render();document.dispatchEvent(new Event('accountcoverschanged'));return;}
+      if(games.length&&games.every(game=>game.accountKey)){linkTarget='';render();document.dispatchEvent(new CustomEvent('accountcoverschanged',{detail:{lookupStatus:['ok','partial'].includes(status)?'empty':status}}));return;}
       const normalize=value=>titles.key(titles.coverQuery(value));
       const selected=model.games.find(game=>game.key===current.key),saved=local.games.find(game=>game.key===current.key);
       const targets=[current.name,selected?.name,...Object.values(selected?.displayNames||{}),...Object.values(saved?.displayNames||{})].map(normalize).filter(Boolean);
       const matches=games.filter(game=>[game.name,game.displayName,...Object.values(game.titles||{}),...(game.artworkSources||[]).map(source=>source.productTitle)].some(name=>targets.includes(normalize(name))));
       if(matches.length===1)this.linkSearchResult(matches[0].id);
-      else document.dispatchEvent(new Event('accountcoverschanged'));
+      else document.dispatchEvent(new CustomEvent('accountcoverschanged',{detail:{lookupStatus:games.length?'matchRequired':['ok','partial'].includes(status)?'empty':status}}));
     },
     linkSearchResult(gameId) { if(!linkTarget||!gameId)return false;post('linkAccountGame',{key:linkTarget,gameId});linkTarget='';render();return true; }
   };

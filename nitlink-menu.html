@@ -7,13 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title data-i18n="page.settings">NitLink · Settings</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
-  <script src="locales/en-US.js?v=20261101-game-library1253"></script>
-  <script src="locales/zh-TW.js?v=20261101-game-library1253"></script>
-  <script src="locales/zh-CN.js?v=20261101-game-library1253"></script>
-  <script src="locales/de-DE.js?v=20261101-game-library1253"></script>
-  <script src="locales/ko-KR.js?v=20261101-game-library1253"></script>
-  <script src="locales/ja-JP.js?v=20261101-game-library1253"></script>
-  <script src="assets/menu/preview-host.js?v=20261101-game-library1253"></script>
+  <script src="locales/en-US.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="locales/zh-TW.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="locales/zh-CN.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="locales/de-DE.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="locales/ko-KR.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="locales/ja-JP.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="assets/menu/preview-host.js?v=20261101-game-library1253-feedback1"></script>
   <style>
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400; font-display: swap; src: url('assets/menu/Archivo-400.ttf') format('truetype'); }
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500; font-display: swap; src: url('assets/menu/Archivo-500.ttf') format('truetype'); }
@@ -565,6 +565,7 @@
     #account-link-code { width:100%; }
     #game-query::placeholder,#account-game-query::placeholder,#account-link-code::placeholder { color:var(--ink3); }
     .game-status { margin: 12px 0; color: var(--ink2); font-size: 12px; line-height: 1.6; }
+    .game-status[data-busy="true"]::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 7px; vertical-align: -2px; background: var(--accent); mask: url('assets/nitlink-mono.svg') center / contain no-repeat; animation: nl-pulse 1.4s ease-in-out infinite; }
     .game-status[data-error="true"] { color: var(--warn); }
     .game-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; max-height: 390px; overflow-y: auto; padding: 2px 6px 2px 2px; scrollbar-gutter: stable; }
     .game-result { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; min-width: 0; text-align: left; border: 1px solid var(--hair2); border-radius: 6px; background: #202020; padding: 8px; color: var(--ink); cursor: pointer; }
@@ -1266,10 +1267,10 @@
     </div>
   </aside>
   <div id="audio-tooltip" role="tooltip" hidden></div>
-  <script src="assets/menu/artwork-editor.js?v=20261101-game-library1253"></script>
-  <script src="assets/menu/account-library.js?v=20261101-game-library1253"></script>
-  <script src="assets/menu/shortcut-editor.js?v=20261101-game-library1253"></script>
-  <script src="assets/menu/menu.js?v=20261101-game-library1253"></script>
+  <script src="assets/menu/artwork-editor.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="assets/menu/account-library.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="assets/menu/shortcut-editor.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="assets/menu/menu.js?v=20261101-game-library1253-feedback1"></script>
 </body>
 
 </html>

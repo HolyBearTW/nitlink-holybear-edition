@@ -1,6 +1,11 @@
 // NitLink Korean (Korea) UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['ko-KR'] = {
+  "row.panelEffect": "패널 배경",
+  "panel.effect.blur": "흐린 유리",
+  "panel.effect.classic": "기존 투명도",
+  "tooltip.panelEffect": "패널 뒤의 게임 화면을 흐리게 하거나 기존 투명 스타일을 사용합니다.",
+  "tooltip.panelBackgroundOpacity": "유리 모드에서는 배경, 기존 모드에서는 전체 패널의 불투명도를 조절합니다.",
   "game.nintendoOfficial": "닌텐도 공식",
   "game.coverBadge.zh-TW": "번체",
   "game.coverBadge.zh-CN": "간체",

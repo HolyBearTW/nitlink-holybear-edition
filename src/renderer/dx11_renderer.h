@@ -35,6 +35,8 @@ public:
     // Returns true only when Present returned S_OK. This reports submission,
     // not the number of frames scanned out by the monitor.
     bool EndFrame();
+    // Display-only effect, applied after screenshot capture and before Present.
+    void SetPanelGlass(RECT pictureBounds);
     CaptureFrameHoldStatus GetResyncFrameStatus() const;
     void ForgetResyncFrame(CaptureFrameHoldReason reason);
     bool CaptureDrawReachedBackbuffer() const {
@@ -312,6 +314,17 @@ public:
 
 private:
     bool m_vsync = false;
+    void DrawPanelGlass();
+    RECT m_glassRect{};
+    float m_glassScale = 1.0f;
+    bool m_glassShadersAttempted = false;
+    ComPtr<ID3D11VertexShader> m_glassVS;
+    ComPtr<ID3D11PixelShader> m_glassHorizontalPS, m_glassVerticalPS;
+    ComPtr<ID3D11Buffer> m_glassCB;
+    ComPtr<ID3D11SamplerState> m_glassSampler;
+    ComPtr<ID3D11Texture2D> m_glassCopy, m_glassIntermediate;
+    ComPtr<ID3D11ShaderResourceView> m_glassCopySRV, m_glassIntermediateSRV;
+    ComPtr<ID3D11RenderTargetView> m_glassIntermediateRTV;
 
     bool CreateRenderTarget();
     void ReleaseRenderTarget();

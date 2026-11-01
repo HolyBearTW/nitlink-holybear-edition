@@ -1,6 +1,11 @@
 // NitLink German (Germany) UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['de-DE'] = {
+  "row.panelEffect": "Panel-Hintergrund",
+  "panel.effect.blur": "Milchglas",
+  "panel.effect.classic": "Klassische Transparenz",
+  "tooltip.panelEffect": "Spielbild hinter dem Panel weichzeichnen oder die bisherige Transparenz verwenden.",
+  "tooltip.panelBackgroundOpacity": "Im Glasmodus die Deckkraft des Hintergrunds, im klassischen Modus die des gesamten Panels ändern.",
   "game.nintendoOfficial": "Offizielles Nintendo",
   "game.coverBadge.zh-TW": "Trad. ZH",
   "game.coverBadge.zh-CN": "Vereinf. ZH",

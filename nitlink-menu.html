@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-US" data-side="right">
+<html lang="en-US" data-side="right" data-panel-effect="blur">
 
 <head>
   <meta charset="UTF-8">
@@ -7,13 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title data-i18n="page.settings">NitLink · Settings</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
-  <script src="locales/en-US.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="locales/zh-TW.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="locales/zh-CN.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="locales/de-DE.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="locales/ko-KR.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="locales/ja-JP.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="assets/menu/preview-host.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="locales/en-US.js?v=20261102-glass1253-1"></script>
+  <script src="locales/zh-TW.js?v=20261102-glass1253-1"></script>
+  <script src="locales/zh-CN.js?v=20261102-glass1253-1"></script>
+  <script src="locales/de-DE.js?v=20261102-glass1253-1"></script>
+  <script src="locales/ko-KR.js?v=20261102-glass1253-1"></script>
+  <script src="locales/ja-JP.js?v=20261102-glass1253-1"></script>
+  <script src="assets/menu/preview-host.js?v=20261102-glass1253-1"></script>
   <style>
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400; font-display: swap; src: url('assets/menu/Archivo-400.ttf') format('truetype'); }
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500; font-display: swap; src: url('assets/menu/Archivo-500.ttf') format('truetype'); }
@@ -77,6 +77,8 @@
 
     /* Shell: left rail, then a column of top bar, signal strip, scrolling panes. */
     .app { position: fixed; inset: 0; display: flex; align-items: stretch; background: var(--bg); opacity: var(--panel-opacity, 1); }
+    html[data-panel-effect="blur"] { --bg: transparent; --chrome: rgba(18,20,24,.22); --band: rgba(255,255,255,.045); }
+    html[data-panel-effect="blur"] .app { opacity: 1; background: rgba(24,26,30,var(--panel-opacity,.65)); }
 
     .rail { width: 76px; flex: none; display: flex; flex-direction: column; background: var(--chrome); }
     .rail-brand { display: flex; align-items: center; justify-content: center; height: 60px; }
@@ -1078,7 +1080,16 @@
               <span class="band-hint" data-i18n="section.thisMenu"></span>
             </div>
 
-            <div class="row" data-i18n-title="tooltip.panelOpacity">
+            <div class="row" data-i18n-title="tooltip.panelEffect">
+              <label class="row-name" for="panel-effect" data-i18n="row.panelEffect"></label>
+              <div class="row-right">
+                <select class="language-select" id="panel-effect">
+                  <option value="blur" data-i18n="panel.effect.blur"></option>
+                  <option value="classic" data-i18n="panel.effect.classic"></option>
+                </select>
+              </div>
+            </div>
+            <div class="row" data-i18n-title="tooltip.panelBackgroundOpacity">
               <label class="row-name" for="slider-panel-opacity" data-i18n="row.panelOpacity"></label>
               <div class="slider-wrap">
                 <input class="slider" id="slider-panel-opacity" type="range" min="10" max="100" step="1" value="100" data-action="setPanelOpacity">
@@ -1267,10 +1278,10 @@
     </div>
   </aside>
   <div id="audio-tooltip" role="tooltip" hidden></div>
-  <script src="assets/menu/artwork-editor.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="assets/menu/account-library.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="assets/menu/shortcut-editor.js?v=20261101-game-library1253-feedback1"></script>
-  <script src="assets/menu/menu.js?v=20261101-game-library1253-feedback1"></script>
+  <script src="assets/menu/artwork-editor.js?v=20261102-glass1253-1"></script>
+  <script src="assets/menu/account-library.js?v=20261102-glass1253-1"></script>
+  <script src="assets/menu/shortcut-editor.js?v=20261102-glass1253-1"></script>
+  <script src="assets/menu/menu.js?v=20261102-glass1253-1"></script>
 </body>
 
 </html>

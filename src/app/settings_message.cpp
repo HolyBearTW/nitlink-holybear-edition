@@ -296,6 +296,9 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
         uint32_t request = 0;
         if (!Uint(root, L"value", 0xffffffffu, request) || request == 0) return std::nullopt;
         result.number = request;
+    } else if (action == L"setPanelEffect") {
+        if (!value || value->kind != Value::Kind::String || !OneOf(value->text, {L"classic",L"blur"})) return std::nullopt;
+        result.text = value->text;
     } else if (action == L"setPanelWidth") {
         if (!value || value->kind != Value::Kind::Number || value->number < 500 ||
             value->number > 1200 || std::floor(value->number) != value->number) return std::nullopt;

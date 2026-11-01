@@ -14,7 +14,7 @@
   const pushAccounts=()=>emit({accountLibrary:{preview:true,accounts:accountStates,games:accountGames.filter(game=>accountStates.find(account=>account.provider===game.provider)?.accountId)}});
   const state={locale:params.get('lang')||'zh-TW',languagePreference:params.get('lang')||'zh-TW',panelSide:params.get('layout')||'full',activeDevice:'AVerMedia Live Gamer ULTRA 2.1 · Host fixture',captureDevices:['AVerMedia Live Gamer ULTRA 2.1 · Host fixture','Elgato 4K Pro · Host fixture'],manualHdmiSource:'switch2',effectiveHdmiSource:'Nintendo Switch 2',manualHdmiSourceCustom:'',negotiatedWidth:1920,negotiatedHeight:1080,negotiatedFps:60,negotiatedFpsNumerator:60,negotiatedFpsDenominator:1,negotiatedFormat:'NV12',resolutionText:'1920×1080 / 60 FPS',linkText:'HDMI',latencyText:'8 ms',preventSleep:true,availableFormats:[{width:1920,height:1080,fps:60,fpsNumerator:60,fpsDenominator:1,format:'NV12'},{width:3840,height:2160,fps:60,fpsNumerator:60,fpsDenominator:1,format:'P010'}],captureFormatOverride:{width:0,height:0,fps:0,fpsNumerator:0,fpsDenominator:1,format:''},gameList:[{id:'spider-man-2',title:"Marvel's Spider-Man 2"},{id:'astro-bot',title:'Astro Bot'}]};
   state.discordSignal='1920×1080 · 60 FPS';
-  state.panelOpacity=1;
+  state.panelEffect='blur';state.panelOpacity=.65;
   const sourceNames={switch2:'Switch 2',switch:'Switch',ps5:'PS5',ps4:'PS4',xbox_series:'Xbox Series X|S',xbox_one:'Xbox One',pc:'PC'};
   const detectedSource=params.get('source')==='unknown'?'':'Nintendo Switch 2';
   state.manualHdmiSource=params.get('source')==='unknown'?'auto':Object.hasOwn(sourceNames,params.get('source'))?params.get('source'):'switch2';
@@ -340,6 +340,7 @@
     if(action==='setManualHdmiSourceCustom'){const previous=artworkPlatform();state.manualHdmiSourceCustom=value;state.effectiveHdmiSource=value||detectedSource;if(previous!==artworkPlatform()){cancel();games.clear();coversById.clear();}push();return;}
     if(action==='setPanelWidth'){state.panelWidth=value;layout(state.panelSide);push();return;}
     if(action==='setPanelOpacity'){state.panelOpacity=value;push();return;}
+    if(action==='setPanelEffect'){state.panelEffect=value;state.panelOpacity=value==='blur'?.65:1;push();return;}
     if(action==='setPreferredDevice'){state.activeDevice=value;push();return;}
     if(action==='setCaptureFormatOverride'){state.captureFormatOverride=value;push();return;}
     if(action==='javascriptException'){console.error('Preview bridge:',value);return;}

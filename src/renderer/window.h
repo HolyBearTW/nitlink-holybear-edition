@@ -5,6 +5,7 @@
 #include <utility>
 #include <cstdint>
 #include <functional>
+#include <array>
 #include "playback_power.h"
 
 namespace NitLink {
@@ -27,6 +28,13 @@ public:
         std::function<void(int x, int y)>           onMouseUp;
         std::function<void(int delta)>              onMouseWheel;
         std::function<void(int vk)>                 onKeyDown;
+        std::function<void()>                       onSettings;
+        std::function<void()>                       onCycleHud;
+    };
+    struct ChromeLabels {
+        std::array<std::wstring,3> hud{L"Standard HUD",L"Detailed HUD",L"Compact HUD"};
+        std::wstring settings=L"Settings",hidden=L"Hidden",minimize=L"Minimize",maximize=L"Maximize",restore=L"Restore",close=L"Close";
+        bool operator==(const ChromeLabels&) const = default;
     };
 
     explicit Window(PlaybackPowerRequest::SetStateFn setPowerState = ::SetThreadExecutionState);
@@ -81,6 +89,10 @@ public:
     void SetCloseCallback(std::function<void()> cb) { m_onClose = std::move(cb); }
 
     HWND GetHWND() const { return m_hwnd; }
+    HWND GetRenderHWND() const { return m_videoWindow; }
+    RECT GetContentBounds() const;
+    void SetChromeState(unsigned hudMode, bool hudVisible, bool settingsVisible);
+    void SetChromeLabels(ChromeLabels labels);
     std::pair<uint32_t, uint32_t> GetClientSize() const;
     std::pair<uint32_t, uint32_t> GetWindowedClientSize() const { return m_windowedClientSize; }
     bool WasResized() const { return m_wasResized; }
@@ -94,6 +106,7 @@ public:
 
     // Window procedure
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK VideoWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
     void UpdatePlaybackPower();
@@ -103,8 +116,24 @@ private:
     bool BeginPiPResize(POINT screenPoint);
     void UpdatePiPResize(POINT screenPoint);
     void EndPiPResize();
+    int CaptionHeight() const;
+    RECT CaptionButtonRect(int index) const;
+    int CaptionButtonAt(POINT point) const;
+    void LayoutContent();
+    void PaintCaption(HDC dc);
+    void RefreshCaption();
+    void UpdateCaptionTooltips();
+    void InvokeCaptionButton(int index);
 
     HWND       m_hwnd = nullptr;
+    HWND       m_videoWindow = nullptr, m_captionTooltip = nullptr;
+    ULONG_PTR  m_gdiplusToken = 0;
+    bool       m_desktopGlass = false;
+    unsigned   m_hudMode = 0;
+    bool       m_hudVisible = false, m_settingsVisible = false;
+    int        m_captionHover = -1, m_captionPressed = -1;
+    ChromeLabels m_chromeLabels;
+    std::array<std::wstring,5> m_captionTooltips;
     PlaybackPowerRequest m_playbackPower;
     bool m_preventSleep = true;
     bool m_videoAvailable = false;

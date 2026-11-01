@@ -1,6 +1,11 @@
 // Japanese localization for NitLink HolyBear Edition.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['ja-JP'] = {
+  "row.panelEffect": "パネルの背景",
+  "panel.effect.blur": "すりガラス",
+  "panel.effect.classic": "従来の透明表示",
+  "tooltip.panelEffect": "パネル背後のゲーム画面をぼかすか、従来の透明表示を使います。",
+  "tooltip.panelBackgroundOpacity": "ガラス表示では背景の不透明度を、従来の表示ではパネル全体を調整します。",
   "game.nintendoOfficial": "任天堂公式",
   "game.coverBadge.zh-TW": "繁体字",
   "game.coverBadge.zh-CN": "簡体字",

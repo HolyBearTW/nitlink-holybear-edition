@@ -464,7 +464,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     }
 
     m_renderer = std::make_unique<DX11Renderer>();
-    if (!m_renderer->Initialize(m_window->GetHWND(), actualW, actualH)) {
+    if (!m_renderer->Initialize(m_window->GetRenderHWND(), actualW, actualH)) {
         AppLog(L"Initialize: Renderer::Initialize FAILED");
         return false;
     }
@@ -478,7 +478,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     m_overlay = std::make_unique<Overlay>();
     const bool startupOverlayOk = m_overlay->Initialize(
         m_renderer->GetDevice(), m_renderer->GetContext(),
-        m_renderer->GetSwapChain(), m_window->GetHWND());
+        m_renderer->GetSwapChain(), m_window->GetRenderHWND());
     if (!startupOverlayOk) {
         AppLog(L"Initialize: startup Overlay::Initialize FAILED (showing dark renderer clear)");
     } else {
@@ -493,6 +493,13 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     m_showOverlay = startupOverlayOk && m_config->showOverlay;
     m_overlay->SetHudMode(m_config->hudMode);
     Window::InputCallbacks overlayInput{};
+    overlayInput.onSettings=[this](){ToggleSettings();};
+    overlayInput.onCycleHud=[this](){
+        if(!m_config||!m_overlay)return;
+        if(m_showOverlay)m_config->hudMode=(m_config->hudMode+1)%3;
+        m_showOverlay=true;m_config->showOverlay=true;m_overlay->SetHudMode(m_config->hudMode);
+        m_config->Save("nitlink.json");PushSettingsState();
+    };
     overlayInput.onMouseDown = [this](int x, int y) {
         if (m_showOverlay && !m_isPiP && m_overlay) {
             if(m_overlay->HandleMouseDown(x,y)){m_config->hudMode=m_overlay->HudMode();m_config->Save("nitlink.json");}
@@ -1176,6 +1183,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             ShowToast(Tr(retrying ? L"toast.settingsRetry" : reason.c_str()),
                       std::chrono::milliseconds(10000));
     });
+    m_webviewSettings->SetContentBoundsProvider([this](){return m_window->GetContentBounds();});
     const bool settingsStarting = m_webviewSettings->Initialize(m_window->GetHWND(), actualW, actualH);
     ApplyPanelLayout();
     m_gameService = std::make_unique<Games::GameService>();
@@ -1451,11 +1459,16 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             return;
         }
         if (action == L"setPanelOpacity") {
-            m_config->panelOpacity = static_cast<float>(message->number);
+            if(m_config->panelEffect=="blur")m_config->panelBlurOpacity=static_cast<float>(message->number);
+            else m_config->panelOpacity = static_cast<float>(message->number);
             ApplyPanelLayout();
             // Like PiP opacity, persist on exit rather than writing during a drag.
-            m_webviewSettings->PostMessage(L"{\"panelOpacity\":" + std::to_wstring(m_config->panelOpacity) + L"}");
+            m_webviewSettings->PostMessage(L"{\"panelOpacity\":" + std::to_wstring(m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity) + L"}");
             return;
+        }
+        if(action==L"setPanelEffect"){
+            m_config->panelEffect=WideToUtf8(message->text);ApplyPanelLayout();
+            m_config->Save("nitlink.json");PushSettingsState();return;
         }
         if (action == L"cycleAspect") {
             CycleAspectRatio();
@@ -2528,7 +2541,17 @@ void Application::Run()
         // and the branch the render section will select. This is deliberately
         // not emitted for every render iteration.
         const bool panelCoversPicture = m_settingsVisible && m_webviewSettings &&
-            m_webviewSettings->GetDock() == WebViewSettings::Dock::Full && m_config->panelOpacity == 1.0f;
+            m_webviewSettings->GetDock() == WebViewSettings::Dock::Full &&
+            (m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity)==1.0f;
+        m_window->SetChromeState(m_config->hudMode,m_showOverlay,m_settingsVisible);
+        RECT panelGlass{};
+        if(m_settingsVisible&&m_webviewSettings&&m_webviewSettings->IsVisible()&&
+            m_config->panelEffect=="blur"&&m_config->panelBlurOpacity<1.0f){
+            panelGlass=m_webviewSettings->GetBounds();
+            const auto picture=m_window->GetContentBounds();
+            OffsetRect(&panelGlass,-picture.left,-picture.top);
+        }
+        m_renderer->SetPanelGlass(panelGlass);
         m_window->SetVideoAvailable(
             presentationState == PresentationState::Capture && !panelCoversPicture);
         if (!m_hasPresentationStateDiagnostic ||
@@ -4592,7 +4615,8 @@ std::wstring Application::ApplyPanelLayout()
     else                     side = "right";
     if (m_webviewSettings) {
         m_webviewSettings->SetDock(dock, m_config ? m_config->panelWidth : 500);
-        m_webviewSettings->SetTransparentBackground(dock != WebViewSettings::Dock::Full || (m_config && m_config->panelOpacity < 1.0f));
+        m_webviewSettings->SetTransparentBackground(dock != WebViewSettings::Dock::Full ||
+            (m_config && (m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity)<1.0f));
     }
     if (side == "left") return L"Left";
     if (side == "full") return L"Full";
@@ -4656,7 +4680,7 @@ bool Application::RecoverFromDeviceLost()
 
     // Rebuild the renderer on a fresh device.
     m_renderer = std::make_unique<DX11Renderer>();
-    if (!m_renderer->Initialize(m_window->GetHWND(), w, h)) {
+    if (!m_renderer->Initialize(m_window->GetRenderHWND(), w, h)) {
         AppLog(L"Device lost: renderer rebuild FAILED");
         m_renderer.reset();
         return false;
@@ -4668,7 +4692,7 @@ bool Application::RecoverFromDeviceLost()
     // NIS/frame-differ block.)
     if (!m_overlay) m_overlay = std::make_unique<Overlay>();
     if (m_overlay->Initialize(m_renderer->GetDevice(), m_renderer->GetContext(),
-                              m_renderer->GetSwapChain(), m_window->GetHWND())) {
+                              m_renderer->GetSwapChain(), m_window->GetRenderHWND())) {
         ApplyNoSignalSettings();
         m_showOverlay = m_config->showOverlay;
     } else {
@@ -5109,7 +5133,8 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     js << L"\"aspectRatio\":\"" << JsonEscapeWide(ApplyAspectRatio()) << L"\",";
     js << L"\"panelSide\":\"" << ApplyPanelLayout() << L"\",";
     js << L"\"panelWidth\":" << m_config->panelWidth << L",";
-    js << L"\"panelOpacity\":" << m_config->panelOpacity << L",";
+    js << L"\"panelEffect\":\"" << Utf8ToWide(m_config->panelEffect) << L"\",";
+    js << L"\"panelOpacity\":" << (m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity) << L",";
     js << L"\"configWarning\":\"" << JsonEscapeWide(ConfigWarning()) << L"\",";
     if (m_captureDevice) {
         auto fmt = m_captureDevice->GetOutputFormat();
@@ -6025,6 +6050,8 @@ void Application::RefreshGameArtworkContext()
 void Application::UpdateWindowTitle(bool refreshDiscord)
 {
     if (!m_window) return;
+    m_window->SetChromeLabels({{Tr(L"window.hud0"),Tr(L"window.hud1"),Tr(L"window.hud2")},
+        Tr(L"window.settings"),Tr(L"window.hidden"),Tr(L"window.minimize"),Tr(L"window.maximize"),Tr(L"window.restore"),Tr(L"window.close")});
     RefreshGameArtworkContext();
 
     m_lastHdmiDisplayRange = GetConfirmedHdmiRange();

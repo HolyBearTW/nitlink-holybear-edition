@@ -2,6 +2,11 @@
 // language for every locale and for every missing individual translation.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['en-US'] = {
+  "row.panelEffect": "Panel background",
+  "panel.effect.blur": "Blur glass",
+  "panel.effect.classic": "Classic transparency",
+  "tooltip.panelEffect": "Blur the game picture behind this panel, or use the existing transparency style.",
+  "tooltip.panelBackgroundOpacity": "Adjust the background opacity in glass mode; classic mode adjusts the whole panel.",
   "game.nintendoOfficial": "Official Nintendo",
   "game.coverBadge.zh-TW": "Trad. ZH",
   "game.coverBadge.zh-CN": "Simp. ZH",

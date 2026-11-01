@@ -3,6 +3,7 @@
 #include "renderer/hdr_tone_map.h"
 #include "renderer/hdr_tone_map_hlsl.h"
 #include "renderer/present_cap_clock.h"
+#include "renderer/panel_glass_hlsl.h"
 #include <d3dcompiler.h>
 #include <array>
 #include <sstream>
@@ -2277,8 +2278,89 @@ bool DX11Renderer::ConsumeDeviceLost()
     return v;
 }
 
+void DX11Renderer::SetPanelGlass(RECT pictureBounds)
+{
+    // The WebView supplies its actual rectangle in picture coordinates.
+    // Intersect with the current backbuffer while a resize is pending.
+    const RECT picture{0,0,static_cast<LONG>(m_windowWidth),static_cast<LONG>(m_windowHeight)};
+    IntersectRect(&m_glassRect,&pictureBounds,&picture);
+    m_glassScale=GetDpiForWindow(m_hwnd)/96.f;
+}
+
+void DX11Renderer::DrawPanelGlass()
+{
+    if(m_glassRect.right<=m_glassRect.left||m_glassRect.bottom<=m_glassRect.top)return;
+    if(!m_glassShadersAttempted){
+        m_glassShadersAttempted=true;
+        ComPtr<ID3DBlob> vs,horizontal,vertical,errors;
+        HRESULT hr=D3DCompile(kPanelGlassShader,sizeof(kPanelGlassShader)-1,nullptr,nullptr,nullptr,"VS","vs_5_0",D3DCOMPILE_ENABLE_STRICTNESS,0,&vs,&errors);
+        if(SUCCEEDED(hr))hr=D3DCompile(kPanelGlassShader,sizeof(kPanelGlassShader)-1,nullptr,nullptr,nullptr,"Horizontal","ps_5_0",D3DCOMPILE_ENABLE_STRICTNESS,0,&horizontal,&errors);
+        if(SUCCEEDED(hr))hr=D3DCompile(kPanelGlassShader,sizeof(kPanelGlassShader)-1,nullptr,nullptr,nullptr,"Vertical","ps_5_0",D3DCOMPILE_ENABLE_STRICTNESS,0,&vertical,&errors);
+        if(SUCCEEDED(hr))hr=m_device->CreateVertexShader(vs->GetBufferPointer(),vs->GetBufferSize(),nullptr,&m_glassVS);
+        if(SUCCEEDED(hr))hr=m_device->CreatePixelShader(horizontal->GetBufferPointer(),horizontal->GetBufferSize(),nullptr,&m_glassHorizontalPS);
+        if(SUCCEEDED(hr))hr=m_device->CreatePixelShader(vertical->GetBufferPointer(),vertical->GetBufferSize(),nullptr,&m_glassVerticalPS);
+        D3D11_BUFFER_DESC cb{};cb.ByteWidth=32;cb.Usage=D3D11_USAGE_DEFAULT;cb.BindFlags=D3D11_BIND_CONSTANT_BUFFER;
+        if(SUCCEEDED(hr))hr=m_device->CreateBuffer(&cb,nullptr,&m_glassCB);
+        D3D11_SAMPLER_DESC sampler{};sampler.Filter=D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampler.AddressU=sampler.AddressV=sampler.AddressW=D3D11_TEXTURE_ADDRESS_CLAMP;sampler.MaxLOD=D3D11_FLOAT32_MAX;
+        if(SUCCEEDED(hr))hr=m_device->CreateSamplerState(&sampler,&m_glassSampler);
+        if(FAILED(hr)){
+            m_glassVerticalPS.Reset();OutputDebugStringW((L"Panel glass initialization failed: "+HrToHex(hr)+L"\n").c_str());
+            if(errors)OutputDebugStringA(static_cast<const char*>(errors->GetBufferPointer()));
+        }
+    }
+    if(!m_glassVerticalPS)return;
+    // Include the blur kernel's border so the panel edge has no seam.
+    const LONG padding=static_cast<LONG>(std::ceil(16*m_glassScale));
+    const RECT copyRect{std::max(0L,m_glassRect.left-padding),0,std::min(static_cast<LONG>(m_windowWidth),m_glassRect.right+padding),static_cast<LONG>(m_windowHeight)};
+    const UINT width=copyRect.right-copyRect.left,height=copyRect.bottom;
+    D3D11_TEXTURE2D_DESC desc{};
+    if(m_glassCopy)m_glassCopy->GetDesc(&desc);
+    if(desc.Width!=width||desc.Height!=height||desc.Format!=m_currentSwapFormat){
+        m_glassCopy.Reset();m_glassCopySRV.Reset();m_glassIntermediate.Reset();m_glassIntermediateSRV.Reset();m_glassIntermediateRTV.Reset();
+        desc={};desc.Width=width;desc.Height=height;desc.MipLevels=1;desc.ArraySize=1;desc.Format=m_currentSwapFormat;
+        desc.SampleDesc.Count=1;desc.Usage=D3D11_USAGE_DEFAULT;desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+        HRESULT hr=m_device->CreateTexture2D(&desc,nullptr,&m_glassCopy);
+        if(SUCCEEDED(hr))hr=m_device->CreateShaderResourceView(m_glassCopy.Get(),nullptr,&m_glassCopySRV);
+        desc.Width=(width+3)/4;desc.Height=(height+3)/4;desc.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;desc.BindFlags|=D3D11_BIND_RENDER_TARGET;
+        if(SUCCEEDED(hr))hr=m_device->CreateTexture2D(&desc,nullptr,&m_glassIntermediate);
+        if(SUCCEEDED(hr))hr=m_device->CreateShaderResourceView(m_glassIntermediate.Get(),nullptr,&m_glassIntermediateSRV);
+        if(SUCCEEDED(hr))hr=m_device->CreateRenderTargetView(m_glassIntermediate.Get(),nullptr,&m_glassIntermediateRTV);
+        if(FAILED(hr)){
+            m_glassVerticalPS.Reset();OutputDebugStringW((L"Panel glass surface failed: "+HrToHex(hr)+L"\n").c_str());return;
+        }
+    }
+    ComPtr<ID3D11Resource> backbuffer;m_rtv->GetResource(&backbuffer);
+    m_context->OMSetRenderTargets(0,nullptr,nullptr);
+    const D3D11_BOX box{static_cast<UINT>(copyRect.left),0,0,static_cast<UINT>(copyRect.right),height,1};
+    m_context->CopySubresourceRegion(m_glassCopy.Get(),0,0,0,0,backbuffer.Get(),0,&box);
+    struct GlassConstants {float width,height;UINT hdr;float radius;float region[4];};
+    GlassConstants constants{static_cast<float>(width),static_cast<float>(height),m_hdrEnabled?1u:0u,4*m_glassScale,{0,0,1,1}};
+    m_context->UpdateSubresource(m_glassCB.Get(),0,nullptr,&constants,0,0);
+    ID3D11Buffer* cb=m_glassCB.Get();m_context->PSSetConstantBuffers(7,1,&cb);
+    ID3D11SamplerState* sampler=m_glassSampler.Get();m_context->PSSetSamplers(0,1,&sampler);
+    m_context->IASetInputLayout(nullptr);m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->VSSetShader(m_glassVS.Get(),nullptr,0);m_context->OMSetBlendState(nullptr,nullptr,0xffffffff);
+    m_context->RSSetState(nullptr);
+    ID3D11RenderTargetView* target=m_glassIntermediateRTV.Get();m_context->OMSetRenderTargets(1,&target,nullptr);
+    D3D11_VIEWPORT viewport{0,0,static_cast<float>((width+3)/4),static_cast<float>((height+3)/4),0,1};m_context->RSSetViewports(1,&viewport);
+    ID3D11ShaderResourceView* source=m_glassCopySRV.Get();m_context->PSSetShaderResources(0,1,&source);
+    m_context->PSSetShader(m_glassHorizontalPS.Get(),nullptr,0);m_context->Draw(3,0);
+    source=nullptr;m_context->PSSetShaderResources(0,1,&source);
+    target=m_rtv.Get();m_context->OMSetRenderTargets(1,&target,nullptr);
+    constants.width=viewport.Width;constants.height=viewport.Height;constants.radius=m_glassScale;
+    constants.region[0]=static_cast<float>(m_glassRect.left-copyRect.left)/width;
+    constants.region[2]=static_cast<float>(m_glassRect.right-m_glassRect.left)/width;
+    m_context->UpdateSubresource(m_glassCB.Get(),0,nullptr,&constants,0,0);
+    viewport={static_cast<float>(m_glassRect.left),0,static_cast<float>(m_glassRect.right-m_glassRect.left),static_cast<float>(height),0,1};
+    m_context->RSSetViewports(1,&viewport);source=m_glassIntermediateSRV.Get();m_context->PSSetShaderResources(0,1,&source);
+    m_context->PSSetShader(m_glassVerticalPS.Get(),nullptr,0);m_context->Draw(3,0);
+    source=nullptr;m_context->PSSetShaderResources(0,1,&source);
+}
+
 bool DX11Renderer::EndFrame()
 {
+    DrawPanelGlass();
     // Close this frame's GPU timing window BEFORE Present, so the measured
     // span covers only the work issued between BeginFrame and here. Present
     // itself is a mix of GPU and CPU/driver work and is not the per-frame

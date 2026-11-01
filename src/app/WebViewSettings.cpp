@@ -464,7 +464,7 @@ void WebViewSettings::ShowBrowserSurfaces() {
 
 RECT WebViewSettings::ComputeBounds() const {
     RECT rc{};
-    GetClientRect(m_parent, &rc);
+    if(m_contentBounds)rc=m_contentBounds();else GetClientRect(m_parent, &rc);
     if (m_dock == Dock::Full) return rc;
     // The strip width follows the monitor scale so the requested width reads the same
     // on a 4K display at 150% as on a 1080p display at 100%.

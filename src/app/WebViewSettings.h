@@ -12,10 +12,8 @@
 #include "game_service.h"
 
 // WebViewSettings: host a WebView2 control as a CHILD of the main window,
-// occupying the full client rect when visible. When the menu opens, the
-// render loop skips painting the swap chain and WebView2 owns the client
-// area alone (PS5 Control Center-style: opening settings pauses the
-// game view).
+// occupying the selected dock within the picture area below the title bar.
+// Glass and translucent settings keep the game rendering underneath.
 class WebViewSettings {
 public:
     using MessageCallback = std::function<void(const std::wstring&)>;
@@ -28,6 +26,7 @@ public:
     // Width/height are the initial parent client size; the controller
     // bounds track parent size automatically via Resize().
     bool Initialize(HWND parent, int width, int height);
+    void SetContentBoundsProvider(std::function<RECT()> provider) { m_contentBounds=std::move(provider);Resize(); }
 
     // Show/hide the overlay. Setting visible=true makes the WebView2 fill
     // the entire parent client area and become input-active. Setting
@@ -52,6 +51,7 @@ public:
     enum class Dock { Full, Right, Left };
     void SetDock(Dock dock, int widthDip);
     Dock GetDock() const { return m_dock; }
+    RECT GetBounds() const { return ComputeBounds(); }
 
     // Lets the page draw translucent surfaces over the picture. Keeps the
     // opaque default when the installed runtime predates the interface.
@@ -87,6 +87,7 @@ private:
     // this token prevents callbacks from an old initialization using this.
     std::shared_ptr<int> m_callbackLifetime;
     HWND m_parent  = nullptr;
+    std::function<RECT()> m_contentBounds;
     bool m_visible = false;
     void HideBrowserSurfaces();
     void ShowBrowserSurfaces();

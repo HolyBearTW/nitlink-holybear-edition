@@ -1,6 +1,11 @@
 // NitLink Simplified Chinese UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['zh-CN'] = {
+  "row.panelEffect": "面板背景",
+  "panel.effect.blur": "模糊玻璃",
+  "panel.effect.classic": "传统透明",
+  "tooltip.panelEffect": "模糊面板后方的游戏画面，或使用原有的透明样式。",
+  "tooltip.panelBackgroundOpacity": "玻璃模式调整背景不透明度；传统模式调整整个面板。",
   "game.nintendoOfficial": "任天堂官方",
   "game.coverBadge.zh-TW": "繁中",
   "game.coverBadge.zh-CN": "简中",

@@ -219,12 +219,14 @@ struct Config {
 
     // Where the F1 panel opens. "right" and "left" dock it as a strip beside
     // the picture, which keeps playing underneath. "full" covers the whole
-    // window with the wide layout. An opaque Full panel holds a black frame;
-    // a translucent panel leaves the picture playing underneath.
+    // picture with the wide layout. An opaque Full panel holds a black frame;
+    // glass/translucent panels leave the picture playing underneath.
     std::string  panelSide  = "right";
     // Width of the docked panel in device-independent pixels.
     int          panelWidth = 500;
     float        panelOpacity = 1.0f;
+    std::string  panelEffect = "blur";
+    float        panelBlurOpacity = 0.65f;
 
     // (hdrMode string field stripped: Reference/Vibrant was an earlier
     //  fake-HDR pipeline. The current path negotiates real HDR10 via

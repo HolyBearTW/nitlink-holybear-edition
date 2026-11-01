@@ -480,6 +480,8 @@
     });
 
     const panelOpacitySlider = document.getElementById('slider-panel-opacity');
+    const panelEffect = document.getElementById('panel-effect');
+    panelEffect.addEventListener('change',()=>post('setPanelEffect',panelEffect.value));
     const panelOpacityValue = document.getElementById('slider-panel-opacity-val');
     const setPanelOpacityVisual = opacity => {
       if (typeof opacity !== 'number' || panelOpacitySlider.matches(':active')) return;
@@ -1781,6 +1783,7 @@
         if (slider && slider._setFromCpp) slider._setFromCpp(s.volume * 100);
       }
       setPiPOpacityVisual(s.pipOpacity);
+      if(s.panelEffect){panelEffect.value=s.panelEffect;document.documentElement.dataset.panelEffect=s.panelEffect;}
       setPanelOpacityVisual(s.panelOpacity);
       if (s.aspectRatio) setText('aspect-val', localizeValue(s.aspectRatio));
       if (s.panelSide) {

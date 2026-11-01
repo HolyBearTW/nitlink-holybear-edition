@@ -36,6 +36,8 @@ set(NITLINK_SOURCES
     src/app/xbox_auth_callback.h
     src/app/nintendo_auth_callback.cpp
     src/app/nintendo_auth_callback.h
+    src/app/psn_auth_browser.cpp
+    src/app/psn_auth_browser.h
     src/app/artwork_renderer.cpp
     src/app/nintendo_tw_artwork.cpp
     src/app/source_cadence.h

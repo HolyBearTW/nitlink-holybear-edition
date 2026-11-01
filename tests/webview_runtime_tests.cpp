@@ -701,9 +701,9 @@ int main(int argc, char** argv) {
             });}), "unchecking ingest sends the three remaining metrics through the real native bridge");
             nativeState=previousState;
             Check(host.PostMessage(NitLink::SerializeWebViewCoreSettingsState(nativeState)), "HUD fixture restores the original native state");
-            Script(view,L"document.getElementById('game-query').focus()");
+            Script(view,L"document.querySelector('[data-tab=\"pane-games\"]').click();document.getElementById('game-query').focus()");
             Check(PumpUntil([&]{return !shortcutContexts.empty()&&shortcutContexts.back()==1;}), "text focus reports the typing context through the native bridge");
-            Script(view,L"document.querySelector('[data-tab=\"pane-video\"]').focus()");
+            Script(view,L"document.querySelector('[data-tab=\"pane-video\"]').click();document.querySelector('[data-tab=\"pane-video\"]').focus()");
             Check(PumpUntil([&]{return !shortcutContexts.empty()&&shortcutContexts.back()==0;}), "leaving text restores the normal shortcut context");
         }
         Check(Script(view, L"document.getElementById('game-built-in') === null && "

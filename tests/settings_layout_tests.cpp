@@ -1098,7 +1098,14 @@ int main(int argc, char** argv) {
         Check(window != nullptr, "isolated hidden test window created");
         WebViewSettings host;
         std::vector<std::wstring> messages;
-        host.SetMessageHandler([&](const std::wstring& json) { messages.push_back(json); });
+        host.SetMessageHandler([&](const std::wstring& json) {
+            const auto message=NitLink::ParseSettingsMessage(json);
+            if(message&&message->action==L"setShortcutContext"){
+                host.PostMessage(L"{\"shortcutContext\":"+std::to_wstring(static_cast<unsigned>(message->number))+L"}");
+                return;
+            }
+            messages.push_back(json);
+        });
         Check(host.Initialize(window, 800, 600), "native settings host starts");
         host.NavigateToMenu();
         Check(PumpUntil([&] { return host.IsReady(); }, 15000), "packaged page is ready through the real native bridge");

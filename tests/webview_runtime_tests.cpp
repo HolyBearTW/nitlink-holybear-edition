@@ -616,6 +616,7 @@ int main(int argc, char** argv) {
         } else {
         std::vector<std::wstring> messages;
         std::vector<std::wstring> javascriptExceptions;
+        std::vector<unsigned> shortcutContexts;
         auto nativeState = RuntimeNativeStateFixture();
         unsigned noSignalModeActions = 0;
         unsigned nativeStatePushes = 0;
@@ -626,8 +627,15 @@ int main(int argc, char** argv) {
         Check(WebViewSettingsTestAccess::DeadlineUnarmed(host), "healthy startup timer waits for message pumping");
         host.SetFailureHandler([&](const std::wstring& reason) { startupFailure = reason; });
         host.SetMessageHandler([&](const std::wstring& json) {
-            messages.push_back(json);
             const auto message = NitLink::ParseSettingsMessage(json);
+            // Keyboard focus notifications are not capture/settings mutations.
+            // Keep them observable while preserving exact action counts below.
+            if(message&&message->action==L"setShortcutContext"){
+                shortcutContexts.push_back(static_cast<unsigned>(message->number));
+                host.PostMessage(L"{\"shortcutContext\":"+std::to_wstring(static_cast<unsigned>(message->number))+L"}");
+                return;
+            }
+            messages.push_back(json);
             if (!message) return;
             if (message->action == L"javascriptException") {
                 javascriptExceptions.push_back(message->text);
@@ -693,6 +701,10 @@ int main(int argc, char** argv) {
             });}), "unchecking ingest sends the three remaining metrics through the real native bridge");
             nativeState=previousState;
             Check(host.PostMessage(NitLink::SerializeWebViewCoreSettingsState(nativeState)), "HUD fixture restores the original native state");
+            Script(view,L"document.getElementById('game-query').focus()");
+            Check(PumpUntil([&]{return !shortcutContexts.empty()&&shortcutContexts.back()==1;}), "text focus reports the typing context through the native bridge");
+            Script(view,L"document.querySelector('[data-tab=\"pane-video\"]').focus()");
+            Check(PumpUntil([&]{return !shortcutContexts.empty()&&shortcutContexts.back()==0;}), "leaving text restores the normal shortcut context");
         }
         Check(Script(view, L"document.getElementById('game-built-in') === null && "
             L"!!document.getElementById('game-query') && !!document.getElementById('game-search') && "
@@ -895,6 +907,7 @@ int main(int argc, char** argv) {
               "real Auto payload preserves zero numerator and unit denominator");
 
         const size_t beforeUntrusted = messages.size();
+        const size_t contextsBeforeUntrusted = shortcutContexts.size();
         Script(view, LR"JS(
             window.__nativeProbe = false;
             chrome.webview.addEventListener('message', e => { if (e.data.probe) __nativeProbe = true; });
@@ -910,7 +923,7 @@ int main(int argc, char** argv) {
         Script(view, L"chrome.webview.postMessage({action:'toggleHDR'})");
         host.PostMessage(LR"({"probe":true})");
         PumpUntil([] { return false; }, 100);
-        Check(messages.size() == beforeUntrusted, "bridge rejects changed document source");
+        Check(messages.size() == beforeUntrusted && shortcutContexts.size() == contextsBeforeUntrusted, "bridge rejects changed document source");
         Check(Script(view, L"window.__nativeProbe") == L"false", "state withheld from changed document");
         Script(view, L"history.replaceState(null, '', '/nitlink-menu.html')");
         Check(PumpUntil([&] {

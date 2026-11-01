@@ -1044,7 +1044,7 @@ void GameService::Run(std::stop_token stop) {
                 if(cancelled())continue;
                 if(request.coverProvider==L"nintendo"){
                     base.reply=store;base.reply.artworkSources=std::move(base.reply.covers);base.reply.covers.clear();
-                    if(primary&&request.page==0&&base.reply.artworkSources.empty()){
+                    if(primary&&request.page==0){
                         std::set<std::wstring> known;
                         for(const auto& cover:base.reply.artworkSources)known.insert(cover.url);
                         for(const auto& cover:primary->artworkSources)

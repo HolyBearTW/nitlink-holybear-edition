@@ -226,6 +226,23 @@ int main() {
           found->second.coverId == 694138 && found->second.DisplayName(L"zh-TW") == game.displayNames[L"zh-TW"], "manual art and locale roundtrip");
     Check(restored.gameSettings["spider-man-2"].nisEnabled && !restored.gameSettings[saved.currentGameId].colorExpansion,
           "old and dynamic quality profiles coexist");
+    Config cleared=restored;
+    cleared.onlineGames.at(saved.currentGameId).favorite=true;
+    cleared.ClearCurrentGame();
+    Check(cleared.currentGameId.empty()&&!cleared.onlineGames.contains(saved.currentGameId)&&
+          cleared.onlineGames.contains(oldAccount.key)&&cleared.gameSettings.contains(saved.currentGameId),
+          "clearing a local game removes its favorite/library record while retaining linked games and saved quality profiles");
+    Check(cleared.Save(path.string()),"persist the cleared local library");
+    Config clearReload;Check(clearReload.Load(path.string())&&clearReload.currentGameId.empty()&&
+          !clearReload.onlineGames.contains(saved.currentGameId)&&clearReload.onlineGames.contains(oldAccount.key),
+          "a cleared local game stays removed after restarting");
+    cleared.currentGameId=oldAccount.key;cleared.ClearCurrentGame();
+    Check(cleared.currentGameId.empty()&&cleared.onlineGames.contains(oldAccount.key),
+          "clearing a linked-platform game deselects it without deleting account library data");
+    cleared.currentGameId="spider-man-2";cleared.onlineGames[cleared.currentGameId].name=L"Marvel's Spider-Man 2";
+    cleared.ClearCurrentGame();
+    Check(!cleared.onlineGames.contains("spider-man-2")&&cleared.gameSettings["spider-man-2"].nisEnabled,
+          "built-in local games are also removed without erasing their saved video settings");
     Config reset;
     reset.currentGameId = "sgdb-5303117";
     reset.onlineGames[reset.currentGameId] = game;

@@ -5393,12 +5393,15 @@ bool Application::HandleGameMessage(const SettingsMessage& message)
     if (action == L"clearGame") {
         m_readyAutoCover.reset();m_coverRequest=0;
         const bool changed = !m_config->currentGameId.empty();
-        m_gameService->Cancel(); m_config->currentGameId.clear(); m_currentGameImage.clear();m_currentGameSourceImage.clear(); m_gameService->PinImage({});
+        m_gameService->Cancel();
+        if(!Games::IsAccountGameKey(m_config->currentGameId))m_libraryImages.erase(m_config->currentGameId);
+        m_config->ClearCurrentGame(); m_currentGameImage.clear();m_currentGameSourceImage.clear(); m_gameService->PinImage({});
         m_gameCovers.clear(); m_coverImages.clear(); m_coverGameId = 0;
         UpdateWindowTitle(false);
         UpdateDiscordForCurrentGame(!changed);
         if (!m_config->Save("nitlink.json")) notice(L"saveFailed");
         PushSettingsState();
+        PushGameLibrary();
         return true;
     }
     if (action == L"resetGameSettings") {

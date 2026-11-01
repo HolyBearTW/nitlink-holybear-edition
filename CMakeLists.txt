@@ -99,6 +99,7 @@ set(NITLINK_SOURCES
     src/renderer/playback_power.h
     src/input/hotkey_manager.cpp
     src/input/hotkey_manager.h
+    src/input/shortcut_bindings.h
     src/audio/audio_router.cpp
     src/audio/audio_router.h
     src/overlay/no_signal_image.cpp

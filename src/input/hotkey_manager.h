@@ -1,10 +1,9 @@
 #pragma once
 
 #include <windows.h>
-#include <string>
+#include "shortcut_bindings.h"
 #include <vector>
 #include <functional>
-#include <unordered_map>
 
 namespace NitLink {
 
@@ -15,15 +14,15 @@ public:
     HotkeyManager(HWND hwnd);
     ~HotkeyManager();
 
-    void Register(const std::string& name, std::vector<int> keys, Callback callback,
+    void Register(ShortcutAction action, Callback callback,
                   bool repeat = false);
-    void Unregister(const std::string& name);
-    void Poll();
+    void ApplyBindings(const ShortcutBindings& bindings);
+    void Poll(ShortcutInputContext context = ShortcutInputContext::Normal);
 
 private:
     struct Hotkey {
-        std::string      name;
-        std::vector<int> keys;
+        ShortcutAction   action;
+        ShortcutChord    keys;
         Callback         callback;
         bool             wasPressed = false;
         bool             repeat = false;

@@ -1,83 +1,48 @@
 #include "hotkey_manager.h"
-#include <algorithm>
 
 namespace NitLink {
-
 HotkeyManager::HotkeyManager(HWND hwnd) : m_hwnd(hwnd) {}
 HotkeyManager::~HotkeyManager() = default;
 
-void HotkeyManager::Register(const std::string& name, std::vector<int> keys, Callback callback,
-                             bool repeat)
-{
-    Hotkey hk;
-    hk.name     = name;
-    hk.keys     = std::move(keys);
-    hk.callback = std::move(callback);
-    hk.repeat   = repeat;
-    m_hotkeys.push_back(std::move(hk));
+void HotkeyManager::Register(ShortcutAction action, Callback callback, bool repeat) {
+    Hotkey hotkey;
+    hotkey.action=action;
+    hotkey.keys=DefaultShortcutBindings[static_cast<size_t>(action)];
+    hotkey.callback=std::move(callback);
+    hotkey.repeat=repeat;
+    m_hotkeys.push_back(std::move(hotkey));
 }
 
-void HotkeyManager::Unregister(const std::string& name)
-{
-    m_hotkeys.erase(
-        std::remove_if(m_hotkeys.begin(), m_hotkeys.end(),
-            [&](const Hotkey& h) { return h.name == name; }),
-        m_hotkeys.end()
-    );
+void HotkeyManager::ApplyBindings(const ShortcutBindings& bindings) {
+    for(auto& hotkey:m_hotkeys){
+        hotkey.keys=bindings[static_cast<size_t>(hotkey.action)];
+        // Saving a held combination must not execute the newly assigned action.
+        hotkey.wasPressed=true;hotkey.nextRepeatAt=~ULONGLONG{0};
+    }
 }
 
-void HotkeyManager::Poll()
-{
-    // Only fire hotkeys when the app is in the foreground. With child-window
-    // WebView2, focus on the menu still resolves to main's HWND, so a single
-    // foreground check is sufficient.
-    HWND fg = GetForegroundWindow();
-    if (fg != m_hwnd) {
-        for (auto& hk : m_hotkeys) hk.wasPressed = false;
+void HotkeyManager::Poll(ShortcutInputContext context) {
+    if(GetForegroundWindow()!=m_hwnd){
+        for(auto& hotkey:m_hotkeys)hotkey.wasPressed=false;
         return;
     }
-    const ULONGLONG now = GetTickCount64();
-
-    // Don't fire hotkeys that conflict with text-input contexts inside
-    // the WebView2 popup. When the popup has focus only the small set of
-    // hotkeys that are safe to intercept (toggle, HDR, etc) are allowed.
-    // For now the registered hotkeys are assumed non-conflicting
-    // (F1, Alt+H, Ctrl+Shift+G: none are bare letters).
-
-    for (auto& hk : m_hotkeys) {
-        bool allPressed = true;
-        for (int key : hk.keys) {
-            if (!(GetAsyncKeyState(key) & 0x8000)) {
-                allPressed = false;
-                break;
-            }
+    const unsigned modifiers=((GetAsyncKeyState(VK_CONTROL)&0x8000)?1u:0u)|
+        ((GetAsyncKeyState(VK_MENU)&0x8000)?2u:0u)|((GetAsyncKeyState(VK_SHIFT)&0x8000)?4u:0u);
+    const bool windowsKey=(GetAsyncKeyState(VK_LWIN)&0x8000)||(GetAsyncKeyState(VK_RWIN)&0x8000);
+    const auto now=GetTickCount64();
+    for(auto& hotkey:m_hotkeys){
+        const auto [key,required]=hotkey.keys;
+        const bool settingsKey=hotkey.action==ShortcutAction::toggle_settings&&
+            (required||(key>=VK_F1&&key<=VK_F24));
+        if(context==ShortcutInputContext::Recording||(context==ShortcutInputContext::TextInput&&!settingsKey)){
+            hotkey.wasPressed=true;hotkey.nextRepeatAt=~ULONGLONG{0};continue;
         }
-
-        // Match modifiers exactly: Ctrl+Shift+Left must not also run the
-        // Ctrl+Left action. Either side of a modifier satisfies its family.
-        constexpr int modifiers[][3] = {
-            {VK_CONTROL, VK_LCONTROL, VK_RCONTROL},
-            {VK_SHIFT, VK_LSHIFT, VK_RSHIFT},
-            {VK_MENU, VK_LMENU, VK_RMENU},
-            {VK_LWIN, VK_RWIN, 0}
-        };
-        for (const auto& family : modifiers) {
-            bool required = false, pressed = false;
-            for (int key : family) {
-                if (key == 0) continue;
-                required |= std::find(hk.keys.begin(), hk.keys.end(), key) != hk.keys.end();
-                pressed |= (GetAsyncKeyState(key) & 0x8000) != 0;
-            }
-            if (pressed != required) allPressed = false;
+        const bool pressed=!windowsKey&&modifiers==required&&(GetAsyncKeyState(static_cast<int>(key))&0x8000);
+        if(pressed&&(!hotkey.wasPressed||(hotkey.repeat&&now>=hotkey.nextRepeatAt))){
+            hotkey.nextRepeatAt=now+(hotkey.wasPressed?50:300);
+            hotkey.callback();
         }
-
-        if (allPressed && (!hk.wasPressed || (hk.repeat && now >= hk.nextRepeatAt))) {
-            // Scheduling from this poll avoids a burst after a stalled frame.
-            hk.nextRepeatAt = now + (hk.wasPressed ? 50 : 300);
-            hk.callback();
-        }
-        hk.wasPressed = allPressed;
+        hotkey.wasPressed=pressed;
     }
 }
-
-} // namespace NitLink
+}

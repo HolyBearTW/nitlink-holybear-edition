@@ -95,6 +95,7 @@
       renderHolyBearUpdate();
       renderContributorPreview();
       renderGameUI();
+      window.NitLinkShortcutEditor?.render();
       window.NitLinkAccountLibrary?.setLocale(currentLocale);
     };
     const localizeValue = value => ({
@@ -140,6 +141,8 @@
         window.chrome.webview.postMessage(payload);
       }
     };
+    window.NitLinkShortcutEditor?.init({post,t});
+
     // The WebView never fetches network resources. Native HTTPS checks are opt-in,
     // and this display receives only validated version/status fields.
     renderHolyBearUpdate = () => {
@@ -366,7 +369,10 @@
       const show = button => {
         clearTimeout(hideTimer);
         anchor = button;
-        tip.textContent = t(button.dataset.audioHelp || button.dataset.gameHelp);
+        tip.classList.toggle('shortcut-tooltip', Boolean(button.dataset.shortcutHelp));
+        tip.textContent = button.dataset.shortcutHelp
+          ? button.dataset.shortcutHelp.split(' ').map(key => t(key)).join('\n\n')
+          : t(button.dataset.audioHelp || button.dataset.gameHelp);
         tip.hidden = false;
         const rect = button.getBoundingClientRect();
         const left = Math.max(12, Math.min(rect.left, window.innerWidth-tip.offsetWidth-12));
@@ -374,7 +380,7 @@
         const top = below+tip.offsetHeight <= window.innerHeight-12 ? below : Math.max(12,rect.top-tip.offsetHeight-8);
         tip.style.left = `${left}px`; tip.style.top = `${top}px`;
       };
-      document.querySelectorAll('[data-audio-help], [data-game-help]').forEach(button => {
+      document.querySelectorAll('[data-audio-help], [data-game-help], [data-shortcut-help]').forEach(button => {
         button.addEventListener('mouseenter', () => show(button));
         button.addEventListener('mouseleave', e => {
           if (document.activeElement !== button && e.relatedTarget !== tip) hideSoon();
@@ -1670,6 +1676,7 @@
     };
 
     const applyState = s => {
+      window.NitLinkShortcutEditor?.update(s.shortcuts);
       if (!s) return;
       if (s.holyBearUpdate) { holyBearUpdateState = s.holyBearUpdate; renderHolyBearUpdate(); }
       if (s.locale) applyTranslations(s.locale);
@@ -1827,6 +1834,7 @@
           }
         }
         if (msg && typeof msg.toast === 'string') showToast(msg.toast);
+        if(msg)window.NitLinkShortcutEditor?.message(msg);
         if (msg && msg.gameState) window._updateGameState(msg.gameState);
         if (msg && msg.gameLibrary) window._updateGameLibrary(msg.gameLibrary);
         if (msg && msg.accountLibrary) {window.NitLinkAccountLibrary?.update(msg.accountLibrary);if(results.some(game=>game.accountKey)){results=window.NitLinkAccountLibrary.searchGames(query.value);renderResults();}renderGameUI();}

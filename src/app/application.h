@@ -270,6 +270,7 @@ private:
     std::unique_ptr<CaptureDevice>    m_captureDevice;
     std::unique_ptr<FrameBuffer>      m_frameBuffer;
     std::unique_ptr<HotkeyManager>    m_hotkeyManager;
+    ShortcutInputContext m_shortcutInputContext=ShortcutInputContext::Normal;
     std::unique_ptr<AudioRouter>      m_audioRouter;
     std::unique_ptr<Overlay>          m_overlay;
     std::unique_ptr<NisUpscaler>       m_nisUpscaler;

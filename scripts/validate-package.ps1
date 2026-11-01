@@ -8,6 +8,7 @@ $required = @(
     'NitLink.exe', 'nitlink-menu.html', 'locales/en-US.js', 'locales/zh-TW.js', 'locales/de-DE.js',
     'locales/ko-KR.js', 'locales/ja-JP.js',
     'assets/menu/menu.js', 'assets/menu/artwork-editor.js', 'assets/menu/preview-host.js', 'assets/menu/account-library.js',
+    'assets/menu/shortcut-editor.js',
     'assets/menu/platforms/nintendo-switch.svg', 'assets/menu/platforms/playstation.svg', 'assets/menu/platforms/xbox.svg',
     'assets/menu/platforms/ATTRIBUTION.md', 'assets/menu/platforms/BOOTSTRAP-ICONS-LICENSE.txt',
     'assets/nitlink.svg', 'assets/nitlink-mono.svg', 'game-search-expansions.json', 'official-artwork.json', 'unavailable-artwork.json',

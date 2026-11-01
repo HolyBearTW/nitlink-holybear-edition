@@ -53,6 +53,17 @@ std::wstring SerializeWebViewCoreSettingsProperties(const WebViewCoreSettingsSta
     stringProperty(L"languagePreference", state.languagePreference);
     stringProperty(L"locale", state.locale);
 
+    separator();json<<L"\"shortcuts\":[";
+    for(size_t i=0;i<ShortcutDefinitions.size();++i){
+        if(i)json<<L",";
+        const auto& definition=ShortcutDefinitions[i];const auto& chord=state.shortcutBindings[i];
+        json<<L"{\"id\":\""<<std::wstring(definition.id.begin(),definition.id.end())<<L"\",\"label\":\""<<definition.label
+            <<L"\",\"detail\":\""<<definition.detail<<L"\",\"largeStep\":"<<(definition.largeStep?L"true":L"false")
+            <<L",\"group\":"<<definition.group<<L",\"key\":"<<chord.key<<L",\"modifiers\":"<<chord.modifiers
+            <<L",\"defaultKey\":"<<definition.defaults.key<<L",\"defaultModifiers\":"<<definition.defaults.modifiers<<L"}";
+    }
+    json<<L"]";
+
     separator();
     const auto& update = state.holyBearUpdate;
     json << L"\"holyBearUpdate\":{";

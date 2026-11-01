@@ -295,6 +295,7 @@ bool Config::Load(const std::string& path)
     const bool exists = std::filesystem::exists(path, ec);
     if (ec) return failed();
     if (!exists) {
+        shortcutBindings=DefaultShortcutBindings;
         manualHdmiSource = "auto";
         manualHdmiSourceCustom.clear();
         m_loadFailed = false;
@@ -322,6 +323,7 @@ bool Config::Load(const std::string& path)
     std::istringstream file(contents);
     // Older files also restore Auto when this Config instance is reused.
     onlineGames.clear();
+    shortcutBindings=DefaultShortcutBindings;
     manualHdmiSource = "auto";
     manualHdmiSourceCustom.clear();
 
@@ -355,6 +357,11 @@ bool Config::Load(const std::string& path)
         std::string key = Trim(line.substr(0, eq));
         std::string val = Trim(line.substr(eq + 1));
 
+        if(key=="shortcut_bindings"){
+            if(const auto parsed=ParseShortcutBindings(val))shortcutBindings=parsed->bindings;
+            else preserve();
+            continue;
+        }
 
         if (key.starts_with("online_game.")) {
             const auto dot = key.find('.', 12);
@@ -643,6 +650,8 @@ bool Config::Save(const std::string& path)
 
     file << "# Interface language: system | en-US | zh-TW | zh-CN | de-DE | ko-KR | ja-JP\n";
     file << "language = " << language << "\n\n";
+    file << "# Keyboard shortcuts: edit in Settings > Shortcuts\n";
+    file << "shortcut_bindings = " << SerializeShortcutBindings(shortcutBindings) << "\n\n";
     file << "# HolyBear: optional GitHub release check; never downloads/installs updates\n";
     file << "holybear_auto_update_check = " << (holyBearAutoUpdateCheck ? "true" : "false") << "\n";
     file << "holybear_update_last_check_utc = " << holyBearUpdateLastCheckUtc << "\n";

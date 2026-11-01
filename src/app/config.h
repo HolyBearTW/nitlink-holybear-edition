@@ -2,6 +2,7 @@
 #include "game_identity.h"
 
 #include "hdmi_source.h"
+#include "input/shortcut_bindings.h"
 
 #include <map>
 #include <string>
@@ -246,6 +247,7 @@ struct Config {
     
     // Hotkeys
     bool enableGlobalHotkeys = true;
+    ShortcutBindings shortcutBindings = DefaultShortcutBindings;
 
     // ===== Per-game settings =====
     //

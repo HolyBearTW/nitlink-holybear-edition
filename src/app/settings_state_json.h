@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include "game_service.h"
+#include "input/shortcut_bindings.h"
 
 namespace NitLink {
 
@@ -30,6 +31,7 @@ struct ManualHdmiSourceOptionState {
 // controls. Keeping their production serializer pure lets the WebView runtime
 // test exercise the exact JSON that PushSettingsState sends.
 struct WebViewCoreSettingsState {
+    ShortcutBindings shortcutBindings=DefaultShortcutBindings;
     std::wstring languagePreference;
     std::wstring locale;
     HolyBearUpdateSettingsState holyBearUpdate;

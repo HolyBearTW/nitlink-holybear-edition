@@ -19,6 +19,7 @@ struct SettingsMessage {
     std::wstring key;
     Accounts::Provider accountProvider=Accounts::Provider::Nintendo;
     CaptureFormatOverride format;
+    ShortcutBindings shortcuts=DefaultShortcutBindings;
 };
 
 // Only complete, bounded messages matching an action's schema cross the bridge.

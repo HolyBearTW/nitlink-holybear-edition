@@ -32,6 +32,7 @@ inline constexpr Resource Resources[] = {
     {L"https://nitlink.invalid/locales/ja-JP.js", L"locales/ja-JP.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/menu.js", L"assets/menu/menu.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/account-library.js", L"assets/menu/account-library.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
+    {L"https://nitlink.invalid/assets/menu/shortcut-editor.js", L"assets/menu/shortcut-editor.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/artwork-editor.js", L"assets/menu/artwork-editor.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/preview-host.js", L"assets/menu/preview-host.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/nitlink.svg",L"assets/nitlink.svg",L"image/svg+xml",ResourceKind::Image},

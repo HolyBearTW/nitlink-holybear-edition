@@ -178,7 +178,16 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
     SettingsMessage result;
     result.action = actionIt->second.text;
     const auto& action = result.action;
-    if(action==L"getAccountCovers"||action==L"selectAccountCover"){
+    if(action==L"saveShortcuts"){
+        if(!value||!Text(*value,4096))return std::nullopt;
+        std::string packed;for(const auto c:value->text){if(c>127)return std::nullopt;packed+=static_cast<char>(c);}
+        const auto parsed=ParseShortcutBindings(packed);
+        if(!parsed||parsed->count!=ShortcutDefinitions.size())return std::nullopt;
+        result.shortcuts=parsed->bindings;
+    }else if(action==L"setShortcutContext"){
+        if(!value||value->kind!=Value::Kind::Number||value->number<0||value->number>2||std::trunc(value->number)!=value->number)return std::nullopt;
+        result.number=value->number;
+    }else if(action==L"getAccountCovers"||action==L"selectAccountCover"){
         if(!value||value->kind!=Value::Kind::Object)return std::nullopt;
         const auto key=value->fields.find(L"key");if(key==value->fields.end()||!Text(key->second,64))return std::nullopt;
         std::string id;for(auto c:key->second.text){if(c>127)return std::nullopt;id+=static_cast<char>(c);}if(!Games::IsAccountGameKey(id))return std::nullopt;result.key=key->second.text;

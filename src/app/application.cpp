@@ -1202,6 +1202,17 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         const std::wstring& action = message->action;
 
         AppLog(L"WebView2 msg: " + action);
+        if(action==L"setShortcutContext"){
+            m_shortcutInputContext=static_cast<ShortcutInputContext>(static_cast<unsigned>(message->number));
+            m_webviewSettings->PostMessage(L"{\"shortcutContext\":"+std::to_wstring(static_cast<unsigned>(message->number))+L"}");return;
+        }
+        if(action==L"saveShortcuts"){
+            const auto previous=m_config->shortcutBindings;m_config->shortcutBindings=message->shortcuts;
+            const bool saved=m_config->Save("nitlink.json");
+            if(saved){if(m_hotkeyManager)m_hotkeyManager->ApplyBindings(m_config->shortcutBindings);PushSettingsState();}
+            else m_config->shortcutBindings=previous;
+            m_webviewSettings->PostMessage(saved?L"{\"shortcutNotice\":\"saved\"}":L"{\"shortcutNotice\":\"saveFailed\"}");return;
+        }
         if (HandleGameMessage(*message)) return;
         if(action==L"getAccountLibrary"){PushAccountLibrary();return;}
         if(action==L"openPsnCookie"){ShellExecuteW(nullptr,L"open",L"https://ca.account.sony.com/api/v1/ssocookie",nullptr,nullptr,SW_SHOWNORMAL);return;}
@@ -1580,12 +1591,9 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     }
 
     m_hotkeyManager = std::make_unique<HotkeyManager>(m_window->GetHWND());
-    m_hotkeyManager->Register("toggle_fullscreen", {VK_MENU, VK_RETURN},
-        [this]() { ToggleFullscreen(); });
-    m_hotkeyManager->Register("toggle_fullscreen_f11", {VK_F11},
-        [this]() { ToggleFullscreen(); });
-    m_hotkeyManager->Register("toggle_pip", {VK_MENU, 'O'},
-        [this]() { TogglePiP(); });
+    m_hotkeyManager->Register(ShortcutAction::toggle_fullscreen, [this]() { ToggleFullscreen(); });
+    m_hotkeyManager->Register(ShortcutAction::toggle_fullscreen_f11, [this]() { ToggleFullscreen(); });
+    m_hotkeyManager->Register(ShortcutAction::toggle_pip, [this]() { TogglePiP(); });
 
     // PiP nudge hotkeys.
     //
@@ -1605,30 +1613,14 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     };
     constexpr int kPiPNudgeSmall = 20;
     constexpr int kPiPNudgeLarge = 80;
-    m_hotkeyManager->Register("pip_nudge_left",
-        {VK_CONTROL, VK_LEFT},
-        [nudgePiP]() { nudgePiP(-kPiPNudgeSmall, 0); }, true);
-    m_hotkeyManager->Register("pip_nudge_right",
-        {VK_CONTROL, VK_RIGHT},
-        [nudgePiP]() { nudgePiP( kPiPNudgeSmall, 0); }, true);
-    m_hotkeyManager->Register("pip_nudge_up",
-        {VK_CONTROL, VK_UP},
-        [nudgePiP]() { nudgePiP(0, -kPiPNudgeSmall); }, true);
-    m_hotkeyManager->Register("pip_nudge_down",
-        {VK_CONTROL, VK_DOWN},
-        [nudgePiP]() { nudgePiP(0,  kPiPNudgeSmall); }, true);
-    m_hotkeyManager->Register("pip_nudge_left_big",
-        {VK_CONTROL, VK_SHIFT, VK_LEFT},
-        [nudgePiP]() { nudgePiP(-kPiPNudgeLarge, 0); }, true);
-    m_hotkeyManager->Register("pip_nudge_right_big",
-        {VK_CONTROL, VK_SHIFT, VK_RIGHT},
-        [nudgePiP]() { nudgePiP( kPiPNudgeLarge, 0); }, true);
-    m_hotkeyManager->Register("pip_nudge_up_big",
-        {VK_CONTROL, VK_SHIFT, VK_UP},
-        [nudgePiP]() { nudgePiP(0, -kPiPNudgeLarge); }, true);
-    m_hotkeyManager->Register("pip_nudge_down_big",
-        {VK_CONTROL, VK_SHIFT, VK_DOWN},
-        [nudgePiP]() { nudgePiP(0,  kPiPNudgeLarge); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_left, [nudgePiP]() { nudgePiP(-kPiPNudgeSmall, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_right, [nudgePiP]() { nudgePiP( kPiPNudgeSmall, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_up, [nudgePiP]() { nudgePiP(0, -kPiPNudgeSmall); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_down, [nudgePiP]() { nudgePiP(0,  kPiPNudgeSmall); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_left_big, [nudgePiP]() { nudgePiP(-kPiPNudgeLarge, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_right_big, [nudgePiP]() { nudgePiP( kPiPNudgeLarge, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_up_big, [nudgePiP]() { nudgePiP(0, -kPiPNudgeLarge); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_nudge_down_big, [nudgePiP]() { nudgePiP(0,  kPiPNudgeLarge); }, true);
 
     // Alt separates resizing from nudging under exact modifier matching.
     // The callback also persists mouse resizing before PiP can be toggled off.
@@ -1649,77 +1641,42 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     };
     constexpr int kPiPResizeSmall = 20;
     constexpr int kPiPResizeLarge = 80;
-    m_hotkeyManager->Register("pip_resize_narrower",
-        {VK_CONTROL, VK_MENU, VK_LEFT},
-        [resizePiP]() { resizePiP(-kPiPResizeSmall, 0); }, true);
-    m_hotkeyManager->Register("pip_resize_wider",
-        {VK_CONTROL, VK_MENU, VK_RIGHT},
-        [resizePiP]() { resizePiP( kPiPResizeSmall, 0); }, true);
-    m_hotkeyManager->Register("pip_resize_shorter",
-        {VK_CONTROL, VK_MENU, VK_UP},
-        [resizePiP]() { resizePiP(0, -kPiPResizeSmall); }, true);
-    m_hotkeyManager->Register("pip_resize_taller",
-        {VK_CONTROL, VK_MENU, VK_DOWN},
-        [resizePiP]() { resizePiP(0,  kPiPResizeSmall); }, true);
-    m_hotkeyManager->Register("pip_resize_narrower_big",
-        {VK_CONTROL, VK_MENU, VK_SHIFT, VK_LEFT},
-        [resizePiP]() { resizePiP(-kPiPResizeLarge, 0); }, true);
-    m_hotkeyManager->Register("pip_resize_wider_big",
-        {VK_CONTROL, VK_MENU, VK_SHIFT, VK_RIGHT},
-        [resizePiP]() { resizePiP( kPiPResizeLarge, 0); }, true);
-    m_hotkeyManager->Register("pip_resize_shorter_big",
-        {VK_CONTROL, VK_MENU, VK_SHIFT, VK_UP},
-        [resizePiP]() { resizePiP(0, -kPiPResizeLarge); }, true);
-    m_hotkeyManager->Register("pip_resize_taller_big",
-        {VK_CONTROL, VK_MENU, VK_SHIFT, VK_DOWN},
-        [resizePiP]() { resizePiP(0,  kPiPResizeLarge); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_narrower, [resizePiP]() { resizePiP(-kPiPResizeSmall, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_wider, [resizePiP]() { resizePiP( kPiPResizeSmall, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_shorter, [resizePiP]() { resizePiP(0, -kPiPResizeSmall); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_taller, [resizePiP]() { resizePiP(0,  kPiPResizeSmall); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_narrower_big, [resizePiP]() { resizePiP(-kPiPResizeLarge, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_wider_big, [resizePiP]() { resizePiP( kPiPResizeLarge, 0); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_shorter_big, [resizePiP]() { resizePiP(0, -kPiPResizeLarge); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_resize_taller_big, [resizePiP]() { resizePiP(0,  kPiPResizeLarge); }, true);
 
-    m_hotkeyManager->Register("pip_scale_up",
-        {VK_MENU, VK_UP},
-        [resizePiP]() { resizePiP(kPiPResizeSmall, 0, true); }, true);
-    m_hotkeyManager->Register("pip_scale_down",
-        {VK_MENU, VK_DOWN},
-        [resizePiP]() { resizePiP(-kPiPResizeSmall, 0, true); }, true);
-    m_hotkeyManager->Register("pip_scale_up_big",
-        {VK_MENU, VK_SHIFT, VK_UP},
-        [resizePiP]() { resizePiP(kPiPResizeLarge, 0, true); }, true);
-    m_hotkeyManager->Register("pip_scale_down_big",
-        {VK_MENU, VK_SHIFT, VK_DOWN},
-        [resizePiP]() { resizePiP(-kPiPResizeLarge, 0, true); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_scale_up, [resizePiP]() { resizePiP(kPiPResizeSmall, 0, true); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_scale_down, [resizePiP]() { resizePiP(-kPiPResizeSmall, 0, true); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_scale_up_big, [resizePiP]() { resizePiP(kPiPResizeLarge, 0, true); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_scale_down_big, [resizePiP]() { resizePiP(-kPiPResizeLarge, 0, true); }, true);
 
     auto changePiPOpacity = [this](float delta) {
         if (m_isPiP && m_config) SetPiPOpacity(m_config->pipOpacity + delta);
     };
-    m_hotkeyManager->Register("pip_opacity_down",
-        {VK_MENU, VK_LEFT},
-        [changePiPOpacity]() { changePiPOpacity(-0.05f); }, true);
-    m_hotkeyManager->Register("pip_opacity_up",
-        {VK_MENU, VK_RIGHT},
-        [changePiPOpacity]() { changePiPOpacity(0.05f); }, true);
-    m_hotkeyManager->Register("pip_opacity_down_big",
-        {VK_MENU, VK_SHIFT, VK_LEFT},
-        [changePiPOpacity]() { changePiPOpacity(-0.1f); }, true);
-    m_hotkeyManager->Register("pip_opacity_up_big",
-        {VK_MENU, VK_SHIFT, VK_RIGHT},
-        [changePiPOpacity]() { changePiPOpacity(0.1f); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_opacity_down, [changePiPOpacity]() { changePiPOpacity(-0.05f); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_opacity_up, [changePiPOpacity]() { changePiPOpacity(0.05f); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_opacity_down_big, [changePiPOpacity]() { changePiPOpacity(-0.1f); }, true);
+    m_hotkeyManager->Register(ShortcutAction::pip_opacity_up_big, [changePiPOpacity]() { changePiPOpacity(0.1f); }, true);
 
     // Use Ctrl+S instead of F12 -- F12 is hooked by Xbox Game Bar / Game DVR
     // which can inject DLLs into this process and cause heap corruption.
-    m_hotkeyManager->Register("screenshot", {VK_CONTROL, 'S'},
-        [this]() { m_screenshotRequested = true; });
+    m_hotkeyManager->Register(ShortcutAction::screenshot, [this]() { m_screenshotRequested = true; });
     // Use Ctrl+F3 (not bare F3) because when the WebView2 settings overlay
     // has keyboard focus, F3 is interpreted by the Edge runtime as "Find
     // next in page" and opens an HTML search bar, overriding the toggle.
     // Ctrl+F3 has no browser meaning so it routes cleanly back here.
-    m_hotkeyManager->Register("toggle_overlay", {VK_CONTROL, VK_F3},
-        [this]() { ToggleOverlay(); });
+    m_hotkeyManager->Register(ShortcutAction::toggle_overlay, [this]() { ToggleOverlay(); });
     // Bare Tab uses the existing foreground, exact-modifier, nonrepeat path.
     // Leave F1 keyboard navigation alone, and ignore hidden/PiP HUDs.
-    m_hotkeyManager->Register("toggle_fps_details", {VK_TAB}, [this]() {
+    m_hotkeyManager->Register(ShortcutAction::toggle_fps_details, [this]() {
         if (m_overlay) m_overlay->HandleTab(m_showOverlay, m_isPiP, m_settingsVisible);
     });
-    m_hotkeyManager->Register("toggle_settings", {VK_F1},
-        [this]() { ToggleSettings(); });
+    m_hotkeyManager->Register(ShortcutAction::toggle_settings, [this]() { ToggleSettings(); });
     // ALT+H toggles HDR instantly (works even when settings panel is hidden in HDR).
     // The actual capture-format switch happens inside the run-loop's reconcile
     // pass on the next iteration: this handler only flips the config flag.
@@ -1727,8 +1684,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // state and does the full StopCapture -> Close -> Open -> StartCapture cycle
     // on the main thread (the run loop's thread), which is the only place
     // joining the capture worker is safe.
-    m_hotkeyManager->Register("toggle_hdr", {VK_MENU, 'H'},
-        [this]() {
+    m_hotkeyManager->Register(ShortcutAction::toggle_hdr, [this]() {
             if (m_config) {
                 m_config->hdrEnabled = !m_config->hdrEnabled;
                 AppLog(m_config->hdrEnabled ? L"HDR ON (ALT+H)" : L"HDR OFF (ALT+H)");
@@ -1754,8 +1710,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // values, enabling an A/B against a PS5-direct-to-TV signal showing
     // the same patches. If the orange patch shifts red vs native, that's a
     // measurable pipeline bias.
-    m_hotkeyManager->Register("toggle_hdr_diag", {VK_CONTROL, VK_F4},
-        [this]() {
+    m_hotkeyManager->Register(ShortcutAction::toggle_hdr_diag, [this]() {
             if (m_renderer) {
                 const bool on = !m_renderer->IsHDRDiagModeOn();
                 m_renderer->SetHDRDiagMode(on);
@@ -1764,13 +1719,11 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             }
         });
 
-    m_hotkeyManager->Register("toggle_vsync", {VK_MENU, 'V'},
-        [this]() { ToggleVSync(); });
+    m_hotkeyManager->Register(ShortcutAction::toggle_vsync, [this]() { ToggleVSync(); });
 
     // Alt+L moves the swap-chain wait before or after the capture read.
     // Alt+V independently selects synchronized or tearing-allowed presents.
-    m_hotkeyManager->Register("toggle_low_latency", {VK_MENU, 'L'},
-        [this]() {
+    m_hotkeyManager->Register(ShortcutAction::toggle_low_latency, [this]() {
             m_lowLatency = !m_lowLatency;
             if (m_config) {
                 m_config->lowLatency = m_lowLatency;
@@ -1785,11 +1738,9 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // "assume limited", which over-expands a full-range source and pushes skin
     // tones orange. Cycles Auto (MF) -> force Full -> force Limited so the
     // correct range can be found by eye, then locked in.
-    m_hotkeyManager->Register("cycle_aspect", {VK_MENU, 'A'},
-        [this]() { CycleAspectRatio(); });
+    m_hotkeyManager->Register(ShortcutAction::cycle_aspect, [this]() { CycleAspectRatio(); });
 
-    m_hotkeyManager->Register("cycle_color_range", {VK_MENU, 'R'},
-        [this]() {
+    m_hotkeyManager->Register(ShortcutAction::cycle_color_range, [this]() {
             m_sourceRangeOverride = (m_sourceRangeOverride + 1) % 3;
             UpdateCaptureColorInterpretation(m_currentDeviceInfo.name);
             PushSettingsState();
@@ -1807,9 +1758,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // 9-byte signature, then paste the result into kKnownPlaceholders inside
     // placeholder_detector.cpp. Once baked in, the detector starts
     // suppressing matching placeholder frames automatically.
-    m_hotkeyManager->Register("capture_placeholder_fingerprint",
-        {VK_CONTROL, VK_F5},
-        [this]() {
+    m_hotkeyManager->Register(ShortcutAction::capture_placeholder_fingerprint, [this]() {
             m_dumpFingerprintRequested = true;
             AppLog(L"Placeholder fingerprint capture queued (Ctrl+F5), next captured frame will log its signature");
         });
@@ -1822,8 +1771,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // near 0 means full range. The readout pairs sig: (measured signal) with
     // dec: (how the shader is currently decoding) so the two can be compared
     // and the Alt+R override dialed to match.
-    m_hotkeyManager->Register("toggle_levels_diag", {VK_CONTROL, VK_F6},
-        [this]() {
+    m_hotkeyManager->Register(ShortcutAction::toggle_levels_diag, [this]() {
             m_levelsDiagOn = !m_levelsDiagOn;
             AppLog(m_levelsDiagOn ? L"HDR levels readout ON (Ctrl+F6)"
                                   : L"HDR levels readout OFF (Ctrl+F6)");
@@ -1831,6 +1779,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             if (!m_levelsDiagOn) m_toastText.clear();
         });
 
+
+    m_hotkeyManager->ApplyBindings(m_config->shortcutBindings);
 
     // Apply persisted audio + display state so the live subsystems reflect
     // whatever the user had configured when they last closed the app.
@@ -1907,7 +1857,7 @@ void Application::Run()
             m_webviewSettings->DispatchPendingMessages();
         }
 
-        m_hotkeyManager->Poll();
+        m_hotkeyManager->Poll(m_settingsVisible?m_shortcutInputContext:ShortcutInputContext::Normal);
 
         // Handle window resize
         // CRITICAL: order matters here.
@@ -3492,6 +3442,8 @@ void Application::ToggleSettings()
         return;
     }
     m_settingsVisible = !m_settingsVisible;
+    m_shortcutInputContext=ShortcutInputContext::Normal;
+    if(!m_settingsVisible)m_webviewSettings->PostMessage(L"{\"shortcutCaptureCancelled\":true}");
     if (m_webviewSettings) {
         m_webviewSettings->Show(m_settingsVisible);
         // Push current state every time the menu opens so toggles reflect
@@ -5054,6 +5006,7 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     coreState.manualHdmiSource = Utf8ToWide(
         std::string(NormalizeManualHdmiSource(m_config->manualHdmiSource)));
     coreState.manualHdmiSourceCustom = Utf8ToWide(m_config->manualHdmiSourceCustom);
+    coreState.shortcutBindings=m_config->shortcutBindings;
     coreState.effectiveHdmiSource = GetEffectiveHdmiSourceLabel();
     coreState.manualHdmiSourceOptions.reserve(kManualHdmiSources.size());
     for (const auto& [value, label] : kManualHdmiSources) {

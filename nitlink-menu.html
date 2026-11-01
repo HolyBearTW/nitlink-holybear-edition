@@ -684,6 +684,40 @@
     }
     [hidden] { display: none !important; }
 
+    #pane-shortcuts .shortcut-heading { height:auto; min-height:44px; padding-top:6px; padding-bottom:6px; gap:12px; }
+    .shortcut-heading-title, .shortcut-header-actions { display:flex; align-items:center; gap:8px; }
+    .shortcut-heading-title { min-width:0; }
+    .shortcut-header-actions { flex:none; margin-left:auto; }
+    .shortcut-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:22px; }
+    .shortcut-column { min-width:0; }
+    #pane-shortcuts .shortcut-help { margin:12px 0; padding:0 22px; color:var(--ink3); font-size:12px; line-height:1.7; }
+    #audio-tooltip.shortcut-tooltip { white-space:pre-line; }
+    #shortcut-save:disabled { background:#292929; border-color:var(--hair2); color:var(--ink3); opacity:.55; }
+    #shortcut-status { padding:12px 22px; font-size:12px; color:var(--ink2); line-height:1.6; }
+    #shortcut-status[data-error="true"] { color:#ecac9f; }
+    .shortcut-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px 22px; border-bottom:1px solid var(--hair); }
+    .shortcut-caption { min-width:0; font-size:13px; line-height:1.5; }
+    .shortcut-detail { display:block; color:var(--ink3); font-size:11px; margin-top:3px; }
+    .shortcut-detail:empty { display:none; }
+    .shortcut-key { padding:7px 10px; min-width:100px; max-width:210px; border:1px solid var(--hair2); border-radius:5px; background:#292929; color:var(--ink2); font:12px var(--sans); cursor:pointer; }
+    .shortcut-key:hover,.shortcut-key[aria-pressed="true"] { border-color:var(--accent); color:var(--accent-text); }
+    .shortcut-key[data-conflict="true"] { border-color:#c57466; color:#ecac9f; }
+    .shortcut-group { margin-top:14px; }
+    .shortcut-group>summary { cursor:pointer; padding:10px 22px; font-size:13px; color:var(--ink2); }
+    #hud-text-color { width:62px; height:32px; padding:3px; border:1px solid var(--hair2); border-radius:5px; background:#292929; cursor:pointer; }
+    .hud-metrics { display:flex; flex-wrap:wrap; gap:12px 20px; }
+    .hud-metrics label { display:flex; align-items:center; gap:7px; cursor:pointer; }
+    .hud-metrics input { accent-color:var(--accent); }
+    .hud-metrics-section { padding:16px 22px 24px; border-bottom:1px solid var(--hair); }
+    .hud-metrics-heading { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; color:var(--ink2); }
+    .hud-metrics-section p { margin-top:12px; color:var(--ink3); font-size:12px; line-height:1.7; }
+    #pane-shortcuts :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+    @container shell (max-width:640px) {
+      .shortcut-row, .shortcut-group>summary, #pane-shortcuts .shortcut-help, #shortcut-status, .hud-metrics-section { padding-left:16px; padding-right:16px; }
+    }
+    @container shell (min-width:1280px) {
+      html[data-side="full"] .shortcut-layout { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+    }
   </style>
 </head>
 
@@ -1117,35 +1151,20 @@
         </section>
 
         <section class="pane" id="pane-shortcuts">
-          <div class="band">
-            <span class="band-title" data-i18n="section.shortcuts"></span>
-            <span class="band-hint" data-i18n="section.globalCapturing"></span>
+          <div class="band shortcut-heading">
+            <div class="shortcut-heading-title"><span class="band-title" data-i18n="section.shortcuts"></span><button type="button" class="audio-help" data-shortcut-help="shortcut.foreground shortcut.help" data-i18n-aria-label="audio.moreHelp" aria-describedby="audio-tooltip">i</button></div>
+            <div class="shortcut-header-actions"><button type="button" class="game-button primary" id="shortcut-save" data-i18n="shortcut.save" disabled></button><button type="button" class="game-button" id="shortcut-reset" data-i18n="shortcut.reset" disabled></button></div>
           </div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.settings"></span><span class="row-value">F1</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.hudOverlay"></span><span class="row-value" data-i18n="shortcut.ctrlF3"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.lowLatency"></span><span class="row-value">Alt+L</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.vsync"></span><span class="row-value">Alt+V</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.hdr"></span><span class="row-value">Alt+H</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.fpsDetails"></span><span class="row-value">Tab</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.colorRange"></span><span class="row-value">Alt+R</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.aspectRatio"></span><span class="row-value">Alt+A</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.fullscreen"></span><span class="row-value">F11 / Alt+Enter</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.pictureInPicture"></span><span class="row-value">Alt+O</span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.pipScale"></span><span class="row-value" data-i18n="shortcut.altUpDown"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.pipOpacity"></span><span class="row-value" data-i18n="shortcut.altLeftRight"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.pipNudge"></span><span class="row-value" data-i18n="shortcut.ctrlArrows"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.pipWidth"></span><span class="row-value" data-i18n="shortcut.ctrlAltLeftRight"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.pipHeight"></span><span class="row-value" data-i18n="shortcut.ctrlAltUpDown"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.pipMouseResize"></span><span class="row-value" data-i18n="shortcut.dragEdge"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.repeat"></span><span class="row-value" data-i18n="shortcut.tapHold"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.screenshot"></span><span class="row-value" data-i18n="shortcut.ctrlS"></span></div>
-
-          <div class="band">
-            <span class="band-title" data-i18n="section.diagnostics"></span>
-            <span class="band-hint" data-i18n="section.verifyingCard"></span>
+          <p id="shortcut-status" role="status" hidden></p>
+          <div class="shortcut-layout">
+            <div class="shortcut-column">
+              <div id="shortcut-general"></div>
+              <details class="shortcut-group"><summary data-i18n="section.diagnostics"></summary><div id="shortcut-diagnostics"></div></details>
+            </div>
+            <div class="shortcut-column">
+              <details class="shortcut-group"><summary data-i18n="shortcut.pipControls"></summary><div id="shortcut-pip"></div><p class="shortcut-help" data-i18n="shortcut.tapHold"></p></details>
+            </div>
           </div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.hdrPatches"></span><span class="row-value" data-i18n="shortcut.ctrlF4"></span></div>
-          <div class="row kv"><span class="row-name" data-i18n="shortcut.hdrLevels"></span><span class="row-value" data-i18n="shortcut.ctrlF6"></span></div>
         </section>
 
         <section class="pane" id="pane-about">
@@ -1231,6 +1250,7 @@
   <div id="audio-tooltip" role="tooltip" hidden></div>
   <script src="assets/menu/artwork-editor.js?v=20261101-hud-layout1"></script>
   <script src="assets/menu/account-library.js?v=20261101-hud-layout1"></script>
+  <script src="assets/menu/shortcut-editor.js?v=20261101-hud-layout1"></script>
   <script src="assets/menu/menu.js?v=20261101-hud-layout1"></script>
 </body>
 

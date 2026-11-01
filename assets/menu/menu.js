@@ -1497,7 +1497,7 @@
         el('game-adjust-cover').disabled=!current.coverId||!current.image;
         el('game-discord-title').textContent = current.key ? gameTitle : live.effectiveHdmiSource || t('game.none');
         el('game-discord-name').textContent = current.discordNameStatus === 'accepted' ? live.effectiveHdmiSource || 'NitLink' : 'NitLink';
-        el('game-discord-signal').textContent = typeof current.discordSignal === 'string' ? current.discordSignal : '';
+        el('game-discord-signal').textContent = typeof current.discordActivityState === 'string' ? current.discordActivityState : '';
         el('game-clear').disabled = !current.key; el('game-save-quality').disabled = !current.key;
         el('game-current-favorite').disabled=!current.key;el('game-current-rename').disabled=!current.key;
         const isFavorite=library.favorites.some(game=>game.key===current.key);

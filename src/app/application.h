@@ -69,6 +69,7 @@ private:
     std::wstring GetEffectiveHdmiSourceLabel() const;
     std::wstring GetLiveHdmiSignalLabel() const;
     std::wstring GetDiscordSignalLabel() const;
+    std::wstring GetDiscordActivityStateLabel() const;
     HdmiConfirmedRange GetConfirmedHdmiRange() const;
     std::wstring GetConfirmedHdmiRangeLabel() const;
     HdmiSourceVrrState GetHdmiSourceVrrState() const;

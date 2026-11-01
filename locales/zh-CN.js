@@ -11,6 +11,7 @@ window.NitLinkLocales['zh-CN'] = {
   "game.playstationOfficial": "PlayStation 官方",
   "game.xboxOfficial": "Xbox 官方",
   "game.coverLanguage.de-DE": "德语",
+  "discord.totalPlaytime": "游玩总时数：{hours} 小时 {minutes} 分钟",
   "account.demoGameName": "示例：未提供时长的游戏",
   "account.switch2Edition": "Switch 2 版",
   "account.standardEdition": "原版",

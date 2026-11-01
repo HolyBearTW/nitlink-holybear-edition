@@ -13,6 +13,7 @@ const Table& EnglishTable()
 {
     static const Table table = {
         {L"game.switch2Edition", L"Switch 2 Edition"},
+        {L"discord.totalPlaytime", L"Total playtime: {hours} h {minutes} min"},
         {L"discord.sourcePrefix", L"Source: "},
         {L"error.com", L"Failed to initialize COM runtime."},
         {L"error.mediaFoundation", L"Failed to initialize Media Foundation."},
@@ -107,6 +108,7 @@ const Table& TraditionalChineseTable()
 {
     static const Table table = {
         {L"game.switch2Edition", L"Switch 2 版"},
+        {L"discord.totalPlaytime", L"遊玩總時數：{hours} 小時 {minutes} 分鐘"},
         {L"discord.sourcePrefix", L"來源："},
         {L"error.com", L"COM 執行階段初始化失敗。"},
         {L"error.mediaFoundation", L"Media Foundation 初始化失敗。"},
@@ -201,6 +203,7 @@ const Table& SimplifiedChineseTable()
 {
     static const Table table = {
         {L"game.switch2Edition", L"Switch 2 版"},
+        {L"discord.totalPlaytime", L"游玩总时数：{hours} 小时 {minutes} 分钟"},
         {L"discord.sourcePrefix", L"来源："},
         {L"overlay.presentRate", L"呈现帧率"},
         {L"overlay.presentFps", L"呈现 FPS"},
@@ -296,6 +299,7 @@ const Table& GermanTable()
 {
     static const Table table = {
         {L"game.switch2Edition", L"Switch 2 Edition"},
+        {L"discord.totalPlaytime", L"Gesamtspielzeit: {hours} Std. {minutes} Min."},
         {L"discord.sourcePrefix", L"Quelle: "},
         {L"overlay.resyncingSignal", L"Signal wird erneut synchronisiert…"},
         {L"error.com", L"Die COM-Laufzeit konnte nicht initialisiert werden."},
@@ -390,6 +394,7 @@ const Table& KoreanTable()
 {
     static const Table table = {
         {L"game.switch2Edition", L"Switch 2 에디션"},
+        {L"discord.totalPlaytime", L"누적 플레이 시간: {hours}시간 {minutes}분"},
         {L"discord.sourcePrefix", L"출처: "},
         {L"error.com", L"COM 런타임을 초기화하지 못했습니다."},
         {L"error.mediaFoundation", L"Media Foundation을 초기화하지 못했습니다."},
@@ -484,6 +489,7 @@ const Table& JapaneseTable()
 {
     static const Table table = {
         {L"game.switch2Edition", L"Switch 2 Edition"},
+        {L"discord.totalPlaytime", L"累計プレイ時間：{hours} 時間 {minutes} 分"},
         {L"discord.sourcePrefix", L"入力元："},
         {L"error.com", L"COM ランタイムを初期化できませんでした。"},
         {L"error.mediaFoundation", L"Media Foundation を初期化できませんでした。"},

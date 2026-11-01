@@ -1,6 +1,7 @@
 #include "app/hdmi_source_display.h"
 #include "app/localization.h"
 #include "discord/discord_rpc.h"
+#include "discord/activity_fields.h"
 #include "discord/pipe_transport.h"
 
 #include <chrono>
@@ -173,6 +174,31 @@ void TestLocalizedWirePresence() {
     std::cout << frames << " serialized activity fixtures passed across three languages and both presence modes\n";
 }
 
+void TestAccountPlaytimeWire() {
+    const std::pair<const char*,std::wstring_view> languages[]={
+        {"en-US",L"Total playtime: 137 h 20 min"},
+        {"zh-TW",L"遊玩總時數：137 小時 20 分鐘"},
+        {"zh-CN",L"游玩总时数：137 小时 20 分钟"},
+        {"de-DE",L"Gesamtspielzeit: 137 Std. 20 Min."},
+        {"ko-KR",L"누적 플레이 시간: 137시간 20분"},
+        {"ja-JP",L"累計プレイ時間：137 時間 20 分"}};
+    const auto started=std::chrono::system_clock::time_point{std::chrono::seconds(1700000000)};
+    for(const auto& [locale,expected]:languages){
+        Localization::Instance().SetPreference(std::string(locale));
+        const auto playtime=Localization::Instance().Format(L"discord.totalPlaytime",{{L"hours",L"137"},{L"minutes",L"20"}});
+        Check(playtime==expected,"account playtime uses the selected native language");
+        Pipe pipe;DiscordRPC rpc;
+        DiscordRPCTestAccess::SetOpener(rpc,[&]{return std::exchange(pipe.client,INVALID_HANDLE_VALUE);});
+        Check(rpc.Connect("12345"),"account playtime uses an isolated Discord pipe");pipe.Receive(0);
+        rpc.SetActivity(L"Tears of the Kingdom",playtime,started);
+        const auto payload=pipe.Receive(1);
+        CheckField(payload,"details",L"Tears of the Kingdom");CheckField(payload,"state",playtime);
+        Check(payload.find("1920")==std::string::npos&&payload.find("FPS")==std::string::npos&&payload.find("HDR")==std::string::npos&&payload.find("VRR")==std::string::npos,"the real activity state contains only total playtime");
+        Check(payload.find("\"start\":1700000000")!=std::string::npos,"account playtime does not replace the current session timestamp");
+        rpc.Disconnect();
+    }
+}
+
 void TestInvalidAndShortFields() {
     for (const auto prefix : {L"Source: ", L"來源：", L"来源："}) {
         Check(ComposeHdmiPresenceDetails(L"\xd800", prefix).empty() &&
@@ -193,6 +219,7 @@ int main() {
     try {
         TestInvalidAndShortFields();
         TestLocalizedWirePresence();
+        TestAccountPlaytimeWire();
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "FAIL Discord presence: " << error.what() << '\n';

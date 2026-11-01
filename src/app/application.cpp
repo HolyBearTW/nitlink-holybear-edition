@@ -5753,6 +5753,7 @@ void Application::PushCurrentGameState()
          <<L","<<SerializeArtworkEditProperties(it!=m_config->onlineGames.end()?it->second:Games::SavedGame{})
          <<L","<<SerializeArtworkMetadataProperties(it!=m_config->onlineGames.end()?static_cast<const Games::ArtworkMetadata&>(it->second):Games::ArtworkMetadata{})
          << L",\"discordConnected\":" << (m_discord && m_discord->IsConnected() ? L"true" : L"false")
+         << L",\"discordActivityState\":" << quoted(GetDiscordActivityStateLabel())
          <<L",\"discordActualImageStatus\":"<<quoted(m_discord?m_discord->ImageStatus():L"unavailable")
          <<L",\"discordRpcStatus\":"<<quoted(m_discord?m_discord->ActivityStatus():L"unavailable")
          <<L",\"discordClientDisplayVerified\":false"
@@ -5832,7 +5833,7 @@ void Application::UpdateDiscordForCurrentGame(bool preserveStartTime)
     if (!preserveStartTime || m_discordActivityStart.time_since_epoch().count() == 0)
         m_discordActivityStart = std::chrono::system_clock::now();
     const auto sourceLabel = GetEffectiveHdmiSourceLabel();
-    const auto activityState = GetDiscordSignalLabel();
+    const auto activityState = GetDiscordActivityStateLabel();
     if (m_config->currentGameId.empty()) {
         // Viewer: source in details, actual signal in state. Discord supplies
         // the application name; do not repeat it as "In NitLink".
@@ -6070,6 +6071,34 @@ std::wstring Application::GetDiscordSignalLabel() const
     return label;
 }
 
+std::wstring Application::GetDiscordActivityStateLabel() const
+{
+    if(!m_accountService||!m_config||m_config->currentGameId.empty())return {};
+    const auto selected=m_config->onlineGames.find(m_config->currentGameId);
+    if(selected==m_config->onlineGames.end())return {};
+    const auto& current=selected->second;
+    for(const auto& record:m_accountService->Games()){
+        bool related=record.key==selected->first;
+        if(!Games::IsAccountGameKey(selected->first)){
+            related=record.key==current.accountGameKey;
+            const auto saved=m_config->onlineGames.find(record.key);
+            related=related||(current.id&&saved!=m_config->onlineGames.end()&&saved->second.id==current.id);
+            const auto sameTitle=[&](std::wstring_view title){const auto first=Games::BaseGameTitle(title),second=Games::BaseGameTitle(current.name);return CompareStringOrdinal(first.data(),static_cast<int>(first.size()),second.data(),static_cast<int>(second.size()),TRUE)==CSTR_EQUAL;};
+            related=related||sameTitle(record.name);
+            if(saved!=m_config->onlineGames.end()){
+                related=related||std::any_of(saved->second.displayNames.begin(),saved->second.displayNames.end(),[&](const auto& title){return sameTitle(title.second);});
+                if(const auto source=m_searchGames.find(saved->second.id);source!=m_searchGames.end())related=related||sameTitle(source->second.name);
+            }
+            if(!related)for(const auto& [_,title]:current.displayNames){const auto first=Games::BaseGameTitle(title),second=Games::BaseGameTitle(record.name);if(CompareStringOrdinal(first.data(),static_cast<int>(first.size()),second.data(),static_cast<int>(second.size()),TRUE)==CSTR_EQUAL){related=true;break;}}
+        }
+        if(!related)continue;
+        if(!record.totalMinutes)return {};
+        return Localization::Instance().Format(L"discord.totalPlaytime",{
+            {L"hours",std::to_wstring(*record.totalMinutes/60)},
+            {L"minutes",std::to_wstring(*record.totalMinutes%60)}});
+    }
+    return {};
+}
 
 HdmiConfirmedRange Application::GetConfirmedHdmiRange() const
 {

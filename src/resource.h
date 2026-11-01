@@ -7,3 +7,5 @@
 #pragma once
 
 #define IDI_APP_ICON 101
+#define IDR_CAPTION_LOCKUP 102
+#define IDR_CAPTION_ARCHIVO 103

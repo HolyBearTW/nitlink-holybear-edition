@@ -949,7 +949,8 @@ bool DX11Renderer::Initialize(HWND hwnd, uint32_t width, uint32_t height)
         return false;
     }
 
-    factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
+    // Window owns borderless/fullscreen mode changes and the custom caption.
+    factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER);
 
     // DXGI 1.3 low-latency setup. The waitable-object flag was requested at
     // creation time; now retrieve the handle and clamp the maximum frame

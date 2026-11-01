@@ -13,6 +13,8 @@
 #include <winres.h>
 
 IDI_APP_ICON ICON "../assets/nitlink.ico"
+IDR_CAPTION_LOCKUP RCDATA "../assets/nitlink-lockup.png"
+IDR_CAPTION_ARCHIVO RCDATA "../assets/menu/Archivo-400.ttf"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION 1,2,5,3

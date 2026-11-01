@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -4 840.8 193">
+  <title>NitLink lockup</title>
+  <defs>
+    <clipPath id="clippath">
+      <path d="M10.99,1.93h46.1c5.29,0,9.1,2.2,13.21,6.46l105.41,109.18c3.82,3.95,7.34,2.69,7.34-3.18V6.04c0-4.7,2.35-7.05,7.05-3.82l33.18,23.2c4.11,2.87,6.75,6.17,6.75,10.86v140.06c0,3.82-1.47,5.87-5.87,5.87h-41.99c-5.87,0-10.19-1.91-14.39-6.17L59.15,65.82c-3.52-3.58-7.93-3.11-7.93,3.06v109.82c0,4.7-1.76,7.05-5.87,4.4l-33.18-21.43c-4.7-3.03-7.34-6.46-7.34-11.74V8.39c0-3.82,2.06-6.46,6.17-6.46Z" fill="none"/>
+    </clipPath>
+    <linearGradient id="linear-gradient" x1="579.38" y1="-778.84" x2="787.38" y2="-933.84" gradientTransform="translate(-139.91 -200.33) scale(.29 -.29)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#919eaf"/>
+      <stop offset="1" stop-color="#65778e"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-2" x1="1056.24" y1="-697.18" x2="1216.24" y2="-1314.18" gradientTransform="translate(-139.91 -200.33) scale(.29 -.29)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#30c9ee"/>
+      <stop offset=".48" stop-color="#397ef0"/>
+      <stop offset="1" stop-color="#865deb"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-3" x1="29.1" y1="2.86" x2="205.99" y2="178.8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#edf0f5"/>
+      <stop offset=".35" stop-color="#b2c3dd"/>
+      <stop offset=".7" stop-color="#5076bd"/>
+      <stop offset="1" stop-color="#35457f"/>
+    </linearGradient>
+    <linearGradient id="fold-shade-left" x1="32.00" y1="38.39" x2="14.91" y2="55.24" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a1f3a" stop-opacity="0.42"/><stop offset="1" stop-color="#1a1f3a" stop-opacity="0"/></linearGradient>
+    <linearGradient id="fold-shade-right" x1="193.00" y1="135.60" x2="210.27" y2="118.93" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a1f3a" stop-opacity="0.42"/><stop offset="1" stop-color="#1a1f3a" stop-opacity="0"/></linearGradient>
+  <linearGradient id="word-link" x1="574" y1="914" x2="1226" y2="914" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#30c9ee"/><stop offset=".48" stop-color="#397ef0"/><stop offset="1" stop-color="#865deb"/></linearGradient></defs>
+  <g id="nitlink-mark">
+    <path d="M10.99,1.93h46.1c5.29,0,9.1,2.2,13.21,6.46l105.41,109.18c3.82,3.95,7.34,2.69,7.34-3.18V6.04c0-4.7,2.35-7.05,7.05-3.82l33.18,23.2c4.11,2.87,6.75,6.17,6.75,10.86v140.06c0,3.82-1.47,5.87-5.87,5.87h-41.99c-5.87,0-10.19-1.91-14.39-6.17L59.15,65.82c-3.52-3.58-7.93-3.11-7.93,3.06v109.82c0,4.7-1.76,7.05-5.87,4.4l-33.18-21.43c-4.7-3.03-7.34-6.46-7.34-11.74V8.39c0-3.82,2.06-6.46,6.17-6.46Z" fill="#495c7a" stroke="#3a4a61" stroke-linejoin="round" stroke-width="1.47"/>
+    <g clip-path="url(#clippath)">
+      <g>
+        <path d="M10.99,1.93h46.1c5.29,0,9.1,2.2,13.21,6.46l105.41,109.18c3.82,3.95,7.34,2.69,7.34-3.18V6.04c0-4.7,2.35-7.05,7.05-3.82l33.18,23.2c4.11,2.87,6.75,6.17,6.75,10.86v140.06c0,3.82-1.47,5.87-5.87,5.87h-41.99c-5.87,0-10.19-1.91-14.39-6.17L59.15,65.82c-3.52-3.58-7.93-3.11-7.93,3.06v109.82c0,4.7-1.76,7.05-5.87,4.4l-33.18-21.43c-4.7-3.03-7.34-6.46-7.34-11.74V8.39c0-3.82,2.06-6.46,6.17-6.46Z" fill="url(#linear-gradient)"/>
+        <path d="M183.06,114.39V-2.18h50.21v187.92h-80.75v-92.49l23.2,24.33c3.82,3.95,7.34,2.69,7.34-3.18Z" fill="url(#linear-gradient-2)"/>
+        <path d="M-0.58,2.49L67.42,71.48L48.91,89.73L-19.09,20.74Z" fill="url(#fold-shade-left)"/>
+        <path d="M146.56,90.38L236.56,183.60L255.27,165.54L165.27,72.32Z" fill="url(#fold-shade-right)"/>
+        <g>
+          <path d="M10.99,2.05h46.1c5.29,0,9.1,2.2,13.21,6.46l155.91,161.49c2.35,2.43,3.82,4.11,3.82,6.46,0,3.82-1.47,5.87-5.87,5.87h-41.99c-5.87,0-10.19-1.91-14.39-6.17L7.47,13.5C3.95,9.92,3.36,2.05,10.99,2.05Z" fill="url(#linear-gradient-3)"/>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g id="nitlink-wordmark" transform="translate(258.40 62.98) scale(0.484) translate(-35 -851)"><path fill="#edf0f5" d="M35 851H69L167 933V852H197V971H165L65 887V970H35ZM269 853H298V971H269ZM363 854H512V881H451V972H423V881H363Z"/><path fill="url(#word-link)" d="M574 855H603V946H704V973H574ZM760 855H788V973H760ZM857 855H887L980 935V855H1008V973H978L885 891V973H857ZM1072 855H1101V906L1180 854H1226L1138 912L1226 973H1180L1115 927L1101 936V973H1072Z"/></g>
+</svg>

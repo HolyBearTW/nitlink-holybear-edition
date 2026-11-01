@@ -12,6 +12,10 @@ using Table = std::map<std::wstring, std::wstring>;
 const Table& EnglishTable()
 {
     static const Table table = {
+        {L"window.minimize", L"Minimize"},
+        {L"window.maximize", L"Maximize"},
+        {L"window.restore", L"Restore"},
+        {L"window.close", L"Close"},
         {L"window.hud0", L"Standard HUD"},
         {L"window.hud1", L"Detailed HUD"},
         {L"window.hud2", L"Compact HUD"},
@@ -116,6 +120,10 @@ const Table& EnglishTable()
 const Table& TraditionalChineseTable()
 {
     static const Table table = {
+        {L"window.minimize", L"最小化"},
+        {L"window.maximize", L"最大化"},
+        {L"window.restore", L"還原"},
+        {L"window.close", L"關閉"},
         {L"window.hud0", L"標準 HUD"},
         {L"window.hud1", L"詳細 HUD"},
         {L"window.hud2", L"精簡文字列"},
@@ -220,6 +228,10 @@ const Table& TraditionalChineseTable()
 const Table& SimplifiedChineseTable()
 {
     static const Table table = {
+        {L"window.minimize", L"最小化"},
+        {L"window.maximize", L"最大化"},
+        {L"window.restore", L"还原"},
+        {L"window.close", L"关闭"},
         {L"window.hud0", L"标准 HUD"},
         {L"window.hud1", L"详细 HUD"},
         {L"window.hud2", L"精简文字行"},
@@ -325,6 +337,10 @@ const Table& SimplifiedChineseTable()
 const Table& GermanTable()
 {
     static const Table table = {
+        {L"window.minimize", L"Minimieren"},
+        {L"window.maximize", L"Maximieren"},
+        {L"window.restore", L"Wiederherstellen"},
+        {L"window.close", L"Schließen"},
         {L"window.hud0", L"Standard-HUD"},
         {L"window.hud1", L"Detailliertes HUD"},
         {L"window.hud2", L"Kompakte Textzeile"},
@@ -429,6 +445,10 @@ const Table& GermanTable()
 const Table& KoreanTable()
 {
     static const Table table = {
+        {L"window.minimize", L"최소화"},
+        {L"window.maximize", L"최대화"},
+        {L"window.restore", L"복원"},
+        {L"window.close", L"닫기"},
         {L"window.hud0", L"표준 HUD"},
         {L"window.hud1", L"상세 HUD"},
         {L"window.hud2", L"간단한 텍스트"},
@@ -533,6 +553,10 @@ const Table& KoreanTable()
 const Table& JapaneseTable()
 {
     static const Table table = {
+        {L"window.minimize", L"最小化"},
+        {L"window.maximize", L"最大化"},
+        {L"window.restore", L"元に戻す"},
+        {L"window.close", L"閉じる"},
         {L"window.hud0", L"標準 HUD"},
         {L"window.hud1", L"詳細 HUD"},
         {L"window.hud2", L"コンパクト表示"},

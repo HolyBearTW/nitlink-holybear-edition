@@ -1,13 +1,16 @@
 #include "window.h"
+#include "../resource.h"
 #include <algorithm>
 #include <cmath>
 #include <dwmapi.h>
 #include <commctrl.h>
 #include <objidl.h>
 #include <gdiplus.h>
+#include <shlwapi.h>
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "comctl32.lib")
+#pragma comment(lib, "shlwapi.lib")
 
 namespace NitLink {
 
@@ -35,6 +38,8 @@ Window::~Window()
         DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
     }
+    m_captionLogo.reset();
+    m_captionFonts.reset();
     if(m_gdiplusToken)Gdiplus::GdiplusShutdown(m_gdiplusToken);
 }
 
@@ -44,6 +49,20 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     m_windowedClientSize = {desc.width, desc.height};
     Gdiplus::GdiplusStartupInput graphicsStartup;
     if(Gdiplus::GdiplusStartup(&m_gdiplusToken,&graphicsStartup,nullptr)!=Gdiplus::Ok)return false;
+    if(const auto resource=FindResourceW(hInstance,MAKEINTRESOURCEW(IDR_CAPTION_LOCKUP),RT_RCDATA)){
+        const auto bytes=LoadResource(hInstance,resource);
+        if(auto* stream=SHCreateMemStream(static_cast<const BYTE*>(LockResource(bytes)),SizeofResource(hInstance,resource))){
+            std::unique_ptr<Gdiplus::Bitmap> source(Gdiplus::Bitmap::FromStream(stream));
+            if(source&&source->GetLastStatus()==Gdiplus::Ok)
+                m_captionLogo.reset(source->Clone(0,0,static_cast<INT>(source->GetWidth()),static_cast<INT>(source->GetHeight()),PixelFormat32bppPARGB));
+            source.reset();stream->Release();
+        }
+    }
+    if(const auto resource=FindResourceW(hInstance,MAKEINTRESOURCEW(IDR_CAPTION_ARCHIVO),RT_RCDATA)){
+        const auto bytes=LoadResource(hInstance,resource);
+        m_captionFonts=std::make_unique<Gdiplus::PrivateFontCollection>();
+        m_captionFonts->AddMemoryFont(LockResource(bytes),SizeofResource(hInstance,resource));
+    }
 
     // Register window class
     WNDCLASSEXW wc{};
@@ -55,13 +74,11 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     wc.lpszClassName = L"NitLinkWindowClass";
     // Load the icon embedded in the .exe via app.rc → IDI_APP_ICON.
-    // MAKEINTRESOURCEW(101) matches the IDI_APP_ICON #define in resource.h
-    // (the 101 is hardcoded here to avoid pulling resource.h into this file).
     // If the resource is missing for any reason, fall back gracefully to
     // the generic IDI_APPLICATION icon so the app still launches.
-    wc.hIcon         = LoadIconW(hInstance, MAKEINTRESOURCEW(101));
+    wc.hIcon         = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_APP_ICON));
     if (!wc.hIcon) wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    wc.hIconSm       = (HICON)LoadImageW(hInstance, MAKEINTRESOURCEW(101),
+    wc.hIconSm       = (HICON)LoadImageW(hInstance, MAKEINTRESOURCEW(IDI_APP_ICON),
                                             IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
     if (!wc.hIconSm) wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
     
@@ -71,12 +88,13 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
 
     // Calculate window size for desired client area
     RECT rc = {0, 0, (LONG)desc.width, (LONG)desc.height};
-    // Keep native system commands/animations; WM_NCCALCSIZE removes the
-    // caption row. Windows owns minimize/maximize/close in the shared row.
-    DWORD style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
+    // Only NitLink paints the caption. In particular, omit WS_SYSMENU as
+    // well as WS_CAPTION so DWM cannot paint a second set of caption items.
+    // Minimize/maximize still use the standard window system commands.
+    DWORD style = WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN;
     const UINT dpi=GetDpiForSystem();
     rc.bottom+=MulDiv(36,static_cast<int>(dpi),96);
-    AdjustWindowRectExForDpi(&rc, style & ~WS_CAPTION, FALSE, 0, dpi);
+    AdjustWindowRectExForDpi(&rc, style, FALSE, 0, dpi);
 
     m_hwnd = CreateWindowExW(
         0,
@@ -95,14 +113,14 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     videoClass.hbrBackground=static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));videoClass.lpszClassName=L"NitLinkVideoSurface";
     if(!RegisterClassExW(&videoClass))return false;
     const auto content=GetContentBounds();
-    m_videoWindow=CreateWindowExW(0,videoClass.lpszClassName,L"",WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS,
+    m_videoWindow=CreateWindowExW(0,videoClass.lpszClassName,L"",WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS|WS_CLIPCHILDREN,
         content.left,content.top,content.right-content.left,content.bottom-content.top,m_hwnd,nullptr,hInstance,this);
     if(!m_videoWindow)return false;
 
     INITCOMMONCONTROLSEX controls{sizeof(controls),ICC_WIN95_CLASSES};InitCommonControlsEx(&controls);
     m_captionTooltip=CreateWindowExW(WS_EX_TOPMOST,TOOLTIPS_CLASSW,nullptr,WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX,
         CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,m_hwnd,nullptr,hInstance,nullptr);
-    for(int i=0;i<2;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;tool.uFlags=TTF_SUBCLASS;
+    for(int i=0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;tool.uFlags=TTF_SUBCLASS;
         tool.rect=CaptionButtonRect(i);tool.lpszText=const_cast<wchar_t*>(L"");SendMessageW(m_captionTooltip,TTM_ADDTOOLW,0,reinterpret_cast<LPARAM>(&tool));}
     UpdateCaptionTooltips();
 
@@ -182,21 +200,14 @@ RECT Window::CaptionButtonRect(int index) const
     RECT client{};GetClientRect(m_hwnd,&client);
     const int dpi=static_cast<int>(GetDpiForWindow(m_hwnd));
     const int unit=MulDiv(42,dpi,96),gap=MulDiv(8,dpi,96);
-    LONG systemLeft=client.right-MulDiv(138,dpi,96);
-    RECT systemButtons{},outer{};
-    if(IsWindowVisible(m_hwnd)&&!IsIconic(m_hwnd)&&SUCCEEDED(DwmGetWindowAttribute(m_hwnd,5,&systemButtons,sizeof(systemButtons)))&&
-        !IsRectEmpty(&systemButtons)&&GetWindowRect(m_hwnd,&outer)){
-        POINT clientOrigin{};ClientToScreen(m_hwnd,&clientOrigin);
-        systemLeft=systemButtons.left+outer.left-clientOrigin.x;
-    }
-    const int left=systemLeft-gap-(2-index)*unit;
+    const int left=client.right-5*unit-gap+index*unit+(index>=2?gap:0);
     return {left,0,left+unit,CaptionHeight()};
 }
 
 int Window::CaptionButtonAt(POINT point) const
 {
     if(!CaptionHeight())return -1;
-    for(int i=0;i<2;++i){const auto rect=CaptionButtonRect(i);if(PtInRect(&rect,point))return i;}
+    for(int i=0;i<5;++i){const auto rect=CaptionButtonRect(i);if(PtInRect(&rect,point))return i;}
     return -1;
 }
 
@@ -209,9 +220,10 @@ void Window::RefreshCaption()
 
 void Window::UpdateCaptionTooltips()
 {
-    m_captionTooltips={m_chromeLabels.hud[m_hudMode]+(m_hudVisible?L"":L" ("+m_chromeLabels.hidden+L")"),m_chromeLabels.settings};
+    m_captionTooltips={m_chromeLabels.hud[m_hudMode]+(m_hudVisible?L"":L" ("+m_chromeLabels.hidden+L")"),m_chromeLabels.settings,
+        m_chromeLabels.minimize,IsZoomed(m_hwnd)?m_chromeLabels.restore:m_chromeLabels.maximize,m_chromeLabels.close};
     if(!m_captionTooltip)return;
-    for(int i=0;i<2;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;
+    for(int i=0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;
         tool.lpszText=m_captionTooltips[i].data();tool.rect=CaptionButtonRect(i);
         SendMessageW(m_captionTooltip,TTM_UPDATETIPTEXTW,0,reinterpret_cast<LPARAM>(&tool));
         SendMessageW(m_captionTooltip,TTM_NEWTOOLRECTW,0,reinterpret_cast<LPARAM>(&tool));}
@@ -227,14 +239,14 @@ void Window::SetChromeState(unsigned hudMode,bool hudVisible,bool settingsVisibl
 void Window::SetChromeLabels(ChromeLabels labels)
 {
     if(labels==m_chromeLabels)return;
-    m_chromeLabels=std::move(labels);UpdateCaptionTooltips();
+    m_chromeLabels=std::move(labels);UpdateCaptionTooltips();RefreshCaption();
 }
 
 void Window::LayoutContent()
 {
     const auto bounds=GetContentBounds();
-    if(m_videoWindow)SetWindowPos(m_videoWindow,HWND_BOTTOM,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,
-        SWP_NOACTIVATE);
+    if(m_videoWindow)SetWindowPos(m_videoWindow,nullptr,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,
+        SWP_NOZORDER|SWP_NOACTIVATE);
     MARGINS glass{0,0,CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
     UpdateCaptionTooltips();RefreshCaption();
 }
@@ -243,6 +255,9 @@ void Window::InvokeCaptionButton(int index)
 {
     if(index==0){if(m_inputCb.onCycleHud)m_inputCb.onCycleHud();}
     else if(index==1){if(m_inputCb.onSettings)m_inputCb.onSettings();}
+    else if(index==2)SendMessageW(m_hwnd,WM_SYSCOMMAND,SC_MINIMIZE,0);
+    else if(index==3)SendMessageW(m_hwnd,WM_SYSCOMMAND,IsZoomed(m_hwnd)?SC_RESTORE:SC_MAXIMIZE,0);
+    else if(index==4)SendMessageW(m_hwnd,WM_SYSCOMMAND,SC_CLOSE,0);
 }
 
 void Window::PaintCaption(HDC dc)
@@ -253,22 +268,35 @@ void Window::PaintCaption(HDC dc)
     const float scale=GetDpiForWindow(m_hwnd)/96.f;
     Bitmap bitmap(width,height,PixelFormat32bppPARGB);Graphics graphics(&bitmap);
     graphics.SetSmoothingMode(SmoothingModeAntiAlias);graphics.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+    graphics.SetInterpolationMode(InterpolationModeHighQualityBicubic);
     graphics.Clear(m_desktopGlass?Color(26,18,18,22):Color(255,30,30,34));
     const BYTE alpha=GetForegroundWindow()==m_hwnd?240:180;
-    SolidBrush ink(Color(alpha,245,245,248));
-    HICON icon=reinterpret_cast<HICON>(SendMessageW(m_hwnd,WM_GETICON,ICON_SMALL,0));
-    if(!icon)icon=LoadIconW(m_hInstance,MAKEINTRESOURCEW(101));
-    if(icon){Bitmap brand(icon);graphics.DrawImage(&brand,12*scale,(height-18*scale)/2,18*scale,18*scale);}
+    SolidBrush ink(Color(alpha,245,245,248));Pen line(Color(alpha,235,235,240),1.25f*scale);
     wchar_t title[1024]{};GetWindowTextW(m_hwnd,title,1024);
-    Font font(L"Segoe UI",12*scale,FontStyleRegular,UnitPixel);StringFormat format;
+    float textLeft=39*scale;
+    const wchar_t* captionText=title;
+    if(m_captionLogo){
+        const float logoHeight=22*scale,logoWidth=logoHeight*m_captionLogo->GetWidth()/m_captionLogo->GetHeight();
+        graphics.DrawImage(m_captionLogo.get(),12*scale,(height-logoHeight)/2,logoWidth,logoHeight);
+        textLeft=12*scale+logoWidth+12*scale;
+        // The lockup already spells NitLink; keep the live source/game suffix.
+        if(std::wstring_view(title).starts_with(L"NitLink - "))captionText+=10;
+        else if(std::wstring_view(title)==L"NitLink")captionText+=7;
+    }else{
+        HICON icon=reinterpret_cast<HICON>(SendMessageW(m_hwnd,WM_GETICON,ICON_SMALL,0));
+        if(!icon)icon=LoadIconW(m_hInstance,MAKEINTRESOURCEW(IDI_APP_ICON));
+        if(icon){Bitmap brand(icon);graphics.DrawImage(&brand,12*scale,(height-18*scale)/2,18*scale,18*scale);}
+    }
+    Font font(m_chromeLabels.fontFamily.c_str(),12*scale,FontStyleRegular,UnitPixel,
+        m_chromeLabels.fontFamily==L"Archivo"?m_captionFonts.get():nullptr);StringFormat format;
     format.SetFormatFlags(StringFormatFlagsNoWrap);format.SetTrimming(StringTrimmingEllipsisCharacter);format.SetLineAlignment(StringAlignmentCenter);
     const auto first=CaptionButtonRect(0);
-    RectF titleRect(39*scale,0,std::max(0.f,first.left-49*scale),static_cast<float>(height));
-    graphics.DrawString(title,-1,&font,titleRect,&format,&ink);
-    for(int i=0;i<2;++i){
+    RectF titleRect(textLeft,0,std::max(0.f,first.left-textLeft-10*scale),static_cast<float>(height));
+    graphics.DrawString(captionText,-1,&font,titleRect,&format,&ink);
+    for(int i=0;i<5;++i){
         const auto rect=CaptionButtonRect(i);const float cx=(rect.left+rect.right)/2.f,cy=height/2.f;
         if(m_captionHover==i||m_captionPressed==i||(i==1&&m_settingsVisible)){
-            SolidBrush hover(i==1&&m_settingsVisible?Color(65,100,170,230):Color(m_captionPressed==i?55:30,255,255,255));
+            SolidBrush hover(i==4?Color(220,196,43,45):i==1&&m_settingsVisible?Color(65,100,170,230):Color(m_captionPressed==i?55:30,255,255,255));
             graphics.FillRectangle(&hover,Rect(rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top));
         }
         if(i==0){
@@ -278,7 +306,9 @@ void Window::PaintCaption(HDC dc)
             else {graphics.DrawLine(&hud,cx-8*scale,cy,cx-4*scale,cy);graphics.DrawLine(&hud,cx-1*scale,cy,cx+3*scale,cy);graphics.DrawLine(&hud,cx+6*scale,cy,cx+9*scale,cy);}
         }else if(i==1){Font gear(L"Segoe MDL2 Assets",15*scale,FontStyleRegular,UnitPixel);StringFormat centered;centered.SetAlignment(StringAlignmentCenter);centered.SetLineAlignment(StringAlignmentCenter);
             graphics.DrawString(L"\uE713",1,&gear,RectF(static_cast<float>(rect.left),0,static_cast<float>(rect.right-rect.left),static_cast<float>(height)),&centered,&ink);
-        }
+        }else if(i==2)graphics.DrawLine(&line,cx-5*scale,cy,cx+5*scale,cy);
+        else if(i==3){if(IsZoomed(m_hwnd)){graphics.DrawRectangle(&line,cx-3*scale,cy-5*scale,8*scale,8*scale);graphics.DrawRectangle(&line,cx-5*scale,cy-3*scale,8*scale,8*scale);}else graphics.DrawRectangle(&line,cx-5*scale,cy-5*scale,10*scale,10*scale);}
+        else {graphics.DrawLine(&line,cx-4.5f*scale,cy-4.5f*scale,cx+4.5f*scale,cy+4.5f*scale);graphics.DrawLine(&line,cx+4.5f*scale,cy-4.5f*scale,cx-4.5f*scale,cy+4.5f*scale);}
     }
     Pen border(Color(28,255,255,255));graphics.DrawLine(&border,0,height-1,width,height-1);graphics.Flush();
     BitmapData data;Rect area(0,0,width,height);
@@ -699,16 +729,11 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         if(self&&self->CaptionHeight()){
             POINT point{static_cast<short>(LOWORD(lParam)),static_cast<short>(HIWORD(lParam))};ScreenToClient(hwnd,&point);
             if(self->CaptionButtonAt(point)>=0)return HTCLIENT;
-            LRESULT nativeHit=0;
-            if(DwmDefWindowProc(hwnd,msg,wParam,lParam,&nativeHit))return nativeHit;
             RECT client{};GetClientRect(hwnd,&client);const UINT dpi=GetDpiForWindow(hwnd);
             const int edge=GetSystemMetricsForDpi(SM_CXSIZEFRAME,dpi)+GetSystemMetricsForDpi(SM_CXPADDEDBORDER,dpi);
             if(!IsZoomed(hwnd)&&point.y<edge){if(point.x<edge)return HTTOPLEFT;if(point.x>=client.right-edge)return HTTOPRIGHT;return HTTOP;}
-            if(point.y<self->CaptionHeight()&&point.x>=0&&point.x<client.right)return point.x<MulDiv(34,dpi,96)?HTSYSMENU:HTCAPTION;
+            if(point.y<self->CaptionHeight()&&point.x>=0&&point.x<client.right)return HTCAPTION;
         }
-        break;
-    case WM_NCMOUSELEAVE:
-        if(self&&self->CaptionHeight()){LRESULT result=0;DwmDefWindowProc(hwnd,msg,wParam,lParam,&result);}
         break;
     case WM_PAINT:
         if(self){PAINTSTRUCT paint{};HDC dc=BeginPaint(hwnd,&paint);self->PaintCaption(dc);EndPaint(hwnd,&paint);return 0;}

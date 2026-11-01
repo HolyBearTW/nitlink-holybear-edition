@@ -6050,7 +6050,8 @@ void Application::UpdateWindowTitle(bool refreshDiscord)
 {
     if (!m_window) return;
     m_window->SetChromeLabels({{Tr(L"window.hud0"),Tr(L"window.hud1"),Tr(L"window.hud2")},
-        Tr(L"window.settings"),Tr(L"window.hidden")});
+        Tr(L"window.settings"),Tr(L"window.hidden"),Tr(L"window.minimize"),Tr(L"window.maximize"),Tr(L"window.restore"),Tr(L"window.close"),
+        Localization::Instance().UiFontFamily(L"Archivo")});
     RefreshGameArtworkContext();
 
     m_lastHdmiDisplayRange = GetConfirmedHdmiRange();

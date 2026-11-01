@@ -6,7 +6,10 @@
 #include <cstdint>
 #include <functional>
 #include <array>
+#include <memory>
 #include "playback_power.h"
+
+namespace Gdiplus { class Bitmap; class PrivateFontCollection; }
 
 namespace NitLink {
 
@@ -33,7 +36,8 @@ public:
     };
     struct ChromeLabels {
         std::array<std::wstring,3> hud{L"Standard HUD",L"Detailed HUD",L"Compact HUD"};
-        std::wstring settings=L"Settings",hidden=L"Hidden";
+        std::wstring settings=L"Settings",hidden=L"Hidden",minimize=L"Minimize",maximize=L"Maximize",restore=L"Restore",close=L"Close";
+        std::wstring fontFamily=L"Archivo";
         bool operator==(const ChromeLabels&) const = default;
     };
 
@@ -128,12 +132,14 @@ private:
     HWND       m_hwnd = nullptr;
     HWND       m_videoWindow = nullptr, m_captionTooltip = nullptr;
     ULONG_PTR  m_gdiplusToken = 0;
+    std::unique_ptr<Gdiplus::Bitmap> m_captionLogo;
+    std::unique_ptr<Gdiplus::PrivateFontCollection> m_captionFonts;
     bool       m_desktopGlass = false;
     unsigned   m_hudMode = 0;
     bool       m_hudVisible = false, m_settingsVisible = false;
     int        m_captionHover = -1, m_captionPressed = -1;
     ChromeLabels m_chromeLabels;
-    std::array<std::wstring,2> m_captionTooltips;
+    std::array<std::wstring,5> m_captionTooltips;
     PlaybackPowerRequest m_playbackPower;
     bool m_preventSleep = true;
     bool m_videoAvailable = false;

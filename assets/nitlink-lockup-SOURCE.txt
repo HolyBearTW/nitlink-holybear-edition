@@ -1,0 +1,9 @@
+NitLink transparent lockup, by the upstream NitLink project.
+Source revision: 77d87b40248867b82cd56a0fff4e32314834e314
+Source URL: https://raw.githubusercontent.com/nitlink-dev/nitlink/77d87b40248867b82cd56a0fff4e32314834e314/docs/images/nitlink-lockup.svg
+License: NitLink project MIT license (see ../LICENSE).
+
+nitlink-lockup.svg preserves the original vector asset.
+nitlink-lockup.png is a transparent 176px-high rasterization for the native
+GDI+ caption renderer, generated with @resvg/resvg-js 2.6.2. It is embedded
+in NitLink.exe. The converter is a development tool and is not distributed.

@@ -14,10 +14,12 @@ int main()
     // A pre-E1 config with none of the new keys keeps compiled defaults.
     {
         std::ofstream legacy(path, std::ios::trunc);
-        legacy << "window_width = 1280\n";
+        legacy << "window_width = 1280\npanel_width = 460\n";
     }
     NitLink::Config legacyLoaded;
     if (!legacyLoaded.Load(path.string())) return 1;
+    if(legacyLoaded.panelWidth!=500||legacyLoaded.panelOpacity!=1.0f)return 26;
+    if(legacyLoaded.shortcutBindings!=NitLink::DefaultShortcutBindings||legacyLoaded.hudMode!=0||legacyLoaded.compactHudColor!=0x76b900||legacyLoaded.compactHudTextSize!=14||legacyLoaded.compactHudMetrics!=15)return 28;
     if (legacyLoaded.audioFifoMs != 12 || legacyLoaded.audioRenderMs != 10 || !legacyLoaded.audioDrift || legacyLoaded.audioExclusive) return 19;
     if (legacyLoaded.noSignalMode != "default" ||
         !legacyLoaded.noSignalImage.empty() ||
@@ -25,6 +27,7 @@ int main()
         !legacyLoaded.noSignalDimImage) return 2;
 
     NitLink::Config defaults;
+    if(defaults.panelWidth!=500||defaults.panelOpacity!=1.0f)return 24;
     if (defaults.holyBearAutoUpdateCheck || defaults.holyBearUpdateLastCheckUtc) return 20;
     if (!defaults.Save(path.string())) return 3;
     NitLink::Config defaultLoaded;
@@ -35,6 +38,10 @@ int main()
         !defaultLoaded.noSignalDimImage) return 5;
 
     NitLink::Config saved;
+    saved.shortcutBindings[static_cast<size_t>(NitLink::ShortcutAction::toggle_settings)]={'K',1};
+    saved.hudMode=2;saved.compactHudColor=0x43eb72;saved.compactHudMetrics=5;saved.compactHudTextSize=24;
+    saved.panelWidth=720;
+    saved.panelOpacity=0.64f;
     saved.holyBearAutoUpdateCheck = true;
     saved.holyBearUpdateLastCheckUtc = 1791730000;
     saved.holyBearUpdateLatestTag = "v1.2.4.2-holybear";
@@ -49,6 +56,8 @@ int main()
 
     NitLink::Config loaded;
     if (!loaded.Load(path.string())) return 7;
+    if(loaded.shortcutBindings!=saved.shortcutBindings||loaded.hudMode!=2||loaded.compactHudColor!=0x43eb72||loaded.compactHudMetrics!=5||loaded.compactHudTextSize!=24)return 27;
+    if(loaded.panelWidth!=720||loaded.panelOpacity!=saved.panelOpacity)return 25;
     if (!loaded.holyBearAutoUpdateCheck || loaded.holyBearUpdateLastCheckUtc != saved.holyBearUpdateLastCheckUtc ||
         loaded.holyBearUpdateLatestTag != saved.holyBearUpdateLatestTag || loaded.holyBearUpdateSeenTag != saved.holyBearUpdateSeenTag) return 21;
     if (loaded.audioFifoMs != 7 || loaded.audioRenderMs != 9 || loaded.audioDrift || !loaded.audioExclusive) return 18;

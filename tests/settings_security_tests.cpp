@@ -54,6 +54,28 @@ void CheckPackagedScripts() {
 int main() {
     CheckPackagedScripts();
     using NitLink::ParseSettingsMessage;
+    {
+        auto bindings=NitLink::DefaultShortcutBindings;
+        const auto settings=static_cast<size_t>(NitLink::ShortcutAction::toggle_settings);
+        bindings[settings]={'K',1};
+        const auto packed=NitLink::SerializeShortcutBindings(bindings);
+        const auto message=ParseSettingsMessage(L"{\"action\":\"saveShortcuts\",\"value\":\""+std::wstring(packed.begin(),packed.end())+L"\"}");
+        Expect(message&&message->shortcuts==bindings,"complete custom shortcut mapping crosses the typed boundary");
+        bindings[settings]=bindings[0];
+        const auto duplicate=NitLink::SerializeShortcutBindings(bindings);
+        Expect(!ParseSettingsMessage(L"{\"action\":\"saveShortcuts\",\"value\":\""+std::wstring(duplicate.begin(),duplicate.end())+L"\"}"),"conflicting shortcut bindings are rejected");
+        Expect(!ParseSettingsMessage(LR"({"action":"saveShortcuts","value":"toggle_settings:75,1"})"),"partial UI shortcut saves are rejected");
+        Expect(!ParseSettingsMessage(LR"({"action":"setShortcutContext","value":3})"),"unknown keyboard context is rejected");
+        Expect(!ParseSettingsMessage(LR"({"action":"setShortcutContext","value":true})"),"keyboard context requires its numeric schema");
+        const auto color=ParseSettingsMessage(LR"({"action":"setCompactHudColor","value":"#43eb72"})");
+        Expect(color&&color->number==0x43eb72,"compact HUD accepts the selected RGB color");
+        Expect(!ParseSettingsMessage(LR"({"action":"setCompactHudColor","value":"#43eg72"})"),"non-hex HUD colors are rejected");
+        for(unsigned mask=1;mask<=15;++mask)Expect(ParseSettingsMessage(L"{\"action\":\"setCompactHudMetrics\",\"value\":"+std::to_wstring(mask)+L"}").has_value(),"every nonempty HUD metric combination is accepted");
+        Expect(!ParseSettingsMessage(LR"({"action":"setCompactHudMetrics","value":0})"),"empty compact HUD is rejected");
+        Expect(!ParseSettingsMessage(LR"({"action":"setCompactHudMetrics","value":16})"),"unknown HUD metric bits are rejected");
+        for(const auto size:{10,14,24,32})Expect(ParseSettingsMessage(L"{\"action\":\"setCompactHudTextSize\",\"value\":"+std::to_wstring(size)+L"}").has_value(),"supported compact HUD text sizes are accepted");
+        for(const auto size:{L"9",L"33",L"14.5",L"true"})Expect(!ParseSettingsMessage(L"{\"action\":\"setCompactHudTextSize\",\"value\":"+std::wstring(size)+L"}"),"unsupported compact HUD sizes are rejected");
+    }
     for (const auto valid : {L"1", L"42", L"4294967295"}) {
         const auto request = ParseSettingsMessage(
             L"{\"action\":\"refreshAudioDiagnostics\",\"value\":" + std::wstring(valid) + L"}");
@@ -90,6 +112,8 @@ int main() {
                 kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED),
                "only browser and main renderer exits require host restart");
     auto& localization = NitLink::Localization::Instance();
+    for(const auto* locale:{L"zh-TW",L"zh-HK",L"zh-MO",L"zh-Hant",L"zh-Hant-TW"})Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(locale)==L"zh-TW","Traditional Chinese system language resolves before API and cover selection");
+    for(const auto* locale:{L"zh-CN",L"zh-Hans-CN"})Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(locale)==L"zh-CN","Simplified Chinese system language resolves to its own locale");
     for (const auto* locale : {L"de", L"de-DE", L"de-AT", L"de-CH"})
         Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(locale) == L"de-DE",
                "German system locales resolve to de-DE");
@@ -174,6 +198,10 @@ int main() {
     Expect(ParseSettingsMessage(LR"({"action":"setVolume","value":0})").has_value(), "volume minimum");
     Expect(ParseSettingsMessage(LR"({"action":"setPiPOpacity","value":0.1})").has_value(), "opacity minimum");
     Expect(ParseSettingsMessage(LR"({"action":"setPiPOpacity","value":1})").has_value(), "opacity maximum");
+    for (auto value : {L"0.1", L"0.64", L"1"})
+        Expect(ParseSettingsMessage(L"{\"action\":\"setPanelOpacity\",\"value\":" + std::wstring(value) + L"}").has_value(), "panel opacity accepts the supported range");
+    for (auto value : {L"0.09", L"1.01", L"null", L"\"0.64\""})
+        Expect(!ParseSettingsMessage(L"{\"action\":\"setPanelOpacity\",\"value\":" + std::wstring(value) + L"}"), "panel opacity rejects invalid boundary input");
     for (auto invalid : {L"NaN", L"Infinity", L"-Infinity", L"1e999", L"1e-999", L"1.01",
          L"-0.01", L"01", L".5", L"1.", L"+1", L"0x1", L"1f", L"true", L"null", L"[]",
          L"{}", L"\"0.5\""}) {
@@ -320,7 +348,13 @@ int main() {
     pending.Store(0, L"close volume"); pending.Store(1, L"close opacity");
     pending.Drain(slotsBudget, 134, true, collect);
     Expect(delivered.size() == 4 && pending.Empty(), "native closing drain is bounded to two slots");
-    pending.Store(0, std::wstring(8193, L'x')); pending.Store(2, L"invalid slot");
+    pending.Store(2,L"old panel width");pending.Store(2,L"latest panel width");
+    pending.Drain(slotsBudget,134,true,collect);
+    Expect(delivered.back()==L"latest panel width"&&pending.Empty(),"panel dragging retains the final width in its own slider slot");
+    pending.Store(3,L"old panel opacity");pending.Store(3,L"latest panel opacity");
+    pending.Drain(slotsBudget,134,true,collect);
+    Expect(delivered.back()==L"latest panel opacity"&&pending.Empty(),"panel opacity retains its final value independently of the other sliders");
+    pending.Store(0, std::wstring(8193, L'x')); pending.Store(4, L"invalid slot");
     Expect(pending.Empty(), "slot indices and storage remain bounded");
     pending.Store(0, L"stale"); pending.Clear();
     Expect(pending.Empty(), "source/lifetime reset drops pending values");
@@ -328,6 +362,8 @@ int main() {
     std::cout << "100000 structural mutations; " << acceptedMutations << " accepted within schema bounds\n";
 
     Expect(IsTrustedDocument(MenuUri), "exact menu document");
+    Expect(ParseSettingsMessage(LR"({"action":"setPanelWidth","value":500})").has_value()&&ParseSettingsMessage(LR"({"action":"setPanelWidth","value":720})").has_value(),"panel width accepts the new default and a wider size");
+    for(const auto value:{L"499",L"1201",L"500.5",L"\"720\""})Expect(!ParseSettingsMessage(std::wstring(L"{\"action\":\"setPanelWidth\",\"value\":")+value+L"}"),"panel width cannot become narrower than default or escape schema bounds");
     Expect(CanReceiveMessage(MenuUri, MenuUri), "trusted source and current document");
     for (auto bad : {L"", L"about:blank", L"file:///C:/nitlink-menu.html", L"file://server/menu.html",
          L"https://nitlink.invalid/other.html", L"https://nitlink.invalid/nitlink-menu.html#x",

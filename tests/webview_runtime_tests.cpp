@@ -667,6 +667,33 @@ int main(int argc, char** argv) {
               "production settings serializer accepted by WebView2 PostWebMessageAsJson");
         auto* view = WebViewSettingsTestAccess::View(host);
         Check(view != nullptr, "secured WebView available");
+        {
+            const auto previousState=nativeState;
+            nativeState.hudMode=2;
+            nativeState.hudVisible=false;
+            Check(host.PostMessage(NitLink::SerializeWebViewCoreSettingsState(nativeState)), "HUD visibility uses the native serializer");
+            Check(PumpUntil([&]{return Script(view,LR"JS(
+                document.getElementById('hud-mode').textContent === window.NitLinkLocales[document.documentElement.lang]['shortcut.hudMode3'] &&
+                document.getElementById('hud-size-row').hidden && document.getElementById('hud-metrics-row').hidden
+            )JS")==L"true";}), "a disabled compact HUD is labelled off and hides its appearance controls");
+            nativeState.hudVisible=true;
+            Check(host.PostMessage(NitLink::SerializeWebViewCoreSettingsState(nativeState)), "enabled HUD state is accepted");
+            Check(PumpUntil([&]{return Script(view,LR"JS(
+                document.getElementById('hud-mode').textContent === window.NitLinkLocales[document.documentElement.lang]['shortcut.hudMode2'] &&
+                !document.getElementById('hud-size-row').hidden && !document.getElementById('hud-metrics-row').hidden
+            )JS")==L"true";}), "enabled compact mode exposes the current native appearance settings");
+            const auto beforeMetricChange=messages.size();
+            Script(view,LR"JS((() => {
+                const item=document.querySelector('[data-hud-metric="8"]');
+                item.checked=false;item.dispatchEvent(new Event('change'));return true;
+            })())JS");
+            Check(PumpUntil([&]{return std::any_of(messages.begin()+beforeMetricChange,messages.end(),[](const auto& json){
+                const auto message=NitLink::ParseSettingsMessage(json);
+                return message&&message->action==L"setCompactHudMetrics"&&message->number==7;
+            });}), "unchecking ingest sends the three remaining metrics through the real native bridge");
+            nativeState=previousState;
+            Check(host.PostMessage(NitLink::SerializeWebViewCoreSettingsState(nativeState)), "HUD fixture restores the original native state");
+        }
         Check(Script(view, L"document.getElementById('game-built-in') === null && "
             L"!!document.getElementById('game-query') && !!document.getElementById('game-search') && "
             L"window.NitLinkLocales['zh-TW']['game.kind.keyArt'] === '官方主視覺' && "

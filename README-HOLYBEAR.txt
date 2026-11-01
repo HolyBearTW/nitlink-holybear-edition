@@ -92,14 +92,18 @@ F1; its HUD icon cycles Standard, Detailed and Compact, or restores the
 stored mode when the HUD is hidden. Fullscreen and PiP hide the title bar.
 Supported Windows 11 systems use the desktop Acrylic background; older
 systems use a solid dark title bar.
-Minimize, maximize, restore and close use Windows' own caption controls
-and window transitions. Harbor's custom spring/glide animations are not
-included in this acceptance build.
+NitLink draws the single caption row, including the transparent upstream
+lockup and window buttons. Those buttons issue normal Windows system
+commands. Title text follows the effective F1 locale's font, including
+System language; Archivo and the logo are embedded in the executable.
+Harbor's custom spring/glide animations are not included in this build.
 
 Video > Panel > Panel background selects Blur glass (default) or Classic
 transparency. Glass blurs the game behind F1 and changes only background
 opacity; classic keeps the existing whole-panel transparency. Each mode
-remembers its own opacity. BUILD.txt records that this acceptance revision
+remembers its own opacity. F1 is a child of the same picture window that
+owns the swap chain, so transparent areas reveal the blurred picture.
+BUILD.txt records that this acceptance revision
 was compiled without CTest or regression tests; visual review is pending.
 
 BUILD.txt records the exact build commit/tag and integration sources.

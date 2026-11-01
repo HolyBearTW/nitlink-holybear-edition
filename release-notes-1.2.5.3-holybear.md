@@ -8,8 +8,9 @@
 
 - 視窗使用整合式標題列，模糊桌面背景；標題列保留獨立高度，不會覆蓋遊戲畫面。新增齒輪按鈕開啟 F1，以及圖示隨標準、詳細、精簡模式切換的 HUD 按鈕。全螢幕與子母畫面不顯示標題列。
 - F1 面板新增預設的「模糊玻璃」背景，模糊面板後方的遊戲畫面，文字與操作按鈕保持清楚。可切回「傳統透明」，兩種模式分別保存不透明度。
-- 修正啟動時重複標題列，以及最小化再還原後控制按鈕重疊的問題。首次顯示前完成框架更新，最小化、最大化與關閉交由 Windows 繪製並處理，保留原生視窗過場。
-- 修正遊戲顯示子視窗位於 F1 上方而遮住設定的問題；開啟設定與調整視窗大小時，明確將遊戲區置於設定下方。F1 與齒輪使用同一個開啟流程。
+- 標題列及控制按鈕統一由 NitLink 繪製，移除另一套原生標題列，避免啟動或還原時重複出現；最小化、還原、最大化與關閉仍呼叫系統視窗操作。
+- 標題列使用透明 NitLink 字標，來源與遊戲資訊不再重複顯示 NitLink 名稱；標題資訊依 F1 的有效語言選用對應字型，包含「系統預設」解析後的語言。Archivo 字型與字標內嵌於執行檔。
+- F1 與遊戲畫面共用顯示容器，修正面板透明背景透出外層黑底、看不到遊戲模糊結果的問題。標題列仍位於獨立區域，不覆蓋遊戲；F1 與齒輪使用同一個開啟流程。
 - 官方素材合併時保留已取得的其他候選，不因商店搜尋已有橫圖而略過原有的直式或正方形素材；平台未回傳的直式圖片仍不會憑空產生。
 - 修正連動遊戲已有官方封面、但尚未對應封面資料庫時，社群圖片與所有來源顯示沒有結果的問題。現在會先搜尋對應遊戲，再載入社群封面；Nintendo、PlayStation 與 Xbox 使用相同流程。
 - 完成資料庫對應後，保留使用者選擇的封面來源與圖片方向。體驗版及 Switch 2 版本可搜尋對應原作；有多個符合結果時，由使用者選擇。
@@ -28,7 +29,7 @@
 ## 已知限制
 
 - 桌面模糊效果需要支援系統背景材質的 Windows 11；不支援的系統會使用深色標題列。Windows 關閉透明效果時，系統材質可能顯示為實色。
-- 此版保留 Windows 原生視窗動畫，尚未加入 Harbor 自訂的玻璃彈入、淡入淡出與平滑邊界動畫。
+- 視窗按鈕執行系統的最小化、還原與最大化操作；尚未加入 Harbor 自訂的玻璃彈入、淡入淡出與平滑邊界動畫。
 - Nintendo Play Activity 的遊戲圖示與台灣搜尋的橫式主圖不保證提供直式包裝圖；官方商品頁有直式圖，也不代表這兩個介面會回傳它。
 - 社群資料庫未收錄、平台未提供圖片或服務暫時無法回應時，仍可能沒有可用候選；無法唯一對應的遊戲需由使用者選擇搜尋結果。
 - 清除連動平台的目前遊戲只取消選取，保留帳號遊戲庫與遊玩紀錄。
@@ -37,6 +38,7 @@
 ## 來源、授權與致謝
 
 - 原始專案：@nitlink-dev，[nitlink-dev/nitlink](https://github.com/nitlink-dev/nitlink)；整合與維護：@HolyBearTW。
+- 透明標題字標來自原始專案的 [NitLink lockup](https://raw.githubusercontent.com/nitlink-dev/nitlink/77d87b40248867b82cd56a0fff4e32314834e314/docs/images/nitlink-lockup.svg)，保留原始 SVG，原生介面使用透明 PNG 呈現。
 - 保留 @CN115 的音訊工作、@n810K 等貢獻者工作，以及 @Noka123 與 @i0rph 的翻譯貢獻。
 - 保留 [MIT 授權](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE)、[第三方授權](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md)與[來源紀錄](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/HOLYBEAR-SOURCES.json)。
 

@@ -379,12 +379,12 @@ int main() {
     Expect(FindResource(L"https://nitlink.invalid/locales/de-DE.js") != nullptr,"German locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ko-KR.js") != nullptr,"Korean locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ja-JP.js") != nullptr,"Japanese locale resource is allowlisted");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261101-hud-layout2")!=nullptr,"fixed script revision maps to packaged editor");
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261101-hud-layout3")!=nullptr,"fixed script revision maps to packaged editor");
     Expect(!FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=other"),"unapproved revision rejected");
     Expect(ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":0.2,"y":0.8,"zoom":1.5}})").has_value(),"bounded artwork recipe bridge");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":-1,"y":0.8,"zoom":1.5}})"),"negative crop rejected");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"fit","x":0.2,"y":0.8,"zoom":1,"url":"https://evil.test/image"}})"),"artwork editor cannot submit arbitrary URLs");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/account-library.js?v=20261101-hud-layout2")!=nullptr,"account script has an exact packaged revision");
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/account-library.js?v=20261101-hud-layout3")!=nullptr,"account script has an exact packaged revision");
     Expect(FindResource(L"https://nitlink.invalid/assets/nitlink-mono.svg")!=nullptr,"loading logo is a packaged resource");
     Expect(ParseSettingsMessage(LR"({"action":"beginAccountLink","value":"xbox"})").has_value(),"provider login schema");
     Expect(!ParseSettingsMessage(LR"({"action":"beginAccountLink","value":"https://evil.test"})"),"account login cannot redirect to arbitrary URLs");

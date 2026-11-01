@@ -1,5 +1,5 @@
 window.NitLinkShortcutEditor=(()=>{
-  let post,t,definitions=[],saved=[],draft=[],recording=-1,armed=false,pending=null,saving=false,notice='',hudMode,hudVisible=false;
+  let post,t,definitions=[],saved=[],draft=[],recording=-1,armed=false,pending=null,saving=false,notice='',hudMode,hudVisible=false,contextSent=-1;
   const rows=new Map(),el=id=>document.getElementById(id);
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const defaults=()=>definitions.map(item=>({key:item.defaultKey,modifiers:item.defaultModifiers}));
@@ -10,7 +10,11 @@ window.NitLinkShortcutEditor=(()=>{
     return ({8:'Backspace',9:'Tab',13:'Enter',19:'Pause',32:'Space',33:'Page Up',34:'Page Down',35:'End',36:'Home',37:'←',38:'↑',39:'→',40:'↓',44:'Print Screen',45:'Insert',46:'Delete',106:'Num *',107:'Num +',108:'Num ,',109:'Num −',110:'Num .',111:'Num /',186:';',187:'=',188:',',189:'−',190:'.',191:'/',192:'`',219:'[',220:'\\',221:']',222:"'",223:'OEM 8',226:'OEM 102'})[key]||String(key);
   };
   const chordLabel=chord=>[chord.modifiers&1?'Ctrl':'',chord.modifiers&2?'Alt':'',chord.modifiers&4?'Shift':'',keyLabel(chord.key)].filter(Boolean).join('+');
-  const sendContext=()=>post('setShortcutContext',recording>=0?2:document.activeElement?.matches('input,textarea,select,[contenteditable="true"]')?1:0);
+  const sendContext=()=>{
+    const context=recording>=0?2:document.activeElement?.matches('input,textarea,select,[contenteditable="true"]')?1:0;
+    if(context===contextSent)return;
+    contextSent=context;post('setShortcutContext',context);
+  };
   const cancel=()=>{if(recording<0)return;recording=-1;armed=false;pending=null;sendContext();render();};
   const render=()=>{
     if(!t)return;
@@ -81,6 +85,7 @@ window.NitLinkShortcutEditor=(()=>{
         button.type='button';button.className='shortcut-key';button.addEventListener('click',()=>{recording=index;armed=false;pending=null;notice='';sendContext();render();});
         row.append(caption,button);el(['shortcut-general','shortcut-pip','shortcut-diagnostics'][item.group]).append(row);rows.set(index,{label,detail,button});
       });
+      sendContext();
       render();
     },
     hud(state){
@@ -96,7 +101,7 @@ window.NitLinkShortcutEditor=(()=>{
     },
     message(value){
       if(value.shortcutContext===2&&recording>=0){armed=true;render();}
-      if(value.shortcutCaptureCancelled)cancel();
+      if(value.shortcutCaptureCancelled){contextSent=-1;cancel();}
       if(value.shortcutNotice){saving=false;notice=value.shortcutNotice;render();}
     },
     render

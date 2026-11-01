@@ -56,6 +56,36 @@ signing Secrets, and before Draft Release creation. Branch previews and both
 manual dispatch modes do not require a formal tag. Their existing preview
 metadata and validation-only artifact publication restrictions remain intact.
 
+## Reuse a completed local validation
+
+When the same source, build configuration, tests and required resources have
+passed the full unfiltered local CTest suite and required build checks, reuse
+that build. Do not rerun CTest after tagging. Record the actual successful count
+in the signed annotated tag, for example:
+
+```text
+Local-CTest: 60/60; failures=0; skipped=0
+Local-Build-Checks: passed
+```
+
+The tag must use the approved signing subkey and target the validated integration
+commit. The tag workflow authenticates the tag before accepting this attestation;
+it then skips rebuilding, CTest and CI signing of replacement artifacts. Tags
+without a valid local attestation keep the ordinary complete CI pipeline.
+Use `[skip ci]` in the bookkeeping commit when pushing an already locally
+validated release, so a branch push does not repeat the run either.
+
+Package with `-RequireTag`, sign the final ZIP, Setup and checksum list with the
+approved local signing subkey, then verify them with the pinned public key and
+create `Verification.zip`. Never export a private key into the package.
+Upload the three final assets and a temporary `RELEASE-NOTES.md` to a draft.
+If isolated installer execution is still pending, dispatch **HolyBear Locally
+Validated Installer** with that draft's release ID. This workflow verifies the
+signed tag and downloads, then runs install/upgrade/uninstall only; it never
+runs CTest or rebuilds the application. After it passes, remove the temporary
+notes attachment, verify the three uploaded files and release body, and publish
+the draft as Latest. Complete each required check once, before publication.
+
 Install GnuPG, then use PowerShell to inspect and import the public key:
 
 ```powershell

@@ -96,10 +96,10 @@ class TagSecurityTests(unittest.TestCase):
     def git(self, *arguments, **options):
         return self.run_tool(["git", "-C", str(self.repo), *arguments], **options)
 
-    def signed(self, signer=None, commit=None, tag=TAG):
+    def signed(self, signer=None, commit=None, tag=TAG, message="Disposable source signature"):
         self.git("-c", "gpg.format=openpgp", "-c", f"gpg.program={self.gpg_executable}",
                  "-c", f"gpg.openpgp.program={self.gpg_executable}", "tag", "-s", "-u", (signer or self.signer) + "!",
-                 "-m", "Disposable source signature", tag, commit or self.commit)
+                 "-m", message, tag, commit or self.commit)
 
     def verify(self, tag=TAG, commit=None):
         return verifier.verify_tag(self.repo, tag, commit or self.commit)
@@ -141,6 +141,37 @@ class TagSecurityTests(unittest.TestCase):
                 result, passed = self.guard(self.workflow_source(step))
                 self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
                 self.assertTrue(passed)
+                if step == "Select build, signing validation or formal release":
+                    self.assertIn("reuse_local=false", (self.repo / "mock-output.txt").read_text(encoding="utf-8-sig"))
+
+    def test_signed_local_validation_reuses_the_completed_run(self):
+        self.signed(message="Local validated release\n\nLocal-CTest: 60/60; failures=0; skipped=0\nLocal-Build-Checks: passed")
+        result, passed = self.guard(self.workflow_source("Select build, signing validation or formal release"))
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        self.assertTrue(passed)
+        self.assertIn("reuse_local=true", (self.repo / "mock-output.txt").read_text(encoding="utf-8-sig"))
+
+    def test_failing_local_validation_cannot_skip_the_release_checks(self):
+        self.signed(message="Local-CTest: 59/60; failures=1; skipped=0\nLocal-Build-Checks: passed")
+        result, passed = self.guard(self.workflow_source("Select build, signing validation or formal release"))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(passed)
+
+    def test_unsigned_local_attestation_cannot_skip_tag_authentication(self):
+        self.git("tag", "-a", "-m", "Local-CTest: 60/60; failures=0; skipped=0\nLocal-Build-Checks: passed", TAG)
+        result, passed = self.guard(self.workflow_source("Select build, signing validation or formal release"))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(passed)
+
+    def test_local_installer_path_authenticates_downloads_without_ctest(self):
+        source = (ROOT / ".github/workflows/holy-bear-local-installer.yml").read_text(encoding="utf-8")
+        for guard in ("github.repository_id == '1376078644'", "github.repository_owner_id == '50009618'",
+                      "github.ref == 'refs/heads/holybear/integrated'"):
+            self.assertIn(guard, source)
+        self.assertLess(source.index("Assert-HolyBearSignedTag"), source.index("gh release download"))
+        self.assertLess(source.index("release-signing.py verify"), source.index("test-installer.ps1"))
+        self.assertNotIn("ctest --", source)
+        self.assertNotIn("build-holybear.ps1", source)
 
     def test_lightweight_tag(self):
         self.git("tag", TAG)

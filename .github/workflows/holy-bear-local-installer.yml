@@ -1,0 +1,65 @@
+name: HolyBear Locally Validated Installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: 'Draft release containing locally validated and signed artifacts'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    if: >-
+      github.repository_id == '1376078644' &&
+      github.repository_owner_id == '50009618' &&
+      github.repository_owner == 'HolyBearTW' &&
+      (github.repository == 'HolyBearTW/nitlink' || github.repository == 'HolyBearTW/nitlink-holybear-edition') &&
+      github.ref == 'refs/heads/holybear/integrated'
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: holybear/integrated
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the signed local validation and draft artifacts
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LOCAL_RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          . ./scripts/holy-bear-common.ps1
+          Assert-HolyBearRepositoryIdentity
+          $info = Get-HolyBearVersion
+          $commit = Get-HolyBearCommit
+          Assert-HolyBearSignedTag $info.Tag $commit
+          $local = Get-HolyBearLocalCTestAttestation $info.Tag
+          if (-not $local -or $env:LOCAL_RELEASE_ID -notmatch '^[1-9][0-9]*$') { throw 'A signed passing local validation and draft ID are required.' }
+          $repo = Get-HolyBearRepositoryName
+          $draft = (& gh api "repos/$repo/releases/$env:LOCAL_RELEASE_ID" | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0 -or -not $draft.draft -or $draft.prerelease -or $draft.tag_name -cne $info.Tag) { throw 'Draft release does not match the validated source.' }
+          $expected = @($info.ZipName, $info.SetupName, 'Verification.zip', 'RELEASE-NOTES.md')
+          if (@($draft.assets).Count -ne $expected.Count -or @($draft.assets | Where-Object { $_.name -notin $expected }).Count) { throw 'Unexpected draft asset inventory.' }
+          $assets = Join-Path $env:RUNNER_TEMP 'local-release-assets'
+          & gh release download $info.Tag --repo $repo --dir $assets
+          if ($LASTEXITCODE -ne 0) { throw 'Draft artifact download failed.' }
+          if (-not (Get-Command gpg -ErrorAction SilentlyContinue)) { $env:PATH = (Join-Path $env:ProgramFiles 'Git/usr/bin') + ';' + $env:PATH }
+          & python scripts/release-signing.py extract-bundle --assets $assets --tag $info.Tag
+          if ($LASTEXITCODE -ne 0) { throw 'Verification archive rejected.' }
+          & python scripts/release-signing.py verify --assets $assets --tag $info.Tag
+          if ($LASTEXITCODE -ne 0) { throw 'Draft signatures or checksums rejected.' }
+          & ./scripts/verify-holybear-package.ps1 -Zip (Join-Path $assets $info.ZipName) -ExpectedCommit $commit -ExpectedTag $info.Tag -RequireTag
+          $payload = Join-Path $env:RUNNER_TEMP 'local-release-payload'
+          Expand-Archive -LiteralPath (Join-Path $assets $info.ZipName) -DestinationPath $payload
+          $identity = ConvertFrom-StringData (Get-Content -LiteralPath (Join-Path $payload 'BUILD.txt') -Raw)
+          if ($identity.ctest -cne "$($local.Tests)/$($local.Tests)") { throw 'Packaged CTest result differs from the signed attestation.' }
+          & ./scripts/verify-installer.ps1 -Setup (Join-Path $assets $info.SetupName) -PackageDirectory $payload
+          "LOCAL_ASSETS=$assets" >> $env:GITHUB_ENV
+      - name: Test install, upgrade and uninstall only
+        shell: pwsh
+        run: ./scripts/test-installer.ps1 -Assets $env:LOCAL_ASSETS

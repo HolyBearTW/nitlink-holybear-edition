@@ -22,6 +22,13 @@ Release subset: ctest --test-dir out/release-x64-20261017 -C Release -L "^releas
 - Keep CI and release scripts running the full suite and its existing completeness, signing, packaging, installer, and security checks. Do not add a Smoke-only filter to formal CI or release gates.
 - Do not weaken assertions, skip tests, or remove tests to shorten a run.
 
+## Locally validated releases
+
+- When the release source, build settings, tests and required resources have completed the full unfiltered local CTest suite and all other required checks successfully, release directly from that validated source and its artifacts.
+- Do not rerun CTest after pushing the formal tag merely because a tag was created. Record the local result in the signed annotated tag and use the local-validation release path. Retain signing, package integrity, privacy and isolated installer checks; perform any still-pending check once.
+- A changed build/test input invalidates the corresponding evidence and must be validated before tagging. Documentation-only bookkeeping does not itself require another full CTest run.
+- Ordinary CI and tags without a verified local-validation attestation must retain their existing complete CTest gates. Never replace Full with Smoke or conceal failed/skipped tests.
+
 ## Avoid unnecessary reruns
 
 - Documentation-only changes, Git commits, and fast-forward operations do not by themselves require a full CTest run.

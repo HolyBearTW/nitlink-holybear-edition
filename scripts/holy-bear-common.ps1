@@ -102,6 +102,19 @@ function Assert-HolyBearSignedTag([string]$Tag, [string]$Commit) {
     if ($LASTEXITCODE -ne 0) { throw 'Formal source tag GPG verification failed; publication blocked.' }
 }
 
+# Call only after Assert-HolyBearSignedTag has authenticated the tag and target.
+# The maintainer's signed annotation attests to the already completed local run.
+function Get-HolyBearLocalCTestAttestation([string]$Tag) {
+    $annotation = & git -C $HolyBearRoot for-each-ref '--format=%(contents)' "refs/tags/$Tag"
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot read the verified source tag annotation.' }
+    $text = $annotation -join "`n"
+    if ($text -notmatch '(?m)^Local-(?:CTest|Build-Checks):') { return $null }
+    $tests = [regex]::Matches($text, '(?m)^Local-CTest: ([1-9][0-9]*)/\1; failures=0; skipped=0\r?$')
+    $checks = [regex]::Matches($text, '(?m)^Local-Build-Checks: passed\r?$')
+    if ($tests.Count -ne 1 -or $checks.Count -ne 1) { throw 'Incomplete or failing local validation attestation.' }
+    return [pscustomobject]@{ Tests = [int]$tests[0].Groups[1].Value }
+}
+
 function Initialize-HolyBearToolchain {
     # Process environment only; do not change the machine's PATH or settings.
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'

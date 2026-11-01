@@ -31,6 +31,7 @@ jobs:
       tag: ${{ steps.operation.outputs.tag }}
       release: ${{ steps.operation.outputs.release }}
       validate: ${{ steps.operation.outputs.validate }}
+      reuse_local: ${{ steps.operation.outputs.reuse_local }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -54,11 +55,18 @@ jobs:
           $release = $tagPush -and $env:GITHUB_REF -ceq "refs/tags/$($info.Tag)"
           $validate = $manual -and $env:SIGNING_VALIDATION -eq 'true'
           if ($tagPush -and -not $release) { throw 'Only the matching formal HolyBear version tag may trigger a release; validation tags are forbidden.' }
-          if ($release) { Assert-HolyBearSignedTag $info.Tag (Get-HolyBearCommit) }
+          $reuseLocal = $false
+          if ($release) {
+            Assert-HolyBearSignedTag $info.Tag (Get-HolyBearCommit)
+            $reuseLocal = $null -ne (Get-HolyBearLocalCTestAttestation $info.Tag)
+          }
           "tag=$($info.Tag)" >> $env:GITHUB_OUTPUT
           "release=$($release.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           "validate=$($validate.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "reuse_local=$($reuseLocal.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          if ($reuseLocal) { Write-Output 'Verified local CTest attestation: reuse the validated artifacts; do not rerun CTest after tagging.' }
       - name: Ensure WebView2 Runtime on the CI runner
+        if: steps.operation.outputs.reuse_local != 'true'
         shell: pwsh
         run: |
           $client = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
@@ -73,9 +81,11 @@ jobs:
             if ($process.ExitCode -ne 0) { throw "WebView2 installation failed: $($process.ExitCode)" }
           }
       - name: Build x64 Release and run complete CTest
+        if: steps.operation.outputs.reuse_local != 'true'
         shell: pwsh
         run: ./scripts/build-holybear.ps1
       - name: Package and verify fresh portable ZIP and branded Setup
+        if: steps.operation.outputs.reuse_local != 'true'
         shell: pwsh
         run: |
           if ('${{ steps.operation.outputs.release }}' -eq 'true') {
@@ -84,9 +94,11 @@ jobs:
             ./scripts/package-holybear.ps1
           }
       - name: Verify install, upgrade and uninstall on the disposable CI runner
+        if: steps.operation.outputs.reuse_local != 'true'
         shell: pwsh
         run: ./scripts/test-installer.ps1 -Assets build/holy-bear-dist
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.operation.outputs.reuse_local != 'true'
         with:
           name: holy-bear-portable
           path: |
@@ -96,7 +108,7 @@ jobs:
             build/holy-bear-dist/RELEASE-NOTES.md
           if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+        if: always() && steps.operation.outputs.reuse_local != 'true'
         with:
           name: holy-bear-validation
           path: |
@@ -112,6 +124,7 @@ jobs:
       github.repository_owner_id == '50009618' &&
       github.repository_owner == 'HolyBearTW' &&
       (github.repository == 'HolyBearTW/nitlink' || github.repository == 'HolyBearTW/nitlink-holybear-edition') &&
+      needs.build.outputs.reuse_local != 'true' &&
       ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.release == 'true') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/holybear/integrated' && needs.build.outputs.validate == 'true'))
     needs: build

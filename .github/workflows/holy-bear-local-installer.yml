@@ -9,7 +9,8 @@ on:
         type: string
 
 permissions:
-  contents: read
+  # Draft release downloads require repository push access.
+  contents: write
 
 jobs:
   installer:
@@ -36,8 +37,21 @@ jobs:
           . ./scripts/holy-bear-common.ps1
           Assert-HolyBearRepositoryIdentity
           $info = Get-HolyBearVersion
+          $tag = $info.Tag
+          # Keep the reviewed verifier outside the checkout while selecting the
+          # immutable release source. CI-only fixes may advance integration.
+          $trusted = Join-Path $env:RUNNER_TEMP 'local-release-tag-verifier'
+          New-Item -ItemType Directory -Path $trusted | Out-Null
+          foreach ($file in @('verify-holybear-tag.py', 'release-signing.py', 'holybear_repository.py')) {
+            Copy-Item -LiteralPath (Join-Path ./scripts $file) -Destination $trusted
+          }
+          & git checkout --detach "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0) { throw 'Validated release source is unavailable.' }
           $commit = Get-HolyBearCommit
-          Assert-HolyBearSignedTag $info.Tag $commit
+          & python (Join-Path $trusted 'verify-holybear-tag.py') --repository $HolyBearRoot --tag $tag --commit $commit
+          if ($LASTEXITCODE -ne 0) { throw 'Trusted source-tag verifier rejected the release.' }
+          . ./scripts/holy-bear-common.ps1
+          $info = Get-HolyBearVersion
           $local = Get-HolyBearLocalCTestAttestation $info.Tag
           if (-not $local -or $env:LOCAL_RELEASE_ID -notmatch '^[1-9][0-9]*$') { throw 'A signed passing local validation and draft ID are required.' }
           $repo = Get-HolyBearRepositoryName

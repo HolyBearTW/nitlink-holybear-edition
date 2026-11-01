@@ -168,7 +168,8 @@ class TagSecurityTests(unittest.TestCase):
         for guard in ("github.repository_id == '1376078644'", "github.repository_owner_id == '50009618'",
                       "github.ref == 'refs/heads/holybear/integrated'"):
             self.assertIn(guard, source)
-        self.assertLess(source.index("Assert-HolyBearSignedTag"), source.index("gh release download"))
+        self.assertIn("verify-holybear-tag.py", source)
+        self.assertLess(source.index("Trusted source-tag verifier rejected"), source.index("gh release download"))
         self.assertLess(source.index("release-signing.py verify"), source.index("test-installer.ps1"))
         self.assertNotIn("ctest --", source)
         self.assertNotIn("build-holybear.ps1", source)

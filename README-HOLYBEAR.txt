@@ -90,13 +90,21 @@ Content FPS is an estimate. Actual capture rate and monitor refresh are separate
 The window title bar reserves its own area above the game. Its gear opens
 F1; its HUD icon cycles Standard, Detailed and Compact, or restores the
 stored mode when the HUD is hidden. Fullscreen and PiP hide the title bar.
-Supported Windows 11 systems use the desktop Acrylic background; older
-systems use a solid dark title bar.
+Supported Windows 11 systems use a separate desktop-blurred glass surface;
+older systems use a solid dark title bar.
 NitLink draws the single caption row, including the transparent upstream
 lockup and window buttons. Those buttons issue normal Windows system
 commands. Title text follows the effective F1 locale's font, including
 System language; Archivo and the logo are embedded in the executable.
-Harbor's custom spring/glide animations are not included in this build.
+Window motion follows Harbor's separate glass/content design and motion
+tokens. The glass springs from 94% to full size over 360 ms, while glass and
+content fade in over 220 ms. Minimize/close shrink the glass and fade both
+layers over 120 ms. Maximize/restore apply the final content layout once,
+then glide the rounded clipping boundary over 180 ms. Content never scales
+with the glass. Animations follow Windows' system animation preference.
+NitLink uses native Windows Composition for the glass and caption without
+adding a WinUI runtime or replacing the game's existing HWND swap chain.
+F1 follows the picture HWND. Fullscreen and PiP retain their existing behavior.
 
 Video > Panel > Panel background selects Blur glass (default) or Classic
 transparency. Glass blurs the game behind F1 and changes only background

@@ -284,7 +284,9 @@ window.NitLinkGameTitles = (() => {
       if(!linkTarget)return;
       if(games.length&&games.every(game=>game.accountKey)){linkTarget='';render();document.dispatchEvent(new Event('accountcoverschanged'));return;}
       const normalize=value=>titles.key(titles.coverQuery(value));
-      const target=normalize(current.name),matches=games.filter(game=>[game.name,game.displayName,...Object.values(game.titles||{}),...(game.artworkSources||[]).map(source=>source.productTitle)].some(name=>normalize(name)===target));
+      const selected=model.games.find(game=>game.key===current.key),saved=local.games.find(game=>game.key===current.key);
+      const targets=[current.name,selected?.name,...Object.values(selected?.displayNames||{}),...Object.values(saved?.displayNames||{})].map(normalize).filter(Boolean);
+      const matches=games.filter(game=>[game.name,game.displayName,...Object.values(game.titles||{}),...(game.artworkSources||[]).map(source=>source.productTitle)].some(name=>targets.includes(normalize(name))));
       if(matches.length===1)this.linkSearchResult(matches[0].id);
       else document.dispatchEvent(new Event('accountcoverschanged'));
     },

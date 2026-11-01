@@ -407,10 +407,11 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
         {key:'nintendo-BEE-0400000000000001',name:'Sonic Racing: CrossWorlds - Demo',provider:'nintendo',platform:'Switch 2',artworkPlatform:'switch',source:'community'},
         {key:'playstation-PPSA12345_00',name:'ASTRO BOT',provider:'playstation',platform:'PS5',artworkPlatform:'playstation',source:'all'},
         {key:'xbox-12345',name:'Forza Horizon 5',provider:'xbox',platform:'Xbox Series X|S',artworkPlatform:'other',source:'community'},
-        {key:'nintendo-HAC-0100000000000001',name:'The Legend of Zelda: Tears of the Kingdom - Nintendo Switch 2 Edition',provider:'nintendo',platform:'Switch',artworkPlatform:'switch',source:'community'}
+        {key:'nintendo-HAC-0100000000000001',name:'The Legend of Zelda: Tears of the Kingdom - Nintendo Switch 2 Edition',provider:'nintendo',platform:'Switch',artworkPlatform:'switch',source:'community'},
+        {key:'nintendo-HAC-0100000000000002',name:'ZELDA無雙 災厄啟示錄',displayNames:{'en-US':'Hyrule Warriors: Age of Calamity'},provider:'nintendo',platform:'Switch',artworkPlatform:'switch',source:'community'}
     ]; document.querySelector('[data-tab="pane-games"]').click())JS");
-    const wchar_t* queries[]={L"Sonic Racing: CrossWorlds",L"ASTRO BOT",L"Forza Horizon 5",L"The Legend of Zelda: Tears of the Kingdom"};
-    for(unsigned i=0;i<4;++i){
+    const wchar_t* queries[]={L"Sonic Racing: CrossWorlds",L"ASTRO BOT",L"Forza Horizon 5",L"The Legend of Zelda: Tears of the Kingdom",L"ZELDA無雙 災厄啟示錄"};
+    for(unsigned i=0;i<5;++i){
         const auto before=messages.size();
         const auto setup=std::wstring(LR"JS((()=>{
             const game=__communityFixtures[)JS")+std::to_wstring(i)+LR"JS(];
@@ -431,6 +432,7 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
         search.request=request;search.locale=L"zh-TW";search.reply.status=L"ok";
         search.reply.games={{799900u,0,L"Unrelated World",L"不相關的遊戲",L"fixture"},
             {800000u+i,0,queries[i],queries[i],L"fixture"}};
+        if(i==4){search.reply.games.back().name=L"Hyrule Warriors: Age of Calamity";search.reply.games.back().displayName=L"薩爾達無雙 災厄啟示錄";}
         if(i==0){
             const auto unrelatedStart=messages.size();
             auto unrelated=search;unrelated.reply.games.resize(1);

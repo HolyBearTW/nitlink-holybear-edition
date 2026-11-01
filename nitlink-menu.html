@@ -7,13 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title data-i18n="page.settings">NitLink · Settings</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
-  <script src="locales/en-US.js?v=20261018-ko-ja"></script>
-  <script src="locales/zh-TW.js?v=20261018-ko-ja"></script>
-  <script src="locales/zh-CN.js?v=20261018-ko-ja"></script>
-  <script src="locales/de-DE.js?v=20261018-ko-ja"></script>
-  <script src="locales/ko-KR.js?v=20261018-ko-ja"></script>
-  <script src="locales/ja-JP.js?v=20261018-ko-ja"></script>
-  <script src="assets/menu/preview-host.js?v=20261018-ko-ja"></script>
+  <script src="locales/en-US.js?v=20261101-hud-layout1"></script>
+  <script src="locales/zh-TW.js?v=20261101-hud-layout1"></script>
+  <script src="locales/zh-CN.js?v=20261101-hud-layout1"></script>
+  <script src="locales/de-DE.js?v=20261101-hud-layout1"></script>
+  <script src="locales/ko-KR.js?v=20261101-hud-layout1"></script>
+  <script src="locales/ja-JP.js?v=20261101-hud-layout1"></script>
+  <script src="assets/menu/preview-host.js?v=20261101-hud-layout1"></script>
   <style>
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400; font-display: swap; src: url('assets/menu/Archivo-400.ttf') format('truetype'); }
     @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500; font-display: swap; src: url('assets/menu/Archivo-500.ttf') format('truetype'); }
@@ -57,7 +57,7 @@
     .audio-label { display:flex; align-items:center; gap:8px; }
     .audio-help { flex:none; width:19px; height:19px; border:1px solid var(--hair2); border-radius:50%; background:none; color:var(--ink3); cursor:help; font-size:11px; }
     .audio-help:hover, .audio-help:focus-visible { color:var(--ink); border-color:var(--accent); outline:none; }
-    #audio-tooltip { position:fixed; z-index:100; width:320px; max-width:calc(100vw - 24px); padding:12px 14px; border:1px solid var(--hair2); border-radius:6px; background:#303030; color:var(--ink); box-shadow:0 4px 18px #0006; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+    #audio-tooltip { position:fixed; z-index:100; width:max-content; max-width:min(320px,calc(100vw - 24px)); padding:12px 14px; border:1px solid var(--hair2); border-radius:6px; background:#303030; color:var(--ink); box-shadow:0 4px 18px #0006; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
     .rail, .metabar, #pane-video, #pane-audio, #pane-shortcuts, #pane-games {
       -webkit-user-select: none;
       user-select: none;
@@ -208,7 +208,7 @@
     }
     .slider-val { width: 30px; text-align: right; color: var(--ink); font-size: 13px; font-weight: 500; }
     .slider[type="range"] { min-width: 0; width: 100%; margin: 0; accent-color: var(--accent); }
-    #slider-pip-opacity-val { width: 42px; }
+    #slider-pip-opacity-val { width: 42px; flex: none; }
 
     .about-hero { padding: 18px 22px 14px; border-bottom: 1px solid var(--hair); }
     .about-hero h2 { color: var(--ink); font-size: 19px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
@@ -453,15 +453,15 @@
     .game-current { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 14px; align-items: center; }
     .game-current-title { margin: 5px 0; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
     .game-art { position: relative; aspect-ratio: 1; background: #181d24; border-radius: 5px; overflow: hidden; display: grid; place-items: center; color: #65778d; }
-    .game-art::before { content: '◇'; font-size: 30px; }
+    .game-art::before { content: ''; width:18px; height:18px; background:currentColor; mask:url('assets/nitlink-mono.svg') center / contain no-repeat; -webkit-mask:url('assets/nitlink-mono.svg') center / contain no-repeat; }
     .game-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .game-art[data-image-state="loading"] { animation: game-shimmer 1.4s ease-in-out infinite alternate; }
-    .game-art[data-image-state="failed"]::before { content: '!'; font-size: 22px; }
+    .game-art[data-image-state="failed"]::before { content: '!'; width:auto; height:auto; background:none; mask:none; -webkit-mask:none; font-size:22px; }
     @keyframes game-shimmer { to { background: #303b49; } }
     .game-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-    .game-action-pair { display: inline-flex; flex-wrap: nowrap; gap: 6px; min-width: 0; max-width: 100%; white-space: nowrap; }
-    .game-action-pair .game-button { min-width: 0; padding-inline: 8px; white-space: nowrap; }
-    .game-button { padding: 7px 10px; border: 1px solid var(--hair2); border-radius: 5px; background: #292929; color: var(--ink2); font: 12px var(--sans); cursor: pointer; }
+    .game-action-pair { display: inline-flex; flex-wrap: wrap; gap: 6px; min-width: 0; max-width: 100%; }
+    .game-action-pair .game-button { flex: 0 0 auto; padding-inline: 8px; }
+    .game-button { display: inline-flex; align-items: center; justify-content: center; text-align: center; white-space: nowrap; box-sizing: border-box; padding: 7px 10px; border: 1px solid var(--hair2); border-radius: 5px; background: #292929; color: var(--ink2); font: 12px var(--sans); cursor: pointer; }
     .game-button:hover, .game-button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
     .game-button.primary { background: var(--accent); color: #132235; border-color: var(--accent); }
     .game-button.danger { border-color: #a95151; color: #ffc0c0; }
@@ -469,6 +469,82 @@
     .game-button:disabled { opacity: .45; cursor: default; }
     #pane-games :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .game-search-row { display: flex; gap: 8px; }
+    .account-overview { margin:0 0 18px; }
+    .account-overview-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; list-style:none; }
+    .account-overview-heading::-webkit-details-marker { display:none; }
+    .account-overview-heading::after { content:''; width:7px; height:7px; flex:none; margin:0 5px; border-right:1px solid var(--ink2); border-bottom:1px solid var(--ink2); transform:rotate(45deg); }
+    .account-overview[open] > .account-overview-heading { margin-bottom:10px; }
+    .account-overview[open] > .account-overview-heading::after { transform:rotate(225deg); }
+    .account-overview-heading h2 { font-size:14px; margin:0 0 5px; font-weight:600; }
+    .account-overview-heading p { margin:0; }
+    .account-preview-note { padding:6px 10px; border:1px solid #9d8145; border-radius:5px; color:#e4c88d; font-size:11px; }
+    .account-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .account-unlinked { margin-top:10px; color:var(--ink2); font-size:12px; }
+    .account-unlinked > summary { cursor:pointer; padding:5px 0; }
+    .account-unlinked[open] > summary { margin-bottom:6px; }
+    .account-card { --brand:#9babbc; padding:14px; border:1px solid var(--hair2); border-radius:8px; background:linear-gradient(125deg,color-mix(in srgb,var(--brand) 7%,transparent),transparent 65%),rgba(255,255,255,.018); min-width:0; }
+    .account-card[data-provider="nintendo"] { --brand:#ee726e; }
+    .account-card[data-provider="playstation"] { --brand:#78a9eb; }
+    .account-card[data-provider="xbox"] { --brand:#8fbc79; }
+    .account-card-top { display:flex; gap:9px; align-items:center; }
+    .account-brand-icon { display:grid; place-items:center; width:30px; height:30px; flex:none; border-radius:7px; background:color-mix(in srgb,var(--brand) 16%,transparent); color:var(--brand); font-size:13px; font-weight:600; }
+    .account-brand-icon img { width:20px; height:20px; object-fit:contain; }
+    .account-source-tabs button { display:inline-flex; align-items:center; gap:5px; }
+    .account-source-tabs img,.account-platform-logo { width:13px; height:13px; object-fit:contain; flex:none; }
+    .account-game-platform,.account-platform-pill { display:inline-flex; align-items:center; gap:5px; }
+    .account-card-top strong { font-size:12px; }
+    .account-status { margin-left:auto; color:var(--ink2); font-size:10px; white-space:nowrap; }
+    .account-card[data-status="connected"] .account-status::before { content:'●'; font-size:8px; color:#91bb92; margin-right:5px; }
+    .account-card[data-status="loading"] .account-status { color:var(--accent-text); }
+    .account-nickname { display:block; margin:12px 0 5px; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .account-summary { display:block; min-height:30px; color:var(--ink2); font-size:10px; line-height:1.6; }
+    .account-card-actions { display:flex; gap:6px; margin-top:10px; }
+    .account-card-actions .game-button { padding:6px 10px; font-size:11px; }
+    .account-error { font-size:11px; color:#ecac9f; line-height:1.6; margin:8px 0 0; }
+    #game-my-games .game-panel-header > .game-note { display:none; }
+    #game-favorites,#game-favorites-empty,#game-recent,#game-recent-empty,#game-my-games .game-recent-heading { display:none; }
+    .account-source-tabs { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+    .account-source-tabs button { padding:6px 9px; font-size:11px; }
+    .account-source-tabs button[aria-pressed="true"] { color:var(--accent-text); border-color:var(--accent); background:var(--accent-soft); }
+    .account-browser-tools { display:flex; gap:8px; margin-bottom:12px; }
+    .account-browser-tools input { min-width:0; flex:1; }
+    .account-browser-tools select { width:112px; flex:none; }
+    .account-game-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:380px; overflow-y:auto; padding:1px; }
+    .account-game-card { position:relative; display:flex; flex-direction:column; min-width:0; border:1px solid var(--hair2); border-radius:7px; background:rgba(255,255,255,.018); }
+    .account-game-card[data-current="true"] { border-color:var(--accent); background:var(--accent-soft); }
+    .account-game-select { width:100%; flex:1; display:flex; align-items:center; gap:10px; text-align:left; padding:10px 27px 10px 10px; border:0; background:none; color:var(--ink); cursor:pointer; }
+    .account-game-art { width:76px; height:76px; aspect-ratio:1; border-radius:4px; flex:none; overflow:hidden; position:relative; display:grid; place-items:center; }
+    .account-art-letter { color:#c5d0d9; font-size:20px; font-weight:600; opacity:.7; }
+    .account-game-art img { position:absolute; inset:0; width:100%; height:100%; }
+    .account-game-art .game-art-backdrop,.game-result .game-art img.game-art-backdrop { object-fit:cover; filter:blur(12px) brightness(.65); transform:scale(1.08); z-index:0; }
+    .account-game-art .game-art-foreground { object-fit:contain; z-index:1; }
+    .account-game-info { display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .account-game-platform { color:var(--ink2); font-size:9px; }
+    .account-game-title { font-size:11px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .account-game-time { color:var(--accent-text); font-size:10px; }
+    .account-game-date { color:var(--ink2); font-size:9px; }
+    .account-game-favorite { position:absolute; right:5px; top:6px; padding:2px; background:none; border:0; color:var(--ink2); font-size:17px; cursor:pointer; }
+    .account-game-favorite[aria-pressed="true"] { color:#e0c58e; }
+    .account-browser-count { margin-left:auto; font-size:10px; color:var(--ink2); }
+    #account-browser-count { margin-top:10px; }
+    .account-current-stats { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0 2px; padding-top:12px; border-top:1px solid var(--hair2); font-size:11px; color:var(--ink2); }
+    .account-current-stats strong { color:var(--ink); }
+    .account-cover-prompt { margin:10px 0; padding:10px; border:1px solid var(--hair2); border-radius:5px; }
+    .account-cover-prompt .game-actions { margin-top:7px; }
+    .account-cover-prompt img { margin-right:6px; }
+    .account-platform-pill { padding:3px 6px; background:var(--accent-soft); color:var(--accent-text); border-radius:3px; font-size:10px; }
+    .account-link-dialog { inset:0; margin:auto; width:min(460px,calc(100vw - 36px)); max-height:calc(100vh - 36px); overflow:auto; padding:22px; border:1px solid var(--hair2); border-radius:10px; background:#252525; color:var(--ink); }
+    .account-link-dialog::backdrop { background:rgba(0,0,0,.65); }
+    .account-link-dialog > .game-panel-header { margin-bottom:14px; }
+    .account-link-dialog h2 { display:flex; align-items:center; gap:8px; margin:0; font-size:16px; }
+    .account-link-dialog h2 .account-platform-logo { width:16px; height:16px; }
+    .account-link-dialog p { line-height:1.8; }
+    .account-link-dialog label { display:block; margin:16px 0 7px; font-size:12px; }
+    .account-link-dialog input { width:100%; box-sizing:border-box; }
+    #account-link-feedback[data-error="true"] { color:#ecac9f; }
+    .account-link-dialog .game-actions { margin:16px 0 14px; }
+    .account-link-dialog > .game-actions:last-child { margin-bottom:0; }
+    @container games (max-width:680px) { .account-grid { grid-template-columns:1fr; } .account-card { padding:12px; } .account-nickname { margin-top:9px; } .account-summary { min-height:0; } .account-card-actions { margin-top:8px; } .account-overview-heading { align-items:flex-start; } .account-game-list { max-height:320px; } }
     .game-source-guidance { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; margin:0 0 14px; border:1px solid rgba(110,177,246,.4); border-radius:6px; background:rgba(110,177,246,.06); }
     .game-source-guidance > div { min-width:0; }
     .game-source-guidance strong { display:block; font-size:12px; line-height:1.6; }
@@ -478,8 +554,12 @@
     .game-store-search { margin: 12px 0; }
     .game-store-search .game-note { display: block; margin: 7px 0; }
     .game-cover-caption { grid-column: 2; grid-row: 1; min-width: 0; font-size: 10px; color: var(--ink2); line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 0; }
-    #game-query { flex: 1; width: 0; min-width: 0; padding: 10px 12px; border: 1px solid var(--hair2); border-radius: 5px; color: var(--ink); background: #1c1c1c; font: 13px var(--sans); }
-    #game-query:focus { border-color: var(--accent); outline: none; }
+    #game-query,#account-game-query,#account-game-sort,#account-link-code { flex: 1; width: 0; min-width: 0; padding: 10px 12px; border: 1px solid var(--hair2); border-radius: 5px; color: var(--ink); background: #1c1c1c; font: 13px var(--sans); }
+    #game-query:focus,#account-game-query:focus,#account-game-sort:focus,#account-link-code:focus { border-color: var(--accent); outline: none; }
+    #account-game-sort { flex:0 0 120px; width:120px; color-scheme:dark; }
+    #account-game-sort option { background:#1c1c1c; color:var(--ink); }
+    #account-link-code { width:100%; }
+    #game-query::placeholder,#account-game-query::placeholder,#account-link-code::placeholder { color:var(--ink3); }
     .game-status { margin: 12px 0; color: var(--ink2); font-size: 12px; line-height: 1.6; }
     .game-status[data-error="true"] { color: var(--warn); }
     .game-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; max-height: 390px; overflow-y: auto; padding: 2px 6px 2px 2px; scrollbar-gutter: stable; }
@@ -488,12 +568,11 @@
     .game-result .game-art { aspect-ratio: 1; }
     .game-result .game-art img.game-art-backdrop { object-fit: cover; filter: blur(12px) brightness(.65); transform: scale(1.08); z-index: 0; }
     .game-result .game-art img.game-art-foreground { object-fit: contain; z-index: 1; }
-    .game-result .game-art:not([data-image-state="ok"])::before { content: attr(data-image-label); font-size: 11px; line-height: 1.6; padding: 12px; text-align: center; color: var(--ink3); }
-    .game-result-title { display: block; margin: 8px 0 4px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-    .game-result-subtitle { display: block; font-size: 10px; color: var(--ink3); overflow-wrap: anywhere; }
-    .game-result-origin { display: inline-block; align-self: flex-start; margin-top: 7px; font-size: 9px; padding: 2px 5px; border-radius: 3px; color: var(--accent-text); background: var(--accent-soft); }
+    .game-result .game-art:not([data-image-state="ok"]):not([data-image-state="loading"])::before { width:auto; height:auto; background:none; mask:none; -webkit-mask:none; content: attr(data-image-label); font-size: 11px; line-height: 1.6; padding: 12px; text-align: center; color: var(--ink3); }
+    .game-result-title { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin: 8px 0 4px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .game-result-origin { display: inline-block; align-self: flex-start; margin-top:auto; font-size: 9px; padding: 2px 5px; border-radius: 3px; color: var(--accent-text); background: var(--accent-soft); }
     .game-result-wrap { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-    .game-result-wrap .game-result { width: 100%; flex: none; }
+    .game-result-wrap .game-result { width:100%; flex:1; }
     .game-favorite-action { width: 100%; text-align: center; font-size: 10px; }
     .game-my-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(145px,1fr)); gap: 8px; max-height: 300px; overflow-y: auto; padding: 2px 5px 2px 2px; }
     .game-my-card { min-width: 0; padding: 8px; border: 1px solid var(--hair2); border-radius: 6px; background: #202020; }
@@ -520,21 +599,29 @@
     .game-gallery { container: cover-gallery / inline-size; display: grid; grid-template-columns: repeat(auto-fill, minmax(max(64px, calc((100% - 40px) / 6)), 1fr)); gap: 8px; max-height: 420px; overflow-y: auto; padding: 2px 6px 2px 2px; scrollbar-gutter: stable; }
     .game-cover-tile { position: relative; min-width: 0; align-self: start; }
     @container cover-gallery (min-width: 144px) {
-      .game-cover-tile[data-official="true"] { grid-column: span 2; }
+      .game-cover-tile[data-official="true"][data-shape="landscape"] { grid-column: span 2; }
     }
+    :root[data-side="left"] .game-gallery, :root[data-side="right"] .game-gallery { grid-template-columns:repeat(6,minmax(0,1fr)); }
+    :root[data-side="left"] .game-cover-tile, :root[data-side="right"] .game-cover-tile { grid-column:span 2; }
+    :root[data-side="left"] .game-cover-tile[data-shape="landscape"], :root[data-side="right"] .game-cover-tile[data-shape="landscape"] { grid-column:span 3; }
     .game-cover-tile .game-cover { display: block; width: 100%; padding: 2px; }
     .game-cover-tile .game-art img { object-fit: contain; }
-    .game-cover-meta { display: grid; grid-template-columns: auto minmax(0,1fr) 23px; grid-template-rows: minmax(23px,auto); align-items: start; gap: 4px; min-width: 0; margin-top: 5px; }
+    .game-cover-meta { display: grid; grid-template-columns: minmax(0,1fr) 23px; grid-template-rows: minmax(23px,auto); align-items: start; gap: 4px; min-width: 0; margin-top: 5px; }
+    .game-cover-meta:has(.game-cover-badge.logo:not([hidden])) { grid-template-columns:auto minmax(0,1fr) 23px; }
+    .game-cover-meta:not(:has(.game-cover-badge.logo:not([hidden]))) .game-cover-caption { grid-column:1; }
+    .game-cover-meta:not(:has(.game-cover-badge.logo:not([hidden]))) .game-cover-info { grid-column:2; }
     .game-cover-info { grid-column: 3; grid-row: 1; width: 23px; height: 23px; border: 1px solid #8295a8; border-radius: 50%; background: #171c24ee; color: #fff; font: 13px var(--sans); cursor: pointer; }
     .game-cover-badge { position: absolute; left: 5px; top: 5px; padding: 3px 4px; border-radius: 3px; background: #152c40ee; color: #b9e0ff; font-size: 9px; pointer-events: none; }
     .game-cover-badge.logo { position: static; grid-column: 1; grid-row: 1; align-self: start; white-space: nowrap; }
+    a.game-button { display:inline-flex; align-items:center; text-decoration:none; }
+    .game-reload-button { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; padding:7px; flex:none; }
+    .game-reload-button svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+    #game-cover-sources { margin-bottom:14px; }
     .game-artwork-heading { margin: 14px 0 9px; color: var(--ink2); font-size: 12px; font-weight: 500; }
     #game-gallery > .game-artwork-heading { grid-column: 1 / -1; margin: 14px 0 0; }
     #game-current-art img, .game-my-select img, .game-recent-select img { object-fit: contain; }
     #game-current-artwork-tag { display: inline-block; margin-top: 6px; color: #b9e0ff; font-size: 10px; }
-    .game-cover-dialog { width: min(460px, calc(100vw - 28px), calc(100cqw - 28px)); max-height: calc(100vh - 32px); overflow: auto; margin: auto; padding: 20px; border: 1px solid var(--hair2); border-radius: 10px; background: #22252a; color: var(--ink); }
-    :root[data-side="right"] .game-cover-dialog { left: auto; right: 14px; margin-inline: 0; }
-    :root[data-side="left"] .game-cover-dialog { left: 14px; right: auto; margin-inline: 0; }
+    .game-cover-dialog { inset-inline:0; width: min(460px, calc(100vw - 28px), calc(100cqw - 28px)); max-height: calc(100vh - 32px); overflow: auto; margin: auto; padding: 20px; border: 1px solid var(--hair2); border-radius: 10px; background: #22252a; color: var(--ink); }
     .game-cover-dialog::backdrop { background: #000a; }
     .game-cover-dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 15px; }
     .game-reset-warning { color: var(--warn); line-height: 1.7; }
@@ -596,6 +683,7 @@
       .game-current-title { font-size: 14px; }
     }
     [hidden] { display: none !important; }
+
   </style>
 </head>
 
@@ -698,36 +786,43 @@
             <p class="game-note" id="game-preview-mode-note" data-i18n="game.fixture"></p>
             <div class="game-preview-controls">
               <label><span data-i18n="game.dataMode"></span><select id="game-preview-data-mode"><option value="fixture">Fixture</option><option value="real">Real API</option></select></label>
-              <label><span data-i18n="game.previewLayout"></span><select id="game-preview-layout"><option value="full">Full</option><option value="left">Docked Left · 420px</option><option value="right">Docked Right · 420px</option></select></label>
+              <label><span data-i18n="game.previewLayout"></span><select id="game-preview-layout"><option value="full">Full</option><option value="left">Docked Left · 500px</option><option value="right">Docked Right · 500px</option></select></label>
               <label><span data-i18n="game.previewLanguage"></span><select id="game-preview-language"><option value="en-US">English</option><option value="de-DE">Deutsch</option><option value="zh-CN">简体中文</option><option value="zh-TW">繁體中文</option><option value="ko-KR">한국어</option><option value="ja-JP">日本語</option></select></label>
               <label><span data-i18n="game.previewScenario"></span><select id="game-preview-scenario"><option value="ok" data-i18n="game.scenarioOk"></option><option value="empty" data-i18n="game.scenarioEmpty"></option><option value="upstreamUnavailable" data-i18n="game.scenarioUpstream"></option><option value="timeout" data-i18n="game.scenarioTimeout"></option><option value="imageFailure" data-i18n="game.scenarioImage"></option></select></label>
               <label id="game-preview-synthetic-control" hidden><span data-i18n="game.showSynthetic"></span><input id="game-preview-synthetic" type="checkbox"></label>
             </div>
           </aside>
           <div class="game-source-guidance" id="game-source-guidance"><div><strong data-i18n="game.chooseSourceHelp"></strong></div><button type="button" class="game-button" id="game-choose-source" data-i18n="game.chooseSource"></button></div>
+          <details class="account-overview" id="account-overview" aria-labelledby="account-heading" open>
+            <summary class="account-overview-heading"><div><h2 id="account-heading" data-i18n="account.heading"></h2><p class="game-note" data-i18n="account.subtitle"></p></div><span class="account-preview-note" id="account-preview-note" data-i18n="account.preview" hidden></span></summary>
+            <div class="account-grid" id="account-linked-grid">
+              <article class="account-card" id="account-nintendo" data-provider="nintendo"><div class="account-card-top"><span class="account-brand-icon" aria-hidden="true"><img src="assets/menu/platforms/nintendo-switch.svg" alt=""></span><strong>Nintendo</strong><span class="account-status"></span></div><strong class="account-nickname"></strong><span class="account-summary"></span><div class="account-card-actions"><button type="button" class="game-button" data-link></button><button type="button" class="game-button" data-sync hidden></button></div><p class="account-error" hidden></p></article>
+              <article class="account-card" id="account-playstation" data-provider="playstation"><div class="account-card-top"><span class="account-brand-icon" aria-hidden="true"><img src="assets/menu/platforms/playstation.svg" alt=""></span><strong>PlayStation</strong><span class="account-status"></span></div><strong class="account-nickname"></strong><span class="account-summary"></span><div class="account-card-actions"><button type="button" class="game-button" data-link></button><button type="button" class="game-button" data-sync hidden></button></div><p class="account-error" hidden></p></article>
+              <article class="account-card" id="account-xbox" data-provider="xbox"><div class="account-card-top"><span class="account-brand-icon" aria-hidden="true"><img src="assets/menu/platforms/xbox.svg" alt=""></span><strong>Xbox</strong><span class="account-status"></span></div><strong class="account-nickname"></strong><span class="account-summary"></span><div class="account-card-actions"><button type="button" class="game-button" data-link></button><button type="button" class="game-button" data-sync hidden></button></div><p class="account-error" hidden></p></article>
+            </div>
+            <details class="account-unlinked" id="account-unlinked" hidden><summary data-i18n="account.otherPlatforms"></summary><div class="account-grid" id="account-unlinked-grid"></div></details>
+          </details>
           <div class="game-layout">
             <div class="game-column">
               <article class="game-panel" id="game-my-games">
                 <div class="game-panel-header"><h2 data-i18n="game.myGames"></h2><span class="game-note" data-i18n="game.localLibrary"></span></div>
                 <div class="game-panel-body">
+                  <div class="account-source-tabs" id="account-source-tabs" role="group" data-i18n-aria-label="account.sources"><button type="button" class="game-button" data-account-filter="all" data-i18n="account.all" aria-pressed="true"></button><button type="button" class="game-button" data-account-filter="favorites" data-i18n="account.favorites"></button><button type="button" class="game-button" data-account-filter="recent" data-i18n="game.recent"></button><button type="button" class="game-button" data-account-filter="nintendo"><img src="assets/menu/platforms/nintendo-switch.svg" alt="">Nintendo</button><button type="button" class="game-button" data-account-filter="playstation"><img src="assets/menu/platforms/playstation.svg" alt="">PlayStation</button><button type="button" class="game-button" data-account-filter="xbox"><img src="assets/menu/platforms/xbox.svg" alt="">Xbox</button></div>
+                  <div class="account-browser-tools"><input type="search" id="account-game-query" maxlength="256" data-i18n-placeholder="account.search" data-i18n-aria-label="account.search"><select id="account-game-sort" data-i18n-aria-label="account.sort"><option value="recent" data-i18n="account.sortRecent"></option><option value="time" data-i18n="account.sortTime"></option><option value="name" data-i18n="account.sortName"></option></select></div>
+                  <div class="account-game-list" id="account-game-list"></div><p class="game-empty" id="account-browser-empty"></p><p class="game-note" id="account-browser-count"></p><p class="game-note" id="account-browser-footnote"></p>
                   <div class="game-my-grid" id="game-favorites"></div><p class="game-note" id="game-favorites-empty" data-i18n="game.favoritesEmpty"></p>
                   <h3 class="game-recent-heading" data-i18n="game.recent"></h3><div class="game-recent-list" id="game-recent"></div><p class="game-note" id="game-recent-empty" data-i18n="game.recentEmpty"></p>
                   <div class="game-rename" id="game-rename-editor" hidden><label for="game-custom-name" class="game-note" data-i18n="game.customName"></label><input id="game-custom-name" maxlength="256" autocomplete="off"><div class="game-actions"><button type="button" class="game-button primary" id="game-name-save" data-i18n="game.saveName"></button><button type="button" class="game-button" id="game-name-reset" data-i18n="game.resetName"></button><button type="button" class="game-button" id="game-name-cancel" data-i18n="game.cancel"></button></div></div>
                 </div>
               </article>
-              <article class="game-panel">
-                <div class="game-panel-header"><h2 data-i18n="game.current"></h2><span class="game-eyebrow" id="game-cover-mode"></span></div>
-                <div class="game-panel-body">
-                  <div class="game-current"><div class="game-art" id="game-current-art"></div><div><span class="game-eyebrow" data-i18n="game.localArtwork"></span><h3 class="game-current-title" id="game-current-title"></h3><p class="game-note" id="game-current-source"></p><p class="game-note" id="game-current-discord"></p><span id="game-current-artwork-tag" hidden></span></div></div>
-                  <div class="game-actions"><button type="button" class="game-button" id="game-current-favorite" data-i18n="game.addFavorite" data-game-help="game.help.favoriteAdd" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="game-current-rename" data-i18n="game.rename" data-game-help="game.help.rename" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="game-clear" data-i18n="game.clear" data-game-help="game.help.clear" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="game-auto" data-i18n="game.auto" data-game-help="game.help.autoCover" aria-describedby="audio-tooltip"></button><span class="game-action-pair"><button type="button" class="game-button" id="game-save-quality" data-i18n="game.saveQuality" data-game-help="game.help.saveQuality" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="game-adjust-cover" data-i18n="game.adjustArtwork" data-game-help="game.help.adjustArtwork" aria-describedby="audio-tooltip"></button><button type="button" class="game-button danger" id="game-reset-all" data-i18n="game.resetAll" data-game-help="game.help.resetAll" aria-describedby="audio-tooltip"></button></span></div>
-                  <p class="game-status" id="game-notice" role="status" hidden></p>
-                </div>
-              </article>
+
               <article class="game-panel">
                 <div class="game-panel-header"><h2 data-i18n="game.searchTitle"></h2></div>
                 <div class="game-panel-body">
                   <label class="game-note" for="game-query" data-i18n="game.searchLabel"></label>
                   <div class="game-search-row"><input type="search" id="game-query" maxlength="256" autocomplete="off" data-i18n-placeholder="game.searchPlaceholder"><button type="button" class="game-button" id="game-search" data-i18n="game.search"></button></div>
+                  <div class="account-cover-prompt game-note" data-account-cover-prompt hidden><span></span><div class="game-actions"></div></div>
+                  <div id="account-match-note" hidden><p class="game-note" data-i18n="account.matchHelp"></p></div>
                   <p class="game-status" id="game-search-status" role="status" aria-live="polite"></p>
                   <p class="game-query-trace" id="game-query-trace" hidden></p>
                   <div class="game-results" id="game-results" aria-label="Search results"></div>
@@ -738,11 +833,21 @@
             </div>
             <div class="game-column">
               <article class="game-panel">
-                <div class="game-panel-header"><h2 data-i18n="game.covers"></h2><div class="game-cover-tools"><button type="button" class="game-button" id="game-shape-square" aria-pressed="false" data-i18n="game.square"></button><button type="button" class="game-button" id="game-shape-portrait" aria-pressed="false" data-i18n="game.portrait"></button><button type="button" class="game-button" id="game-shape-landscape" aria-pressed="false" data-i18n="game.landscape"></button><button type="button" class="game-button" id="game-shape-all" aria-pressed="true" data-i18n="game.all"></button><button type="button" class="game-button" id="game-cover-retry" data-i18n="game.retry"></button></div></div>
+                <div class="game-panel-header"><h2 data-i18n="game.current"></h2><span class="game-eyebrow" id="game-cover-mode"></span></div>
                 <div class="game-panel-body">
-                  <div class="game-cover-tools" id="game-cover-sources"><button type="button" class="game-button" data-cover-provider="all" aria-pressed="true" data-i18n="game.sourcesAll"></button><button type="button" class="game-button" data-cover-provider="nintendo" aria-pressed="false" data-i18n="game.sourcesOfficial"></button><button type="button" class="game-button" data-cover-provider="community" aria-pressed="false" data-i18n="game.sourcesCommunity"></button></div>
+                  <div class="game-current"><div class="game-art" id="game-current-art"></div><div><span class="game-eyebrow" data-i18n="game.localArtwork"></span><h3 class="game-current-title" id="game-current-title"></h3><p class="game-note" id="game-current-source"></p><p class="game-note" id="game-current-discord"></p><span id="game-current-artwork-tag" hidden></span></div></div>
+                  <div class="game-actions"><button type="button" class="game-button" id="game-current-favorite" data-i18n="game.addFavorite" data-game-help="game.help.favoriteAdd" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="game-current-rename" data-i18n="game.rename" data-game-help="game.help.rename" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="game-clear" data-i18n="game.clear" data-game-help="game.help.clear" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="game-auto" data-i18n="game.auto" data-game-help="game.help.autoCover" aria-describedby="audio-tooltip"></button><span class="game-action-pair"><button type="button" class="game-button" id="game-save-quality" data-i18n="game.saveQuality" data-game-help="game.help.saveQuality" aria-describedby="audio-tooltip"></button><button type="button" class="game-button" id="account-match-game" data-i18n="account.matchGame" data-game-help="account.matchHelp" aria-describedby="audio-tooltip" hidden></button><button type="button" class="game-button" id="game-adjust-cover" data-i18n="game.adjustArtwork" data-game-help="game.help.adjustArtwork" aria-describedby="audio-tooltip"></button><button type="button" class="game-button danger" id="game-reset-all" data-i18n="game.resetAll" data-game-help="game.help.resetAll" aria-describedby="audio-tooltip"></button></span></div>
+                  <div class="account-current-stats" id="account-current-stats" hidden></div>
+                  <p class="game-status" id="game-notice" role="status" hidden></p>
+                </div>
+              </article>
+              <article class="game-panel">
+                <div class="game-panel-header"><h2 data-i18n="game.covers"></h2><div class="game-cover-tools"><button type="button" class="game-button" id="game-shape-all" aria-pressed="true" data-i18n="game.all"></button><button type="button" class="game-button" id="game-shape-square" aria-pressed="false" data-i18n="game.square"></button><button type="button" class="game-button" id="game-shape-portrait" aria-pressed="false" data-i18n="game.portrait"></button><button type="button" class="game-button" id="game-shape-landscape" aria-pressed="false" data-i18n="game.landscape"></button><button type="button" class="game-button game-reload-button" id="game-cover-retry" data-i18n-aria-label="game.retry" data-game-help="game.retry" aria-describedby="audio-tooltip"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/></svg></button></div></div>
+                <div class="game-panel-body">
+                  <div class="game-cover-tools" id="game-cover-sources"><button type="button" class="game-button" data-cover-provider="nintendo" aria-pressed="true" data-i18n="game.sourcesOfficial"></button><button type="button" class="game-button" data-cover-provider="community" aria-pressed="false" data-i18n="game.sourcesCommunity"></button><button type="button" class="game-button" data-cover-provider="all" aria-pressed="false" data-i18n="game.sourcesAll"></button></div>
                   <div class="game-store-search" id="game-store-search"><label class="game-note" for="game-official-query" data-i18n="game.storeSearchLabel"></label><div class="game-search-row"><input type="search" id="game-official-query" maxlength="256" autocomplete="off"><button type="button" class="game-button" id="game-official-search" data-i18n="game.search"></button></div><p class="game-note" id="game-store-status" role="status"></p></div>
                   <p class="game-status" id="game-cover-status" role="status" aria-live="polite"></p>
+                  <div class="account-cover-prompt game-note" data-account-cover-prompt hidden><span></span><div class="game-actions"></div></div>
                   <div class="game-gallery" id="game-gallery" data-shape="all" aria-label="Cover gallery"></div>
                   <div class="game-empty" id="game-cover-empty" data-i18n="game.coverIdle"></div>
                   <div class="game-pagination" id="game-cover-pagination" hidden><button type="button" class="game-button" id="game-cover-prev" data-i18n="game.previous"></button><span class="game-note" id="game-cover-page"></span><button type="button" class="game-button" id="game-cover-next" data-i18n="game.next"></button></div>
@@ -754,6 +859,14 @@
               </article>
             </div>
           </div>
+          <dialog class="account-link-dialog" id="account-link-dialog" aria-labelledby="account-link-title">
+            <div class="game-panel-header"><h2 id="account-link-title"></h2><button type="button" class="game-button" id="account-link-close" data-i18n="game.close"></button></div>
+            <p class="game-note" id="account-link-help"></p>
+            <div class="game-actions"><button type="button" class="game-button" id="account-link-open" data-i18n="account.openLogin"></button><button type="button" class="game-button" id="account-open-cookie" data-i18n="account.getNpsso" hidden></button><button type="button" class="game-button" id="account-login-manual" data-i18n="account.manualLink" hidden></button><button type="button" class="game-button" id="account-link-cancel" data-i18n="game.cancel" hidden></button></div>
+            <label for="account-link-code" id="account-link-code-label"></label><input id="account-link-code" maxlength="4096" autocomplete="off" spellcheck="false">
+            <p class="game-note" id="account-link-feedback" role="status"></p><p class="game-note" data-i18n="account.credentialsLocal"></p>
+            <div class="game-actions"><button type="button" class="game-button primary" id="account-link-submit" data-i18n="account.finishLink"></button><button type="button" class="game-button danger" id="account-disconnect" data-i18n="account.disconnect" hidden></button></div>
+          </dialog>
           <dialog class="game-cover-dialog" id="game-cover-details" aria-labelledby="game-cover-details-title">
             <div class="game-cover-dialog-header"><h2 id="game-cover-details-title" data-i18n="game.artworkDetails"></h2><button type="button" class="game-button" id="game-cover-details-close" data-i18n="game.close"></button></div>
             <div class="game-art" id="game-cover-detail-art"></div><dl id="game-cover-detail-fields"></dl>
@@ -1116,8 +1229,9 @@
     </div>
   </aside>
   <div id="audio-tooltip" role="tooltip" hidden></div>
-  <script src="assets/menu/artwork-editor.js?v=20261018-ko-ja"></script>
-  <script src="assets/menu/menu.js?v=20261018-ko-ja"></script>
+  <script src="assets/menu/artwork-editor.js?v=20261101-hud-layout1"></script>
+  <script src="assets/menu/account-library.js?v=20261101-hud-layout1"></script>
+  <script src="assets/menu/menu.js?v=20261101-hud-layout1"></script>
 </body>
 
 </html>

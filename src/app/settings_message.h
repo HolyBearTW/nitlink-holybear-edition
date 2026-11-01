@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config.h"
+#include "account_service.h"
 #include <optional>
 #include <string_view>
 
@@ -16,6 +17,7 @@ struct SettingsMessage {
     std::wstring artworkMode;
     double cropX=.5,cropY=.5,artworkZoom=1;
     std::wstring key;
+    Accounts::Provider accountProvider=Accounts::Provider::Nintendo;
     CaptureFormatOverride format;
 };
 

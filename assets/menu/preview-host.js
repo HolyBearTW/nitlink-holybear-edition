@@ -8,6 +8,10 @@
   let mode=location.protocol==='http:'&&params.get('mode')!=='fixture'?'real':'fixture';
   let showSynthetic=false,initialSearch,restoreSequence=0,initialSearchAllowed=true,controlsInitialized=false;
   let activationSequence=0,activationWrites=Promise.resolve(),activationPending=false,pendingAutoBatch=null;
+  const accountDemo=params.get('accounts')==='demo';
+  let accountGames=[];
+  const accountStates=['nintendo','playstation','xbox'].map(provider=>({provider,status:accountDemo?'connected':'disconnected',accountId:accountDemo?'demo-'+provider:'',nickname:accountDemo?'NitLink Demo':'',syncedAt:1793419200}));
+  const pushAccounts=()=>emit({accountLibrary:{preview:true,accounts:accountStates,games:accountGames.filter(game=>accountStates.find(account=>account.provider===game.provider)?.accountId)}});
   const state={locale:params.get('lang')||'zh-TW',languagePreference:params.get('lang')||'zh-TW',panelSide:params.get('layout')||'full',activeDevice:'AVerMedia Live Gamer ULTRA 2.1 · Host fixture',captureDevices:['AVerMedia Live Gamer ULTRA 2.1 · Host fixture','Elgato 4K Pro · Host fixture'],manualHdmiSource:'switch2',effectiveHdmiSource:'Nintendo Switch 2',manualHdmiSourceCustom:'',negotiatedWidth:1920,negotiatedHeight:1080,negotiatedFps:60,negotiatedFpsNumerator:60,negotiatedFpsDenominator:1,negotiatedFormat:'NV12',resolutionText:'1920×1080 / 60 FPS',linkText:'HDMI',latencyText:'8 ms',preventSleep:true,availableFormats:[{width:1920,height:1080,fps:60,fpsNumerator:60,fpsDenominator:1,format:'NV12'},{width:3840,height:2160,fps:60,fpsNumerator:60,fpsDenominator:1,format:'P010'}],captureFormatOverride:{width:0,height:0,fps:0,fpsNumerator:0,fpsDenominator:1,format:''},gameList:[{id:'spider-man-2',title:"Marvel's Spider-Man 2"},{id:'astro-bot',title:'Astro Bot'}]};
   state.discordSignal='1920×1080 · 60 FPS';
   const sourceNames={switch2:'Switch 2',switch:'Switch',ps5:'PS5',ps4:'PS4',xbox_series:'Xbox Series X|S',xbox_one:'Xbox One',pc:'PC'};
@@ -16,6 +20,9 @@
   state.effectiveHdmiSource=state.manualHdmiSource==='auto'?detectedSource:sourceNames[state.manualHdmiSource];
   state.manualHdmiSourceOptions=[{value:'auto',label:'Auto'},...Object.entries(sourceNames).map(([value,label])=>({value,label})),{value:'other',label:'Other'}];
   const artworkPlatform=()=>{
+    if(current.key?.startsWith('nintendo-'))return 'switch';
+    if(current.key?.startsWith('playstation-'))return 'playstation';
+    if(current.key?.startsWith('xbox-'))return 'other';
     if(['switch','switch2'].includes(state.manualHdmiSource))return 'switch';
     if(['ps5','ps4'].includes(state.manualHdmiSource))return 'playstation';
     if(!['auto','other'].includes(state.manualHdmiSource))return 'other';
@@ -29,18 +36,9 @@
     return taiwan.length?taiwan:candidates.filter(cover=>cover.provider==='nintendo-hk-eshop');
   };
   const activityArtworkPriority=cover=>{
-    if(cover.provider==='nintendo-tw'&&state.locale!=='zh-TW')return 8;
-    if(state.locale==='ja-JP'||state.locale==='ko-KR'){
-      if(cover.languageVerified!==true)return 8;
-      const tier=cover.language===state.locale?0:['en-US','zxx'].includes(cover.language)?3:8;
-      const shape=cover.shape==='square'?0:cover.shape==='landscape'?1:cover.shape==='portrait'?2:8;
-      return tier===8||shape===8?8:tier+shape;
-    }
-    if(cover.isOfficial&&cover.provider!=='nintendo-hk-store'&&cover.shape==='square')return 0;
-    if(cover.isOfficial&&cover.provider!=='nintendo-hk-store'&&cover.shape==='landscape')return 1;
-    if(cover.isOfficial&&cover.provider!=='nintendo-hk-store'&&cover.shape==='portrait')return 2;
-    if(cover.provider!=='nintendo-hk-store'&&cover.shape==='square')return 3;
-    if(!cover.isOfficial&&cover.provider==='steamgriddb'&&cover.shape==='portrait')return 4;
+    if(cover.shape==='square')return cover.isOfficial?0:1;
+    if(cover.shape==='portrait')return cover.isOfficial?2:4;
+    if(cover.shape==='landscape')return cover.isOfficial?3:5;
     return 8;
   };
   const preferredSeed=id=>preferredSources(officialGames.get(id)?.artworkSources||[])
@@ -55,38 +53,49 @@
     if(location.protocol!=='http:'){resolve({status:'offline'});return;}
     const id=++bridgeSequence,script=document.createElement('script');
     const finish=reply=>{clearTimeout(timeout);jobs.delete(id);script.remove();resolve(reply);};
-    const timeout=setTimeout(()=>finish({status:'timeout'}),['covers','search'].includes(operation)?30000:20000);
+    const timeout=setTimeout(()=>finish({status:'timeout'}),['covers','search','accountNames'].includes(operation)?30000:20000);
     jobs.set(id,{operation,finish});script.onerror=()=>finish({status:'offline'});
     script.src='preview/bridge.js?'+new URLSearchParams({operation,locale:state.locale,platform:artworkPlatform(),bridgeId:String(id),profile:params.get('profile')||'default',...value});document.head.appendChild(script);
   });
   window.NitLinkPreviewBridge={deliver:(id,reply)=>jobs.get(id)?.finish(reply)};
-  const cancel=()=>{++generation;pendingAutoBatch=null;for(const job of [...jobs.values()])if(!['library','capabilities'].includes(job.operation))job.finish({status:'cancelled'});};
+  const cancel=()=>{++generation;pendingAutoBatch=null;for(const job of [...jobs.values()])if(!['library','capabilities','accountNames'].includes(job.operation))job.finish({status:'cancelled'});};
   const now=()=>Math.floor(Date.now()/1000);
-  const localizedGameName=record=>{
-    if(record.customName)return record.customName;
-    const display=record.displayNames?.[state.locale]||record.name;
-    return (state.locale==='en-US'||(state.locale==='de-DE'&&/[\u3400-\u9fff\uf900-\ufaff]/.test(display)))?record.name:display;
-  };
   const saveRecord=async key=>{
+    if(accountDemo&&(accountGames.some(game=>game.key===key)||records[key]?.accountGameKey))return;
     if(location.protocol==='http:'){const reply=await api('library',{mode,action:'upsert',key,record:JSON.stringify(records[key])});if(reply.status!=='ok')emit({gameNotice:'saveFailed'});}
     else try{localStorage.setItem('nitlink.gamePreview.'+mode,JSON.stringify({records,current}));}catch(_){}
   };
   const saveCurrent=async()=>{
+    if(accountDemo&&accountGames.some(game=>game.key===current.key))return;
     if(location.protocol==='http:')await api('library',{mode,action:'current',key:current.key||'',start:String(current.startUnix||now())});
     else try{localStorage.setItem('nitlink.gamePreview.'+mode,JSON.stringify({records,current}));}catch(_){}
   };
   const push=()=>{
-    if(current.key&&records[current.key]){const record=records[current.key];current={...current,...record,displayName:localizedGameName(record)};}
+    if(current.key&&records[current.key]){const record=records[current.key];current={...current,...record,displayName:window.NitLinkGameTitles.label(record,state.locale,window.NitLinkLocales[state.locale]['account.switch2Edition'])};}
     current.locale=state.locale;current.dataMode=mode;current.discordConnected=false;
     current.artworkPlatform=artworkPlatform();current.discordRpcStatus='previewOnly';current.discordClientDisplayVerified=false;
+    const aliases=window.NitLinkGameTitles.aliases(current);
+    const linked=accountGames.find(game=>accountStates.some(account=>account.provider===game.provider&&account.accountId)&&window.NitLinkGameTitles.aliases(game).some(alias=>aliases.includes(alias)));
+    const playtime=linked?.totalMinutes==null?'':window.NitLinkLocales[state.locale]['discord.totalPlaytime'].replace('{hours}',Math.floor(linked.totalMinutes/60)).replace('{minutes}',linked.totalMinutes%60);
+    current.discordActivityState=playtime;
     current.officialQuery=current.displayNames?.['zh-TW']||current.name||'';
     current.discordActualImageStatus=mode==='real'&&acceptedImageUrls.includes(current.coverUrl)?'probeAccepted':current.id?'previewOnly':'asset';
     current.discordImageStatus=current.coverUrl&&!current.image?'localImageUnavailable':['fit','crop'].includes(current.artworkMode)?'localEditOnly':current.discordActualImageStatus;current.discordNameStatus=nameCapability;
-    emit({state});emit({gameState:current});emit({gameLibrary:{games:Object.values(records),favorites:Object.values(records).filter(game=>game.favorite),recent:Object.values(records).filter(game=>game.lastUsedUtc).sort((a,b)=>b.lastUsedUtc-a.lastUsedUtc).slice(0,8)}});
+    emit({state});emit({gameState:current});emit({gameLibrary:{locale:state.locale,games:Object.values(records),favorites:Object.values(records).filter(game=>game.favorite),recent:Object.values(records).filter(game=>game.lastUsedUtc).sort((a,b)=>b.lastUsedUtc-a.lastUsedUtc).slice(0,8)}});
   };
-  const artwork=cover=>({provider:cover?.provider||(cover?.synthetic?'fixture':'steamgriddb'),sourceLabel:cover?.sourceLabel||(cover?.synthetic?'Synthetic preview sample':'SteamGridDB'),isOfficial:cover?.isOfficial===true,language:cover?.languageVerified?cover.language:'',region:cover?.region||'',kind:cover?.kind||'cover',coverShape:cover?.shape||''});
+  const artwork=cover=>({accountGameKey:cover?.accountGameKey||'',provider:cover?.provider||(cover?.synthetic?'fixture':'steamgriddb'),sourceLabel:cover?.sourceLabel||(cover?.synthetic?'Synthetic preview sample':'SteamGridDB'),isOfficial:cover?.isOfficial===true,language:cover?.languageVerified||cover?.isOfficial?cover.language||'':'',region:cover?.region||'',kind:cover?.kind||'cover',coverShape:cover?.shape||''});
   const selectArtwork=(record,cover)=>{if(record.coverId!==cover.id||record.coverUrl!==(cover.url||cover.image))Object.assign(record,{artworkMode:'original',finalImageKey:'',sourceImageKey:'',cropX:.5,cropY:.5,artworkZoom:1});Object.assign(record,artwork(cover),{coverId:cover.id,coverUrl:cover.url||cover.image,coverThumb:cover.thumb||cover.image});};
-  const load=new Promise(resolve=>{const script=document.createElement('script');script.src='preview/fixtures.js';script.onload=async()=>{fixtures=window.NitLinkGameFixtures||[];const catalogue=location.protocol==='http:'?await api('artworkCatalog'):{status:'ok',games:window.NitLinkOfficialArtworkSeeds||[]};(catalogue.games||[]).forEach(game=>officialGames.set(game.id,game));resolve();};script.onerror=()=>resolve();document.head.appendChild(script);});
+  const load=new Promise(resolve=>{const script=document.createElement('script');script.src='preview/fixtures.js';script.onload=async()=>{fixtures=window.NitLinkGameFixtures||[];if(accountDemo)await new Promise(done=>{const samples=document.createElement('script');samples.src='preview/account-artwork-samples.js';samples.onload=done;samples.onerror=done;document.head.appendChild(samples);});const catalogue=location.protocol==='http:'?await api('artworkCatalog'):{status:'ok',games:window.NitLinkOfficialArtworkSeeds||[]};(catalogue.games||[]).forEach(game=>officialGames.set(game.id,game));resolve();};script.onerror=()=>resolve();document.head.appendChild(script);});
+  const localizeAccounts=async()=>{
+    const locale=state.locale;
+    for(const game of accountGames){
+      if(locale!==state.locale)return;if(game.displayNames?.[locale]||game.nameLocale===locale||!accountStates.find(account=>account.provider===game.provider)?.accountId)continue;
+      const reply=await api('accountNames',{query:game.name});if(locale!==state.locale)return;
+      const exact=(reply.games||[]).filter(candidate=>candidate.name.toLowerCase()===game.name.toLowerCase());
+      const match=exact.length===1?exact[0]:reply.games?.length===1?reply.games[0]:null;
+      if(match?.displayName){game.displayNames[locale]=match.displayName;const saved=records[game.key];if(saved)saved.displayNames[locale]=match.displayName;pushAccounts();push();}
+    }
+  };
   const restore=async()=>{
     const restoring=++restoreSequence,restoringMode=mode;
     records={};current={key:'',id:0,coverId:0,manualCover:false,startUnix:now(),libraryRestored:true};
@@ -115,11 +124,33 @@
         Object.assign(record,{coverId:0,coverUrl:'',coverThumb:'',image:''});await saveRecord(record.key);
       }
     }
+    if(accountDemo){
+      const fixtureImage=slug=>{const game=fixtures.find(item=>item.slug===slug);return game?.artworkSources?.[0]?.image||game?.covers?.portrait?.[0]?.image||'';};
+      const samples=[
+        ['nintendo','HAC-0100F2C0115B6000','薩爾達傳說 王國之淚','Switch',8240,fixtureImage('zelda-totk'),'2026-10-30T21:15:00+08:00'],
+        ['nintendo','HAC-01007EF00011E000','薩爾達傳說 曠野之息','Switch',13710,fixtureImage('zelda-botw'),'2026-10-26T19:30:00+08:00'],
+        ['nintendo','BEE-0400000000000001','瑪利歐賽車世界','Switch 2',2165,'preview/fixtures/account-mario-world.webp','2026-10-29T20:05:00+08:00'],
+        ['playstation','PPSA21568_00','ASTRO BOT 宇宙機器人','PS5',2455,'preview/fixtures/account-astro.jpg','2026-10-30T20:00:00+08:00'],
+        ['playstation','CUSA34384_00','God of War Ragnarök','PS4',5180,'preview/fixtures/account-godofwar.jpg','2026-10-25T18:00:00+08:00'],
+        ['xbox','2014350744','Forza Horizon 5','Xbox Series X|S',6275,'preview/fixtures/account-forza.jpg','2026-10-28T18:45:00+08:00'],
+        ['xbox','268998333','Halo Infinite','Xbox One / Series X|S',3450,'preview/fixtures/account-halo.jpg','2026-10-27T22:00:00+08:00'],
+        ['xbox','123456789','示範：未提供時長的遊戲','Xbox One',null,'','2026-10-20T17:00:00+08:00']
+      ];
+      accountGames=samples.map(([provider,titleId,name,platform,totalMinutes,image,lastPlayed])=>({key:provider+'-'+titleId,provider,titleId,accountId:'demo-'+provider,name,platform,totalMinutes,image,lastPlayed}));
+      for(const game of accountGames){const catalogue=fixtures.find(item=>[item.name,...Object.values(item.titles||{})].includes(game.name));game.displayNames=catalogue?.titles||{};if(game.titleId==='123456789')game.displayNames=Object.fromEntries(Object.entries(window.NitLinkLocales).map(([locale,labels])=>[locale,labels['account.demoGameName']]));game.nameLocale=/[\u3400-\u9fff]/.test(game.name)?'zh-TW':'en-US';game.displayNames[game.nameLocale]=game.name;}
+      const sampleArtwork=fixtures.flatMap(game=>[...(game.artworkSources||[]),...Object.values(game.covers||{}).flat()]);
+      for(const game of accountGames){const sourced=sampleArtwork.find(cover=>cover.image===game.image);game.artworks=game.image?[{id:1,url:game.image,image:game.image,shape:/account-astro/.test(game.image)?'square':/account-mario-world/.test(game.image)?'landscape':'portrait',language:sourced?.language||'en-US',status:'ok'}]:[];}
+      const more=window.NitLinkAccountArtworkSamples||{};for(const game of accountGames)if(more[game.key]){game.artworks=more[game.key];game.image=game.artworks.find(item=>item.shape==='square')?.image||game.artworks[0]?.image||game.image;}
+      for(const game of accountGames)records[game.key]={...game,id:0,displayNames:game.displayNames,coverId:0,coverUrl:game.artworks.find(item=>item.shape==='square')?.url||game.artworks[0]?.url||'',coverThumb:'',favorite:[0,3,5].includes(accountGames.indexOf(game)),lastUsedUtc:Math.floor(new Date(game.lastPlayed).getTime()/1000),provider:game.provider+'-account',sourceLabel:game.provider,isOfficial:true,kind:'cover',manualCover:false};
+      if(!current.key)current={...records[accountGames[0].key],startUnix:now()-720,libraryRestored:true};
+      initialSearchAllowed=false;
+    }
+    pushAccounts();void localizeAccounts();
     document.getElementById('game-preview-scenario').disabled=mode==='real';
     document.getElementById('game-preview-synthetic-control').hidden=mode==='real';push();
     if(mode==='real'&&current.key&&records[current.key]?.coverThumb&&!records[current.key].finalImageKey){
       const key=current.key,image=await api('image',{url:records[key].coverThumb});
-      if(restoring===restoreSequence&&mode===restoringMode&&records[key]&&current.key===key){records[key].image=image.image||'';records[key].sourceImage=image.image||'';push();await saveRecord(key);}
+        if(restoring===restoreSequence&&mode===restoringMode&&records[key]&&current.key===key&&image.status==='ok'&&image.image){records[key].image=image.image;records[key].sourceImage=image.image;push();await saveRecord(key);}
     }
     return restoring===restoreSequence;
   };
@@ -161,14 +192,15 @@
       if(!['ok','empty','partial'].includes(reply.status))failed=true;
       return (reply.covers||[]).filter(cover=>cover.provider==='steamgriddb'&&cover.isOfficial!==true&&cover.shape===shape);
     };
-    // The registered PlayStation images are square; they remain valid search
-    // thumbnails even though the result tiles use a landscape layout.
-    await tryCandidates([...officialFor('landscape'),...officialFor('square').filter(cover=>cover.provider==='playstation-tw')]);
-    if(!image&&token===generation)await tryCandidates(await searchOfficialLandscape());
-    if(!image&&token===generation)await tryCandidates(await communityFor('landscape'));
+    await tryCandidates(officialFor('square'));
+    if(!image&&token===generation)await tryCandidates(await communityFor('square'));
     if(!image&&token===generation)await tryCandidates(officialFor('portrait'));
+    if(!image&&token===generation)await tryCandidates(officialFor('landscape'));
+    if(!image&&token===generation)await tryCandidates(await searchOfficialLandscape());
     if(!image&&token===generation)await tryCandidates(await communityFor('portrait'));
+    if(!image&&token===generation)await tryCandidates(await communityFor('landscape'));
     if(token!==generation)return;
+    game.thumbnailReady=!!image;
     if(chosen){
       game.defaultCover=chosen;
     }
@@ -177,14 +209,30 @@
   };
   const request=async({action,value})=>{
     await load;
-    if(action==='ready'){initControls();document.getElementById('game-fixture-banner').hidden=false;document.querySelector('[data-tab="pane-games"]').click();document.getElementById('game-preview-language').value=state.locale;document.getElementById('game-preview-data-mode').value=mode;layout(state.panelSide);if(await restore()&&initialSearchAllowed)initialSearch=setTimeout(()=>document.getElementById('game-search').click(),200);return;}
+    if(action==='getAccountLibrary'){pushAccounts();return;}
+    if(action==='cancelXboxLogin'){const account=accountStates.find(item=>item.provider==='xbox');if(account){account.status=account.accountId?'connected':'disconnected';account.error='cancelled';pushAccounts();}return;}
+    if(action==='cancelNativeAccountLink'){const account=accountStates.find(item=>item.provider===value);if(account){account.status=account.accountId?'connected':'disconnected';account.error='cancelled';pushAccounts();}return;}
+    if(action==='beginManualAccountLink')return request({action:'beginAccountLink',value});
+
+    if(action==='openPsnCookie')return; // Preview never opens a real credential page.
+    if(['beginAccountLink','finishAccountLink','syncAccount','disconnectAccount'].includes(action)){
+      const provider=typeof value==='string'?value:value.provider,account=accountStates.find(item=>item.provider===provider);if(!account)return;
+      if(action==='finishAccountLink'&&provider==='xbox')return;
+      if(action==='disconnectAccount'){account.status='disconnected';account.accountId='';account.nickname='';for(const game of accountGames.filter(item=>item.provider===provider))delete records[game.key];pushAccounts();push();return;}
+      if(action==='beginAccountLink'){account.status='awaiting';pushAccounts();return;}
+      account.status='loading';pushAccounts();
+      setTimeout(()=>{account.status=accountDemo?'connected':'disconnected';account.accountId=accountDemo?'demo-'+provider:'';account.nickname=accountDemo?'NitLink Demo':'';account.syncedAt=now();if(action==='finishAccountLink'&&accountDemo)account.linkRevision=(account.linkRevision||0)+1;if(accountDemo)for(const game of accountGames.filter(item=>item.provider===provider))records[game.key]={...game,id:0,displayNames:{},coverId:0,coverUrl:'',image:game.image,favorite:false,lastUsedUtc:0};pushAccounts();push();},450);return;
+    }
+    if(action==='linkAccountGame'){const record=records[value.key];if(record){record.id=value.gameId;record.displayNames[state.locale]=games.get(value.gameId)?.displayName||record.name;if(current.key===record.key)current={...current,...record};push();}return;}
+    if(action==='ready'){initControls();document.getElementById('game-fixture-banner').hidden=accountDemo;document.querySelector('[data-tab="pane-games"]').click();document.getElementById('game-preview-language').value=state.locale;document.getElementById('game-preview-data-mode').value=mode;layout(state.panelSide);if(await restore()&&initialSearchAllowed)initialSearch=setTimeout(()=>document.getElementById('game-search').click(),200);return;}
     if(action==='cancelGameSearch'){initialSearchAllowed=false;clearTimeout(initialSearch);cancel();return;}
     if(action==='searchGames'){
       initialSearchAllowed=false;
       clearTimeout(initialSearch);
       cancel();const token=generation,locale=state.locale;
-      if(mode==='real'){
+      if(mode==='real'||accountDemo){
         const reply=await api('search',{query:value.query});if(token!==generation)return;
+        for(const game of reply.games||[]){const base=window.NitLinkGameTitles.base(game.name);if(base===game.name||game.displayName!==game.name)continue;const parent=reply.games.find(item=>item.name===base&&item.displayName!==item.name);if(parent){game.displayName=parent.displayName+' Nintendo Switch 2 Edition';game.displayNameLanguage=locale;}}
         (reply.games||[]).forEach(game=>{
           if(locale==='en-US')game.displayName=game.name;
           if(['de-DE','ko-KR','ja-JP'].includes(locale)&&!String(game.displayNameLanguage||'').toLowerCase().startsWith(locale.slice(0,2).toLowerCase()))game.displayName=game.name;
@@ -200,11 +248,11 @@
     if(action==='setGame'){
       initialSearchAllowed=false;
       clearTimeout(initialSearch);
-      if(current.key===value&&!activationPending){push();return;}
+      if(current.key===value&&!activationPending){ensure(value);push();return;}
       cancel();const existed=!!records[value],record=ensure(value);if(!record)return;
       const sequence=++activationSequence,selectedMode=mode;activationPending=true;record.lastUsedUtc=now();
       const selected={...record,startUnix:current.key===value?current.startUnix:now(),libraryRestored:existed},snapshot=JSON.stringify(record);
-      if(location.protocol==='http:'){
+      if(location.protocol==='http:'&&!(accountDemo&&accountGames.some(game=>game.key===value))){
         activationWrites=activationWrites.catch(()=>{}).then(()=>api('library',{mode:selectedMode,action:'activate',key:value,record:snapshot,start:String(selected.startUnix)}));
         const reply=await activationWrites;if(reply.status!=='ok'){if(sequence===activationSequence)activationPending=false;emit({gameNotice:'saveFailed'});return;}
       }
@@ -221,13 +269,7 @@
       pendingAutoBatch=null;
       const record=records[current.key];
       if(!record||record.manualCover||record.finalImageKey||batch.shape!=='all'||batch.provider!=='all'||batch.page)return;
-      if(!value.coverId){
-        if(record.provider==='nintendo-tw'&&state.locale!=='zh-TW'){
-          Object.assign(record,artwork(null),{coverId:0,coverUrl:'',coverThumb:'',image:'',sourceImage:''});
-          push();await saveRecord(record.key);
-        }
-        return;
-      }
+      if(!value.coverId)return;
       const cover=batch.candidates.find(cover=>cover.id===value.coverId&&cover.image&&cover.imageStatus==='ok'&&activityArtworkPriority(cover)<8);
       if(!cover)return;
       selectArtwork(record,cover);record.image=cover.image;record.sourceImage=cover.image;
@@ -241,12 +283,22 @@
       if(location.protocol!=='http:')await saveCurrent();
       push();emit({gamePageReset:true});emit({gameNotice:'gameSettingsReset'});return;
     }
-    if(action==='getGameCovers'){
+    if(action==='getGameCovers'||action==='getAccountCovers'){
+      if(action==='getAccountCovers')value={...value,gameId:0};
       cancel();const token=generation,locale=state.locale;let reply;
-      const liveCovers=mode==='real'||value.provider==='nintendo';
-      if(liveCovers)reply=await api('covers',{gameId:value.gameId,shape:value.shape,page:value.page||0,provider:value.provider||'all',officialQuery:value.officialQuery||''});
+      const liveCovers=mode==='real'||value.provider==='nintendo'||action==='getAccountCovers'||accountDemo;
+      if(liveCovers)reply=await api(action==='getAccountCovers'?'accountCovers':'covers',{gameId:value.gameId,shape:value.shape,page:value.page||0,provider:value.provider||'all',officialQuery:value.officialQuery||''});
       else{const game=fixtures.find(game=>game.id===value.gameId);let rows=value.shape==='all'?Object.values(game?.covers||{}).flat():game?.covers[value.shape]||[];rows=rows.filter(cover=>showSynthetic||!cover.synthetic).sort((a,b)=>Number(!!a.synthetic)-Number(!!b.synthetic));if(['empty','timeout','upstreamUnavailable'].includes(scenario))rows=[];const size=8,page=value.page||0;reply={status:scenario==='imageFailure'?'ok':scenario!=='ok'?scenario:rows.length?'ok':'empty',covers:rows.slice(page*size,(page+1)*size),total:rows.length,page,hasMore:(page+1)*size<rows.length,dataMode:'fixture'};await new Promise(resolve=>setTimeout(resolve,400));}
       if(!liveCovers){const preferred=value.provider==='community'?[]:preferredSources(fixtures.find(game=>game.id===value.gameId)?.artworkSources||[]);reply.artworkSources=preferred.filter(cover=>value.shape==='all'||cover.shape===value.shape);reply.officialProvider=preferred[0]?.provider||'';}
+      if(value.provider!=='community'&&!(value.page||0)){
+        const selected=records[current.key],sameTitle=name=>String(name||'').toLowerCase()===String(selected?.name||'').toLowerCase();
+        const related=accountGames.filter(game=>accountStates.find(account=>account.provider===game.provider)?.accountId&&(game.key===current.key||(!/^(nintendo|playstation|xbox)-/.test(current.key)&&(value.gameId&&records[game.key]?.id===value.gameId||sameTitle(game.name)||window.NitLinkGameTitles.aliases({...game,id:records[game.key]?.id}).some(alias=>window.NitLinkGameTitles.aliases(selected||{}).includes(alias))))));
+        const sources=related.flatMap(game=>game.artworks.map(source=>({...source,provider:game.provider+'-account',accountGameKey:game.key,sourceLabel:game.provider==='nintendo'?'Nintendo Play Activity':game.provider==='playstation'?'PlayStation':'Xbox',isOfficial:true,kind:'cover',productTitle:game.displayNames?.[source.language]||source.productTitle||game.displayNames?.['en-US']||game.name,productPlatform:game.platform,thumb:source.url,imageStatus:'ok'}))).filter(source=>value.shape==='all'||!source.shape||source.shape===value.shape);
+        const used=new Set([...(reply.artworkSources||[]),...(reply.covers||[])].map(cover=>cover.id));
+        for(const source of sources){let hash=2166136261;for(const c of source.url)hash=Math.imul(hash^c.charCodeAt(0),16777619)>>>0;source.id=4000000100+hash%(4100000000-4000000100);while(used.has(source.id))source.id++;used.add(source.id);}
+        const matched=sources.filter(source=>source.id);
+        reply.artworkSources=[...(reply.artworkSources||[]),...matched];if(matched.length&&['empty','invalid','idle'].includes(reply.status))reply.status='ok';
+      }
       const candidates=[...(reply.artworkSources||[]),...(reply.covers||[])];
       if(token!==generation)return;coversById.clear();candidates.forEach(cover=>coversById.set(cover.id,cover));
       const record=records[current.key];
@@ -263,12 +315,14 @@
           resolve();
         },80+index*60))));complete();return;
       }
-      await imageBatch(candidates.map(cover=>({cover,url:cover.thumb||cover.url})),token,(item,image)=>{item.cover.image=image.image||'';item.cover.imageStatus=image.status==='ok'?'ok':'failed';emit({gameEvent:{kind:'image',request:value.request,gameId:value.gameId,coverId:item.cover.id,locale,image:image.image||'',imageStatus:item.cover.imageStatus}});if(current.key&&records[current.key]?.coverId===item.cover.id){const selected=records[current.key];if(!selected.finalImageKey){selected.image=image.image||'';selected.sourceImage=selected.image;}push();}});
+      await imageBatch(candidates.filter(cover=>!cover.accountGameKey).map(cover=>({cover,url:cover.thumb||cover.url})),token,(item,image)=>{item.cover.image=image.image||'';item.cover.imageStatus=image.status==='ok'?'ok':'failed';if(image.shape)item.cover.shape=image.shape;emit({gameEvent:{kind:'image',request:value.request,gameId:value.gameId,coverId:item.cover.id,locale,image:image.image||'',imageStatus:item.cover.imageStatus}});if(image.status==='ok'&&image.image&&current.key&&records[current.key]?.coverId===item.cover.id){const selected=records[current.key];if(!selected.finalImageKey){selected.image=image.image;selected.sourceImage=selected.image;}push();}});
       // Finish the prior record write before acknowledging the new automatic
       // selection, so a slower empty-cover write cannot overwrite its save.
-      if(token===generation&&current.key)await saveRecord(current.key);complete();return;
+      if(token===generation&&current.key)await saveRecord(current.key);complete();
+      for(const game of games.values())if(token===generation&&!game.thumbnailReady&&game.thumbnailLocale===locale&&game.thumbnailRequest)await searchThumbnail(game,token);
+      return;
     }
-    if(action==='selectGameCover'){const cover=coversById.get(value.coverId);if(!cover?.image||cover.imageStatus==='failed'){emit({gameNotice:'imageFailed'});return;}if(current.id===value.gameId){const record=records[current.key];selectArtwork(record,cover);Object.assign(record,{image:cover.image,sourceImage:cover.image,manualCover:true,artworkMode:'original',finalImageKey:'',sourceImageKey:''});push();await saveRecord(current.key);emit({gameNotice:'coverSaved'});}return;}
+    if(action==='selectGameCover'||action==='selectAccountCover'){const cover=coversById.get(value.coverId);if(!cover?.image||cover.imageStatus==='failed'){emit({gameNotice:'imageFailed'});return;}if(action==='selectAccountCover'?current.key===value.key:current.id===value.gameId){const record=records[current.key];selectArtwork(record,cover);Object.assign(record,{image:cover.image,sourceImage:cover.image,manualCover:true,artworkMode:'original',finalImageKey:'',sourceImageKey:''});push();await saveRecord(current.key);emit({gameNotice:'coverSaved'});}return;}
     if(action==='renderGameArtwork'){
       const key=current.key,record=records[key];if(!record||record.id!==value.gameId||record.coverId!==value.coverId){emit({gameNotice:'invalidChoice'});return;}
       cancel();const token=generation;await saveRecord(key);
@@ -279,7 +333,7 @@
     }
     if(action==='restoreAutoCover'){if(current.key){const record=records[current.key];Object.assign(record,artwork(null),{manualCover:false,coverId:0,coverUrl:'',coverThumb:'',coverShape:'',image:'',sourceImage:'',artworkMode:'original',finalImageKey:'',sourceImageKey:''});await saveRecord(current.key);push();emit({gameNotice:'autoRestored'});}return;}
     if(action==='saveGameSettings'){emit({gameNotice:'qualitySaved'});return;}
-    if(action==='setLanguage'){cancel();games.clear();state.locale=value==='system'?'zh-TW':value;state.languagePreference=value;push();return;}
+    if(action==='setLanguage'){cancel();games.clear();state.locale=value==='system'?'zh-TW':value;state.languagePreference=value;push();void localizeAccounts();return;}
     if(action==='cyclePanelSide'){layout({full:'right',right:'left',left:'full'}[state.panelSide]||'full');push();return;}
     if(action==='setManualHdmiSource'){const previous=artworkPlatform();state.manualHdmiSource=value;state.effectiveHdmiSource=value==='auto'?detectedSource:value==='other'?state.manualHdmiSourceCustom||detectedSource:sourceNames[value]||value;if(previous!==artworkPlatform()){cancel();games.clear();coversById.clear();}push();return;}
     if(action==='setManualHdmiSourceCustom'){const previous=artworkPlatform();state.manualHdmiSourceCustom=value;state.effectiveHdmiSource=value||detectedSource;if(previous!==artworkPlatform()){cancel();games.clear();coversById.clear();}push();return;}
@@ -288,7 +342,17 @@
     if(action==='javascriptException'){console.error('Preview bridge:',value);return;}
     if(action.startsWith('toggle')){const keys={toggleHDR:'hdrEnabled',toggleColorExpansion:'colorExpansion',toggleNIS:'nisEnabled',toggleVSync:'vsync',toggleLowLatency:'lowLatency',togglePreventSleep:'preventSleep',toggleMute:'audioMuted'};if(keys[action])state[keys[action]]=!state[keys[action]];}push();
   };
-  const layout=value=>{const side=String(value).toLowerCase();state.panelSide=side;document.documentElement.dataset.side=side;document.documentElement.style.background='#101319';document.body.style.width=side==='full'?'100%':'min(420px, 100vw)';document.body.style.marginLeft=side==='right'?'auto':'0';const app=document.querySelector('.app');app.style.width=side==='full'?'100%':'min(420px, 100vw)';app.style.left=side==='right'?'auto':'0';app.style.right=side==='left'?'auto':'0';document.getElementById('game-preview-layout').value=side;};
+  const layout=value=>{
+    const side=String(value).toLowerCase();state.panelSide=side;document.documentElement.dataset.side=side;document.documentElement.style.background='#101319';
+    const width=side==='full'?'100%':`min(${420}px, 100vw)`;
+    document.body.style.width=width;document.body.style.marginLeft=side==='right'?'auto':'0';
+    const app=document.querySelector('.app');app.style.width=width;app.style.left=side==='right'?'auto':'0';app.style.right=side==='left'?'auto':'0';
+    for(const dialog of document.querySelectorAll('.game-cover-dialog')){
+      dialog.style.left=side==='right'?`max(0px, calc(100vw - ${420}px))`:'0px';
+      dialog.style.right=side==='left'?`max(0px, calc(100vw - ${420}px))`:'0px';
+    }
+    document.getElementById('game-preview-layout').value=side;
+  };
   window.chrome=window.chrome||{};window.chrome.webview={postMessage:request,addEventListener:(type,listener)=>{if(type==='message')listeners.add(listener);}};
   function initControls(){
     if(controlsInitialized)return;controlsInitialized=true;

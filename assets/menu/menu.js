@@ -12,7 +12,7 @@
         if (typeof locale !== 'string') continue;
         const tag = locale.toLowerCase();
         if (['zh-cn', 'zh-sg', 'zh-hans'].includes(tag) || tag.startsWith('zh-hans-')) return 'zh-CN';
-        if (['zh-tw', 'zh-hant-tw'].includes(tag)) return 'zh-TW';
+        if (['zh-tw','zh-hk','zh-mo','zh-hant'].includes(tag)||tag.startsWith('zh-hant-')) return 'zh-TW';
         if (tag === 'de' || tag.startsWith('de-')) return 'de-DE';
         if (tag === 'ko' || tag.startsWith('ko-')) return 'ko-KR';
         if (tag === 'ja' || tag.startsWith('ja-')) return 'ja-JP';
@@ -95,6 +95,7 @@
       renderHolyBearUpdate();
       renderContributorPreview();
       renderGameUI();
+      window.NitLinkAccountLibrary?.setLocale(currentLocale);
     };
     const localizeValue = value => ({
       Auto: 'value.auto', Stretch: 'value.stretch',
@@ -139,7 +140,6 @@
         window.chrome.webview.postMessage(payload);
       }
     };
-
     // The WebView never fetches network resources. Native HTTPS checks are opt-in,
     // and this display receives only validated version/status fields.
     renderHolyBearUpdate = () => {
@@ -1052,29 +1052,24 @@
       let current = {}, live = {}, results = [], covers = [];
       let library = {games:[],favorites:[],recent:[]}, librarySignature = '', renameKey = '';
       let shape = 'all', searchStatus = 'idle', coverStatus = 'idle', notice = '', suggestions = [], queriedTerms = [];
-      let coverProvider='all',officialStatus='idle',officialProvider='';
+      let coverProvider='nintendo',officialStatus='idle',officialProvider='';
       el('game-choose-source').addEventListener('click',event=>{event.stopPropagation();el('source-trigger').click();el('hdmi-source-trigger').focus();});
       let coverPage = 0, coverHasMore = false, coverTotal = 0, coverView = '', detailsCover = 0;
       const gameCards = new Map(), coverCards = new Map(), coverGroupHeadings = new Map(), favoriteCards = new Map(), recentCards = new Map();
       let readyCoverBatch=0,appliedCoverBatch=0;
       const automaticCoverPriority=cover=>{
-        if(cover.provider==='nintendo-tw'&&current.locale!=='zh-TW')return 8;
-        if(cover.provider==='nintendo-hk-store')return 8;
-        if(current.locale==='ja-JP'||current.locale==='ko-KR'){
-          if(cover.languageVerified!==true)return 8;
-          const tier=cover.language===current.locale?0:['en-US','zxx'].includes(cover.language)?3:8;
-          const shape=cover.shape==='square'?0:cover.shape==='landscape'?1:cover.shape==='portrait'?2:8;
-          return tier===8||shape===8?8:tier+shape;
-        }
-        if(cover.isOfficial)return cover.shape==='square'?0:cover.shape==='landscape'?1:cover.shape==='portrait'?2:8;
-        return cover.shape==='square'?3:cover.provider==='steamgriddb'&&cover.shape==='portrait'?4:8;
+        if(cover.shape==='square')return cover.isOfficial?0:1;
+        if(cover.shape==='portrait')return cover.isOfficial?2:4;
+        if(cover.shape==='landscape')return cover.isOfficial?3:5;
+        return 8;
       };
       const applyAutomaticCoverWhenReady=()=>{
-        if(!current.id||current.manualCover||current.finalImageKey||readyCoverBatch!==coverRequest||
-           appliedCoverBatch===coverRequest||shape!=='all'||coverProvider!=='all'||coverPage!==0)return;
+        if(!current.key||current.manualCover||current.finalImageKey||readyCoverBatch!==coverRequest||
+           appliedCoverBatch===coverRequest||shape!=='all'||!['all','nintendo'].includes(coverProvider)||coverPage!==0)return;
         if([...coverCards.values()].some(entry=>entry.art.dataset.imageState==='loading'))return;
         appliedCoverBatch=coverRequest;
-        const chosen=covers.filter(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='ok'&&automaticCoverPriority(cover)<8)
+        const localized=covers.some(cover=>cover.isOfficial&&cover.language===currentLocale&&coverCards.get(cover.id)?.art.dataset.imageState==='ok');
+        const chosen=covers.map(cover=>({...cover,shape:coverOrientation(coverCards.get(cover.id))||cover.shape})).filter(cover=>coverCards.get(cover.id)?.art.dataset.imageState==='ok'&&automaticCoverPriority(cover)<8&&(!localized||(cover.isOfficial&&cover.language===currentLocale)))
           .sort((a,b)=>automaticCoverPriority(a)-automaticCoverPriority(b))[0];
         post('applyAutoGameCover',{gameId:current.id,request:coverRequest,coverId:chosen?.id||0});
       };
@@ -1136,12 +1131,13 @@
         art._imageTimer = setTimeout(failed, 12000);
         img.src = uri; art.appendChild(img);
       };
+      window.NitLinkAccountLibrary?.init({post, t, locale: currentLocale, image, notify:text=>showToast(text)});
       // Search enrichment and the selected gallery share the native worker.
       // Cancelling one must settle its placeholders, while preserving loaded DOM.
       const settleImages = (models, cards, state = 'unavailable') => {
         let count=0;
         models.forEach(model => {
-          const entry = cards.get(model.id);
+          const entry = cards.get(model.accountKey||model.id);
           if (!model.image && entry?.art.dataset.imageState === 'loading') {
             model.imageStatus = state; image(entry.art, '', state);++count;
           }
@@ -1162,35 +1158,34 @@
       const renderResults = () => {
         gameCards.clear(); el('game-results').replaceChildren();
         results.forEach(game => {
+          const gameKey=game.accountKey||`sgdb-${game.id}`;
           const card = document.createElement('button'); card.type = 'button'; card.className = 'game-result';
-          card.setAttribute('aria-pressed', String(current.key === `sgdb-${game.id}`));
+          card.setAttribute('aria-pressed', String(current.key === gameKey));
           const art = document.createElement('div'); art.className = 'game-art game-search-art';
           art._searchModel=game;updateSearchArtworkGeometry(art);
           image(art, game.image, game.imageStatus || 'loading');
           const title = document.createElement('span'); title.className = 'game-result-title';
-          title.textContent = game.displayName || game.name;
-          const sub = document.createElement('span'); sub.className = 'game-result-subtitle';
-          sub.textContent = game.name;
+          title.textContent = window.NitLinkGameTitles.label(game,currentLocale,t('account.switch2Edition'));
           const origin = document.createElement('span'); origin.className = 'game-result-origin';
           origin.hidden=!window.NitLinkPreview;
           origin.textContent = ['nintendo-tw','playstation-tw'].includes(game.source) ? `${game.source==='playstation-tw'?'Official PlayStation Taiwan':'Official Nintendo Taiwan'} · ${t('game.officialMapping')}` : game.dataMode === 'fixture' || game.source === 'fixture' ? 'FIXTURE' : `REAL API · ${game.source || 'SteamGridDB'}`;
-          card.append(art, title, sub, origin);
+          card.append(art, title, origin);
           card.addEventListener('click', () => {
-            const key=`sgdb-${game.id}`,alreadyCurrent=current.key===key;
-            stopSearch(); updateStatus();
+            const key=gameKey,alreadyCurrent=current.key===key;
+            updateStatus();
+            if(!game.accountKey&&window.NitLinkAccountLibrary?.linkSearchResult(game.id))return;
             post('setGame', key);
             if(alreadyCurrent){shape='all';coverPage=0;stopCovers();renderGameUI();loadCovers();}
           });
           const wrap = document.createElement('div'); wrap.className = 'game-result-wrap';
           const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = 'game-button game-favorite-action';
-          const isFavorite = library.favorites.some(saved=>saved.key===`sgdb-${game.id}`);
+          const isFavorite = library.favorites.some(saved=>saved.key===gameKey);
           favorite.textContent = t(isFavorite ? 'game.removeFavorite' : 'game.addFavorite');
-          favorite.addEventListener('click',()=>post(library.favorites.some(saved=>saved.key===`sgdb-${game.id}`)?'removeGameFavorite':'addGameFavorite',`sgdb-${game.id}`));
-          wrap.append(card,favorite); gameCards.set(game.id, {card, art, favorite}); el('game-results').appendChild(wrap);
+          favorite.addEventListener('click',()=>post(library.favorites.some(saved=>saved.key===gameKey)?'removeGameFavorite':'addGameFavorite',gameKey));
+          wrap.append(card,favorite); gameCards.set(game.accountKey||game.id, {card, art, favorite}); el('game-results').appendChild(wrap);
         });
       };
       const officialCover=cover=>cover.isOfficial===true;
-      const officialBadgeKey=cover=>cover.provider==='nintendo-tw'||(cover.languageVerified&&cover.language==='zh-TW')?'game.officialBadge':'game.officialArtwork';
       const loadedCoverOrientation=entry=>{
         if(entry?.art.dataset.imageState!=='ok')return '';
         const width=Number(entry.art.dataset.width),height=Number(entry.art.dataset.height);
@@ -1198,13 +1193,11 @@
       };
       const coverOrientation=entry=>loadedCoverOrientation(entry)||entry?.model?.shape||'';
       const sortCoverTiles=()=>{
-        const shapeRank=cover=>{const entry=coverCards.get(cover.id),orientation=entry?coverOrientation(entry):cover.shape;return orientation==='square'?0:['portrait','landscape'].includes(orientation)?1:2;};
-        const providerRank=cover=>cover.provider==='nintendo-tw'?0:cover.provider==='nintendo-hk-eshop'?1:cover.provider==='playstation-tw'?2:3;
-        const groupKey=cover=>officialCover(cover)?'official':shapeRank(cover)===0?'square':'community';
-        const groupRank=cover=>({official:0,square:1,community:2})[groupKey(cover)];
+        const rank=cover=>{const entry=coverCards.get(cover.id);return automaticCoverPriority({...cover,shape:entry?coverOrientation(entry):cover.shape});};
+        const groupKey=cover=>(cover.isOfficial?'official':'community')+'-'+(coverCards.get(cover.id)?coverOrientation(coverCards.get(cover.id)):cover.shape||'unknown');
         const ordered=covers.map((cover,index)=>({cover,index,entry:coverCards.get(cover.id)}))
           .filter(item=>item.entry)
-          .sort((a,b)=>groupRank(a.cover)-groupRank(b.cover)||shapeRank(a.cover)-shapeRank(b.cover)||providerRank(a.cover)-providerRank(b.cover)||a.index-b.index);
+          .sort((a,b)=>Number(!!b.cover.isOfficial)-Number(!!a.cover.isOfficial)||rank(a.cover)-rank(b.cover)||Number(b.cover.language===currentLocale)-Number(a.cover.language===currentLocale)||a.index-b.index);
         const groups=[];
         ordered.forEach(item=>{
           const key=groupKey(item.cover);
@@ -1218,8 +1211,8 @@
           let heading=coverGroupHeadings.get(group.key);
           if(!heading){heading=document.createElement('h3');heading.className='game-artwork-heading';coverGroupHeadings.set(group.key,heading);}
           heading.dataset.coverGroup=group.key;
-          heading.dataset.i18n=group.key==='official'?'game.officialGroup':group.key==='square'?'game.square':'game.communityGroup';
-          heading.textContent=t(heading.dataset.i18n);
+          const [provider,shape]=group.key.split('-');
+          heading.textContent=t(provider==='official'?'game.officialGroup':'game.communityGroup')+(['square','portrait','landscape'].includes(shape)?' · '+t('game.'+shape):'');
           heading.hidden=group.items.every(item=>item.entry.tile.hidden);
           desired.push(heading,...group.items.map(item=>item.entry.tile));
         });
@@ -1245,8 +1238,9 @@
         const taiwan=cover.isOfficial===true&&cover.provider==='nintendo-tw';
         // These are user-facing provider defaults, not upstream verification.
         // Keep sourced language metadata; otherwise community artwork defaults to English.
-        const language=taiwan?'zh-TW':cover.languageVerified&&cover.language?cover.language:cover.isOfficial===true?'unknown':'en-US';
-        const fields=[['game.artworkSource',cover.sourceLabel||'SteamGridDB'],['game.author',taiwan?t('game.nintendoTaiwan'):cover.author||t('game.authorUnknown')],
+        const language=cover.languageVerified||cover.isOfficial?cover.language||(taiwan?'zh-TW':'unknown'):'en-US';
+        const platform=cover.isOfficial===true&&['nintendo','playstation','xbox'].find(provider=>String(cover.provider||'').startsWith(provider+'-'));
+        const fields=[['game.artworkSource',cover.sourceLabel||'SteamGridDB'],['game.author',platform?t('game.'+platform+'Official'):cover.author||t('game.authorUnknown')],
           ['game.coverLanguage',t('game.coverLanguage.'+language)],
           ['game.artworkType',t('game.kind.'+(cover.kind||'cover'))],['game.orientation',t('game.'+(['square','portrait','landscape'].includes(orientation)?orientation:'orientationPending'))],
           ['game.previewDimensions',width&&height?`${width} × ${height}`:t('game.orientationPending')]];
@@ -1268,12 +1262,13 @@
         if(!cover?.image)return;
         stopSearch();stopCovers();post('cancelGameSearch');
         let state=current;
-        if(cover.id!==current.coverId){post('selectGameCover',{gameId:current.id,coverId:cover.id});state={...current,coverId:cover.id,image:cover.image,sourceImage:cover.image,artworkMode:'original',cropX:.5,cropY:.5,artworkZoom:1};}
+        if(cover.id!==current.coverId){selectCover(cover.id);state={...current,coverId:cover.id,image:cover.image,sourceImage:cover.image,artworkMode:'original',cropX:.5,cropY:.5,artworkZoom:1};}
         window.NitLinkArtworkEditor?.open(cover,state);
       };
       el('game-adjust-cover').addEventListener('click',()=>editCover({id:current.coverId,image:current.sourceImage||current.image}));
-      el('game-detail-use-original').addEventListener('click',()=>{post('selectGameCover',{gameId:current.id,coverId:detailsCover});el('game-cover-details').close();});
+      el('game-detail-use-original').addEventListener('click',()=>{selectCover(detailsCover);el('game-cover-details').close();});
       el('game-detail-adjust').addEventListener('click',()=>{const cover=covers.find(cover=>cover.id===detailsCover);el('game-cover-details').close();editCover(cover);});
+      const selectCover = coverId => post(current.id?'selectGameCover':'selectAccountCover',current.id?{gameId:current.id,coverId}:{key:current.key,coverId});
       const renderCovers = () => {
         const ids=new Set(covers.map(cover=>cover.id));
         for(const [id,entry] of coverCards)if(!ids.has(id)){clearTimeout(entry.art._imageTimer);entry.tile.remove();coverCards.delete(id);}
@@ -1290,15 +1285,17 @@
             const info=document.createElement('button');info.type='button';info.className='game-cover-info';info.textContent='i';
             const caption=document.createElement('span');caption.className='game-cover-caption';
             entry={tile,card,art,badge,kind,info,caption,meta,model:cover};
-            card.addEventListener('click',()=>{if(entry.art.dataset.imageState==='ok')post('selectGameCover',{gameId:current.id,coverId:cover.id});});
+            card.addEventListener('click',()=>{if(entry.art.dataset.imageState==='ok')selectCover(cover.id);});
             art.addEventListener('artworkstate',()=>{refreshCover(entry);sortCoverTiles();updateStatus();});
             info.addEventListener('click',()=>showCoverDetails(entry.model));meta.append(kind,caption,info);tile.append(card,badge,meta);coverCards.set(cover.id,entry);
           }else if(!cover.image&&entry.model.image){cover.image=entry.model.image;cover.imageStatus=entry.model.imageStatus;}
           entry.model=cover;entry.card.dataset.coverId=String(cover.id);entry.card.dataset.provider=cover.provider||'steamgriddb';entry.card.dataset.kind=cover.kind||'cover';entry.card.setAttribute('aria-pressed',String(current.coverId===cover.id));
           entry.caption.hidden=!cover.productTitle;entry.caption.textContent=[cover.productTitle,cover.productPlatform,cover.productRelease].filter(Boolean).join(' · ');entry.caption.title=entry.caption.textContent;
-          entry.card.setAttribute('aria-label',t('game.selectCover')+(officialCover(cover)?' · '+t(officialBadgeKey(cover)):''));
+          entry.card.setAttribute('aria-label',t('game.selectCover')+(officialCover(cover)?' · '+t('game.sourcesOfficial'):'')+(cover.language?' · '+t('game.coverLanguage.'+cover.language):''));
           entry.info.setAttribute('aria-label',t('game.artworkDetails'));entry.info.title=t('game.artworkDetails');
-          entry.badge.hidden=!(officialCover(cover)&&officialBadgeKey(cover)==='game.officialBadge')&&!cover.synthetic;entry.badge.textContent=cover.synthetic?t('game.sampleBadge'):t(officialBadgeKey(cover));
+          const language=cover.language||(cover.provider==='nintendo-tw'?'zh-TW':'');
+          entry.badge.hidden=!officialCover(cover)||!['zh-TW','zh-CN','en-US','de-DE','ja-JP','ko-KR'].includes(language);
+          entry.badge.textContent=entry.badge.hidden?'':t('game.coverBadge.'+language);
           entry.kind.hidden=cover.kind!=='logo'&&cover.kind!=='logoOnly';entry.kind.textContent='Logo';
           image(entry.art,cover.image,cover.imageStatus||'loading');
           refreshCover(entry);
@@ -1310,7 +1307,7 @@
         el('game-search-status').textContent = t(`game.status.${searchStatus}`) + (results.length ? ` · ${t('game.resultCount').replace('{count}',results.length)}` : '');
         el('game-search-status').dataset.error = String(failed.includes(searchStatus));
         el('game-search-status').setAttribute('aria-busy', String(searchStatus === 'loading'));
-        el('game-search-empty').hidden = results.length > 0;
+        el('game-search-empty').hidden = results.length > 0 || failed.includes(searchStatus);
         el('game-search-empty').textContent = t(searchStatus === 'idle' ? 'game.searchIdle' : `game.status.${searchStatus}`);
         el('game-search-fallback').hidden = !(['empty', 'partial', ...failed].includes(searchStatus) || suggestions.length);
         const matching=covers.filter(cover=>{const entry=coverCards.get(cover.id);return shape==='all'||loadedCoverOrientation(entry)===shape||(entry?.art.dataset.imageState==='failed'&&cover.shape===shape);});
@@ -1337,21 +1334,27 @@
         el('game-notice').hidden = !notice;
         el('game-notice').textContent = notice ? t(`game.${notice}`) : '';
         document.querySelectorAll('[data-cover-provider]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.coverProvider===coverProvider)));
-        document.querySelector('[data-cover-provider="nintendo"]').hidden=!['switch','playstation'].includes(current.artworkPlatform);
-        el('game-store-search').hidden=coverProvider!=='nintendo'||current.artworkPlatform!=='switch';
+        document.querySelector('[data-cover-provider="nintendo"]').hidden=false;
+        const source=String(live.manualHdmiSource||'auto');
+        const switchSource=['switch','switch2'].includes(source)||(source==='auto'&&/^(?:Nintendo\s*)?Switch(?:\s*2)?$/i.test(live.effectiveHdmiSource||''));
+        el('game-store-search').hidden=coverProvider!=='nintendo'||current.artworkPlatform!=='switch'||!switchSource;
         const storeStatus=['ok','empty','timeout','offline','rateLimited','invalid','upstreamUnavailable','loading'].includes(officialStatus)?officialStatus:officialStatus==='blocked'?'upstreamUnavailable':'idle';
-        el('game-store-status').textContent=t(officialProvider==='nintendo-tw'?'game.nintendoTaiwan':officialProvider==='playstation-tw'?'game.playstationTaiwan':'game.hkStore')+' · '+t('game.status.'+storeStatus);
+        const storeLabel=officialProvider==='nintendo-tw'?'game.nintendoTaiwan':officialProvider==='playstation-tw'?'game.playstationTaiwan':['nintendo-hk-store','nintendo-hk-eshop'].includes(officialProvider)?'game.hkStore':'game.sourcesOfficial';
+        el('game-store-status').textContent=t(storeLabel)+' · '+t('game.status.'+storeStatus);
       };
       const loadCovers = () => {
         readyCoverBatch=0;appliedCoverBatch=0;
-        stopSearch();
+        if(searchStatus==='loading'&&!results.length)stopSearch();
+        else {clearTimeout(debounce);clearTimeout(searchTimer);}
         clearTimeout(coverTimer); clearTimeout(coverImageTimer); coverRequest = ++sequence;
         const view=`${current.dataMode||'native'}:${current.key}:${shape}:${coverPage}:${coverProvider}:${el('game-official-query').value.trim()}`;
         if(coverView!==view)covers=covers.filter(cover=>cover.isOfficial&&cover.provider!=='nintendo-hk-store'&&coverProvider!=='community'&&coverView.split(':').slice(0,2).join(':')===view.split(':').slice(0,2).join(':'));
         coverView=view;renderCovers();
-        if (!current.id) { coverStatus = 'idle'; updateStatus(); return; }
+        const accountGame=/^(nintendo|playstation|xbox)-/.test(current.key||'');
+        if (!current.id&&!accountGame) { coverStatus = 'idle'; updateStatus(); return; }
         coverStatus = 'loading';officialStatus=coverProvider==='community'?'idle':'loading'; updateStatus();
-        post('getGameCovers', {gameId: current.id, shape, page: coverPage, request: coverRequest,provider:coverProvider,officialQuery:el('game-official-query').value.trim()});
+        const request={shape,page:coverPage,request:coverRequest,provider:coverProvider,officialQuery:el('game-official-query').value.trim()};
+        post(current.id?'getGameCovers':'getAccountCovers',current.id?{...request,gameId:current.id}:{...request,key:current.key});
         const requested = coverRequest;
         coverTimer = setTimeout(() => {
           if (requested === coverRequest) { coverStatus = 'timeout'; settleImages(covers, coverCards, 'failed'); updateStatus(); }
@@ -1404,6 +1407,7 @@
         shape = value; coverPage = 0; renderGameUI(); loadCovers();
       }));
       el('game-cover-retry').addEventListener('click', () => { coverPage=0;loadCovers(); });
+      document.addEventListener('accountcoverschanged',()=>{if(current.key){coverPage=0;loadCovers();}});
       el('game-cover-prev').addEventListener('click',()=>{if(coverPage){--coverPage;loadCovers();}});
       el('game-cover-next').addEventListener('click',()=>{if(coverHasMore){++coverPage;loadCovers();}});
       document.querySelectorAll('[data-cover-provider]').forEach(button=>button.addEventListener('click',()=>{coverProvider=button.dataset.coverProvider;shape='all';coverPage=0;renderGameUI();loadCovers();}));
@@ -1458,18 +1462,21 @@
         });
       };
       window._updateGameLibrary = value => {
+        window.NitLinkAccountLibrary?.updateLocal(value);
         library={games:value.games||[],favorites:value.favorites||[],recent:value.recent||[]};
         const signature=JSON.stringify(library)+currentLocale;
         if(signature!==librarySignature){librarySignature=signature;renderLibrary();}
-        for(const [id,{favorite}] of gameCards)favorite.textContent=t(library.favorites.some(game=>game.key===`sgdb-${id}`)?'game.removeFavorite':'game.addFavorite');
+        for(const [id,{favorite}] of gameCards)favorite.textContent=t(library.favorites.some(game=>game.key===(typeof id==='string'?id:`sgdb-${id}`))?'game.removeFavorite':'game.addFavorite');
         el('game-current-favorite').textContent=t(library.favorites.some(game=>game.key===current.key)?'game.removeFavorite':'game.addFavorite');
+        renderGameUI();
       };
       const elapsed = () => {
         const seconds = Math.max(0, Math.floor(Date.now() / 1000 - (current.startUnix || Date.now() / 1000)));
         el('game-discord-time').textContent = `${t('game.elapsed')} ${String(Math.floor(seconds / 3600)).padStart(2,'0')}:${String(Math.floor(seconds / 60) % 60).padStart(2,'0')}:${String(seconds % 60).padStart(2,'0')}`;
       };
       renderGameUI = () => {
-        el('game-current-title').textContent = current.displayName || current.name || t('game.none');
+        const gameTitle=current.key?window.NitLinkGameTitles.label(current,currentLocale,t('account.switch2Edition')):t('game.none');
+        el('game-current-title').textContent = gameTitle;
         el('game-current-source').textContent = `${t('game.source')} · ${live.effectiveHdmiSource || t('meta.none')}`;
         el('game-source-guidance').hidden=!!current.artworkPlatform&&current.artworkPlatform!=='unknown';
         el('game-current-discord').textContent = t(current.discordConnected ? 'game.discordConnected' : 'game.discordUnavailable');
@@ -1484,25 +1491,25 @@
         const discordPreview=proxyArtwork||selectedArtwork||(!current.key?'assets/nitlink.svg':'');
         image(el('game-discord-art'),discordPreview,current.key&&!discordPreview?'loading':'empty');
         el('game-current-artwork-tag').hidden=!current.isOfficial;
-        el('game-current-artwork-tag').textContent=edited?t(current.isOfficial?'game.derivedOfficial':'game.derivedArtwork'):current.isOfficial?t(current.language==='zh-TW'?'game.officialBadge':'game.officialArtwork')+' · '+(current.provider==='playstation-tw'?t('game.playstationTaiwan'):current.provider==='nintendo-hk-store'?t('game.hkStore'):current.provider==='nintendo-hk-eshop'?'Nintendo eShop CDN':'Nintendo Taiwan'):'';
+        el('game-current-artwork-tag').textContent=edited?t(current.isOfficial?'game.derivedOfficial':'game.derivedArtwork'):current.isOfficial?t(current.language==='zh-TW'?'game.officialBadge':'game.officialArtwork')+' · '+(current.provider?.endsWith('-account')?current.sourceLabel:current.provider==='playstation-tw'?t('game.playstationTaiwan'):current.provider==='nintendo-hk-store'?t('game.hkStore'):current.provider==='nintendo-hk-eshop'?'Nintendo eShop CDN':'Nintendo Taiwan'):'';
         el('game-current-artwork-tag').hidden=!current.isOfficial&&!edited;
         window.NitLinkArtworkEditor?.update(current);
         el('game-adjust-cover').disabled=!current.coverId||!current.image;
-        el('game-discord-title').textContent = current.displayName || live.effectiveHdmiSource || t('game.none');
+        el('game-discord-title').textContent = current.key ? gameTitle : live.effectiveHdmiSource || t('game.none');
         el('game-discord-name').textContent = current.discordNameStatus === 'accepted' ? live.effectiveHdmiSource || 'NitLink' : 'NitLink';
-        el('game-discord-signal').textContent = typeof live.discordSignal === 'string' ? live.discordSignal : (live.negotiatedWidth>0&&live.negotiatedHeight>0&&live.negotiatedFps>0
-          ? `${live.negotiatedWidth}×${live.negotiatedHeight} · ${live.negotiatedFps} FPS` : '');
+        el('game-discord-signal').textContent = typeof current.discordSignal === 'string' ? current.discordSignal : '';
         el('game-clear').disabled = !current.key; el('game-save-quality').disabled = !current.key;
         el('game-current-favorite').disabled=!current.key;el('game-current-rename').disabled=!current.key;
         const isFavorite=library.favorites.some(game=>game.key===current.key);
         el('game-current-favorite').textContent=t(isFavorite?'game.removeFavorite':'game.addFavorite');
         el('game-current-favorite').dataset.gameHelp=isFavorite?'game.help.favoriteRemove':'game.help.favoriteAdd';
-        el('game-auto').disabled = !current.id; el('game-cover-retry').disabled = !current.id;
+        const accountGame=/^(nintendo|playstation|xbox)-/.test(current.key||'');
+        el('game-auto').disabled = !current.key; el('game-cover-retry').disabled = !current.id&&!accountGame;
         ['square', 'portrait', 'landscape', 'all'].forEach(value => {
           el(`game-shape-${value}`).setAttribute('aria-pressed', String(shape === value));
-          el(`game-shape-${value}`).disabled = !current.id;
+          el(`game-shape-${value}`).disabled = !current.id&&!accountGame;
         });
-        for (const [id, {card}] of gameCards) card.setAttribute('aria-pressed', String(current.key === `sgdb-${id}`));
+        for (const [id, {card}] of gameCards) card.setAttribute('aria-pressed', String(current.key === (typeof id==='string'?id:`sgdb-${id}`)));
         for (const [id, {card}] of coverCards) card.setAttribute('aria-pressed', String(current.coverId === id));
         for(const [key,{card}] of favoriteCards)card.dataset.current=String(key===current.key);
         updateStatus(); elapsed();
@@ -1510,25 +1517,28 @@
         if(signature!==librarySignature){librarySignature=signature;renderLibrary();}
       };
       window._updateGameState = state => {
-        const changed=current.key!==state.key||current.dataMode!==state.dataMode;
+        window.NitLinkAccountLibrary?.updateCurrent(state);
+        const changed=current.key!==state.key||current.id!==state.id||current.dataMode!==state.dataMode;
         const platformChanged=!!current.artworkPlatform&&current.artworkPlatform!==state.artworkPlatform;
         const localeChanged=!!current.locale&&current.locale!==state.locale;
-        if(changed||platformChanged){stopSearch();stopCovers();shape='all';coverProvider='all';officialStatus='idle';officialProvider='';const known=results.find(game=>game.id===state.id);const saved=library.games.find(game=>game.key===state.key);el('game-official-query').value=state.officialQuery||saved?.displayNames?.['zh-TW']||known?.displayName||state.name||'';}
+        const nameChanged=current.name!==state.name||current.displayName!==state.displayName;
+        if(changed||platformChanged){if(platformChanged||!results.some(game=>game.id===state.id))stopSearch();stopCovers();covers=[];renderCovers();shape='all';coverProvider='nintendo';officialStatus='idle';officialProvider='';const known=results.find(game=>game.id===state.id);const saved=library.games.find(game=>game.key===state.key);el('game-official-query').value=window.NitLinkGameTitles.base(window.NitLinkGameTitles.label({...state,customName:'',displayName:'',titleLocale:'',locale:''},'zh-TW',t('account.switch2Edition')))||state.officialQuery||saved?.displayNames?.['zh-TW']||known?.displayName||state.name||'';}
         if(platformChanged){results=[];searchStatus='idle';covers=[];renderResults();}
         if (current.locale && current.locale !== state.locale) {
           stopCovers();
-          if(!state.manualCover&&!state.finalImageKey){shape='all';coverProvider='all';coverPage=0;}
+          if(!state.manualCover&&!state.finalImageKey){shape='all';coverProvider='nintendo';coverPage=0;}
           clearTimeout(debounce); clearTimeout(searchTimer); searchRequest = ++sequence;
           results = []; searchStatus = 'idle'; renderResults();
         }
         current = state; renderGameUI();
         if (changed||platformChanged) {
           notice = '';coverPage=0;coverHasMore=false;coverTotal=0;
-          loadCovers();
-        }else if(localeChanged){loadCovers();if(el('game-cover-details').open)showCoverDetails(covers.find(cover=>cover.id===detailsCover),false);}
+          if(!window.NitLinkAccountLibrary?.lookupCurrent())loadCovers();
+        }else if(localeChanged||nameChanged){if(nameChanged)el('game-official-query').value=window.NitLinkGameTitles.base(window.NitLinkGameTitles.label({...state,customName:'',displayName:'',titleLocale:'',locale:''},'zh-TW',t('account.switch2Edition')));loadCovers();if(el('game-cover-details').open)showCoverDetails(covers.find(cover=>cover.id===detailsCover),false);}
       };
       window._updateGameLive = state => {
         live = {...live, ...state};
+        window.NitLinkAccountLibrary?.updateSource(live);
         renderGameUI();
       };
       window._gameEvent = event => {
@@ -1541,15 +1551,18 @@
           }));
           // Stable relevance groups include provider supplements. Preserve the
           // Worker's order within a group; no popularity scores are invented.
-          results = [...event.games||[]].sort((a,b)=>relevance(b)-relevance(a));
-          results.forEach(game => { game.dataMode = game.dataMode || event.dataMode || 'real'; });
+          results = [...event.games||[]].sort((a,b)=>Number(window.NitLinkGameTitles.isDemo(a))-Number(window.NitLinkGameTitles.isDemo(b))||relevance(b)-relevance(a));
+          if(!results.length){results=window.NitLinkAccountLibrary?.searchGames(query.value)||[];if(results.length)searchStatus='ok';}
+          results.forEach(game => { game.dataMode=game.dataMode||event.dataMode||'real';game.titleLocale=currentLocale; });
+          window.NitLinkAccountLibrary?.catalogue(results);
           suggestions = event.suggestions || []; queriedTerms = event.queriedTerms || [];
           el('game-suggestions').replaceChildren();
           suggestions.forEach(term => {
             const button = document.createElement('button'); button.type = 'button'; button.className = 'game-button'; button.textContent = term;
             button.addEventListener('click', () => { query.value = term; search(); }); el('game-suggestions').appendChild(button);
           });
-          renderResults(); updateStatus();
+          renderResults(); renderGameUI(); updateStatus();
+          window.NitLinkAccountLibrary?.searchResults(results);
           el('game-search-status').title = Object.entries(event.lookups || {}).map(([source, status]) => `${source}: ${status}`).join(' · ');
         } else if (event.kind === 'covers' && event.request === coverRequest && event.gameId === current.id && event.shape === shape) {
           clearTimeout(coverTimer); coverStatus = event.status; covers = [...event.artworkSources||[],...event.covers||[]];
@@ -1566,6 +1579,7 @@
         } else if(event.kind==='coversComplete'&&event.request===coverRequest&&event.gameId===current.id&&event.shape===shape){
           readyCoverBatch=coverRequest;applyAutomaticCoverWhenReady();
         } else if (event.kind === 'image') {
+          if(!event.coverId&&event.request===searchRequest)window.NitLinkAccountLibrary?.thumbnail(event);
           const entry = event.coverId ? (event.request === coverRequest && coverCards.get(event.coverId)) :
             (event.request === searchRequest && gameCards.get(event.gameId));
           if (entry) {
@@ -1588,7 +1602,7 @@
         query.value = '';
         results = []; suggestions = []; queriedTerms = []; covers = [];
         searchStatus = 'idle'; coverStatus = 'idle'; notice = '';
-        coverProvider = 'all'; shape = 'all'; coverPage = 0; coverHasMore = false; coverTotal = 0;
+        coverProvider = 'nintendo'; shape = 'all'; coverPage = 0; coverHasMore = false; coverTotal = 0;
         officialStatus = 'idle'; officialProvider = '';
         el('game-suggestions').replaceChildren();
         el('game-rename-editor').hidden = true;
@@ -1815,6 +1829,7 @@
         if (msg && typeof msg.toast === 'string') showToast(msg.toast);
         if (msg && msg.gameState) window._updateGameState(msg.gameState);
         if (msg && msg.gameLibrary) window._updateGameLibrary(msg.gameLibrary);
+        if (msg && msg.accountLibrary) {window.NitLinkAccountLibrary?.update(msg.accountLibrary);if(results.some(game=>game.accountKey)){results=window.NitLinkAccountLibrary.searchGames(query.value);renderResults();}renderGameUI();}
         if (msg && msg.gameEvent) window._gameEvent(msg.gameEvent);
         if (msg && msg.gameNotice) window._gameNotice(msg.gameNotice);
         if (msg && msg.gamePageReset) window._resetGamePage();

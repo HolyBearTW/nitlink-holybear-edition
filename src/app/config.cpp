@@ -168,6 +168,7 @@ bool IsConfigText(const std::string& value) {
         [](unsigned char c) { return c < 0x20 && c != '\t'; });
 }
 bool IsGameId(const std::string& id) {
+    if(Games::IsAccountGameKey(id))return true;
     if (id.starts_with("sgdb-")) return Games::DynamicId(id) != 0;
     return id.size() <= 64 && std::all_of(id.begin(), id.end(), [](unsigned char c) {
         return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
@@ -354,6 +355,7 @@ bool Config::Load(const std::string& path)
         std::string key = Trim(line.substr(0, eq));
         std::string val = Trim(line.substr(eq + 1));
 
+
         if (key.starts_with("online_game.")) {
             const auto dot = key.find('.', 12);
             if (dot == std::string::npos) continue;
@@ -362,17 +364,20 @@ bool Config::Load(const std::string& path)
             if (id.empty() || !IsGameId(id) || (onlineGames.size() >= 256 && !onlineGames.contains(id))) continue;
             const auto field = key.substr(dot + 1);
             auto& game = onlineGames[id];
-            game.id = number;
+            game.key=id;
+            if(number)game.id = number;
             const auto text = ConfigWide(val);
             if (field == "name" && Games::ValidText(text)) game.name = text;
             else if (field.starts_with("display_")) {
                 const auto locale = ConfigWide(field.substr(8));
-                if (Games::IsLocale(locale) && Games::ValidText(text)) game.displayNames[locale] = text;
+                if (Games::IsLocale(locale) && Games::ValidText(text) && (!Games::IsAccountGameKey(id)||!Games::NeedsLocalizedTitle(text,locale))) game.displayNames[locale] = text;
             } else if (field == "cover_url" && (text.empty() || Games::IsCoverUrl(text))) game.coverUrl = text;
             else if (field == "cover_thumb" && (text.empty() || Games::IsCoverUrl(text))) game.coverThumb = text;
             else if (field == "cover_shape" && (text.empty() || text==L"square" || text==L"portrait" || text==L"landscape")) game.coverShape=text;
+            else if (field == "catalogue_id" && Games::IsAccountGameKey(id)) game.id = Games::ParseId(val);
             else if (field == "cover_id") game.coverId = Games::ParseId(val);
             else if (field == "cover_provider") game.provider = text;
+            else if (field == "cover_account_game") game.accountGameKey = val;
             else if (field == "cover_source_label") game.sourceLabel = text;
             else if (field == "cover_language") game.language = text;
             else if (field == "cover_region") game.region = text;
@@ -798,7 +803,9 @@ bool Config::Save(const std::string& path)
         file << prefix << "cover_thumb = " << ConfigUtf8(game.coverThumb) << "\n";
         file << prefix << "cover_shape = " << ConfigUtf8(game.coverShape) << "\n";
         file << prefix << "cover_id = " << game.coverId << "\n";
+        if(Games::IsAccountGameKey(id))file << prefix << "catalogue_id = " << game.id << "\n";
         file << prefix << "cover_provider = " << ConfigUtf8(game.provider) << "\n";
+        file << prefix << "cover_account_game = " << game.accountGameKey << "\n";
         file << prefix << "cover_source_label = " << ConfigUtf8(game.sourceLabel) << "\n";
         file << prefix << "cover_language = " << ConfigUtf8(game.language) << "\n";
         file << prefix << "cover_region = " << ConfigUtf8(game.region) << "\n";

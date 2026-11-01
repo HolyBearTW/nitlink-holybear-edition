@@ -12,6 +12,7 @@ using Table = std::map<std::wstring, std::wstring>;
 const Table& EnglishTable()
 {
     static const Table table = {
+        {L"game.switch2Edition", L"Switch 2 Edition"},
         {L"discord.sourcePrefix", L"Source: "},
         {L"error.com", L"Failed to initialize COM runtime."},
         {L"error.mediaFoundation", L"Failed to initialize Media Foundation."},
@@ -105,6 +106,7 @@ const Table& EnglishTable()
 const Table& TraditionalChineseTable()
 {
     static const Table table = {
+        {L"game.switch2Edition", L"Switch 2 版"},
         {L"discord.sourcePrefix", L"來源："},
         {L"error.com", L"COM 執行階段初始化失敗。"},
         {L"error.mediaFoundation", L"Media Foundation 初始化失敗。"},
@@ -198,6 +200,7 @@ const Table& TraditionalChineseTable()
 const Table& SimplifiedChineseTable()
 {
     static const Table table = {
+        {L"game.switch2Edition", L"Switch 2 版"},
         {L"discord.sourcePrefix", L"来源："},
         {L"overlay.presentRate", L"呈现帧率"},
         {L"overlay.presentFps", L"呈现 FPS"},
@@ -292,6 +295,7 @@ const Table& SimplifiedChineseTable()
 const Table& GermanTable()
 {
     static const Table table = {
+        {L"game.switch2Edition", L"Switch 2 Edition"},
         {L"discord.sourcePrefix", L"Quelle: "},
         {L"overlay.resyncingSignal", L"Signal wird erneut synchronisiert…"},
         {L"error.com", L"Die COM-Laufzeit konnte nicht initialisiert werden."},
@@ -385,6 +389,7 @@ const Table& GermanTable()
 const Table& KoreanTable()
 {
     static const Table table = {
+        {L"game.switch2Edition", L"Switch 2 에디션"},
         {L"discord.sourcePrefix", L"출처: "},
         {L"error.com", L"COM 런타임을 초기화하지 못했습니다."},
         {L"error.mediaFoundation", L"Media Foundation을 초기화하지 못했습니다."},
@@ -478,6 +483,7 @@ const Table& KoreanTable()
 const Table& JapaneseTable()
 {
     static const Table table = {
+        {L"game.switch2Edition", L"Switch 2 Edition"},
         {L"discord.sourcePrefix", L"入力元："},
         {L"error.com", L"COM ランタイムを初期化できませんでした。"},
         {L"error.mediaFoundation", L"Media Foundation を初期化できませんでした。"},
@@ -649,7 +655,7 @@ std::wstring Localization::DetectSystemLocale()
 
 bool Localization::IsTraditionalChineseLocale(const std::wstring& locale)
 {
-    return locale == L"zh-TW" || locale == L"zh-Hant-TW";
+    return locale == L"zh-TW" || locale == L"zh-HK" || locale == L"zh-MO" || locale == L"zh-Hant" || locale.starts_with(L"zh-Hant-");
 }
 
 bool Localization::IsSimplifiedChineseLocale(const std::wstring& locale)

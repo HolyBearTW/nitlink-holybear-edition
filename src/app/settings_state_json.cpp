@@ -111,7 +111,7 @@ std::wstring NextNoSignalMode(std::wstring_view currentMode)
 
 std::wstring SerializeArtworkMetadataProperties(const Games::ArtworkMetadata& artwork){
     const auto q=[](std::wstring_view text){return L"\""+JsonEscapeWide(text)+L"\"";};
-    return L"\"provider\":"+q(artwork.provider)+L",\"sourceLabel\":"+q(artwork.sourceLabel)+L",\"language\":"+q(artwork.language)+
+    return L"\"accountGameKey\":"+q(std::wstring(artwork.accountGameKey.begin(),artwork.accountGameKey.end()))+L",\"provider\":"+q(artwork.provider)+L",\"sourceLabel\":"+q(artwork.sourceLabel)+L",\"language\":"+q(artwork.language)+
         L",\"region\":"+q(artwork.region)+L",\"kind\":"+q(artwork.kind)+L",\"isOfficial\":"+(artwork.isOfficial?L"true":L"false");
 }
 std::wstring SerializeArtworkEditProperties(const Games::SavedGame& game){

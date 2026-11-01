@@ -22,6 +22,7 @@
 #include "present_cap_policy.h"
 #include "hdmi_source_display.h"
 #include "update_checker.h"
+#include "account_service.h"
 #include "discord/discord_rpc.h"
 
 #include <memory>
@@ -83,6 +84,9 @@ private:
     bool HandleGameMessage(const SettingsMessage& message);
     void PushCurrentGameState();
     void PushGameLibrary();
+    void ConsumeAccountResults();
+    void PushAccountLibrary();
+    void IncludeAccountArtwork(Games::Request& request);
     Games::SavedGame* EnsureSavedGame(const std::string& key);
     void RequestGameCovers(uint32_t request, std::wstring shape, uint32_t page, std::wstring provider=L"all", std::wstring catalogueQuery={});
     void SetPiPOpacity(float opacity);
@@ -284,7 +288,14 @@ private:
     DiscordRPC::ImageSnapshot m_discordImageSnapshot;
     std::wstring m_currentDiscordImage;
     std::unique_ptr<Games::GameService> m_gameService;
+    std::unique_ptr<Accounts::AccountService> m_accountService;
+    std::string m_accountImageSignature;
+    std::map<std::string,std::wstring> m_accountImages;
+    std::map<std::string,std::map<std::wstring,std::wstring>> m_accountDisplayNames;
+    std::map<std::wstring,Accounts::ArtworkImage> m_accountArtworkImages;
     std::map<uint32_t, Games::Game> m_searchGames;
+    uint32_t m_gameSearchRequest=0;
+    std::wstring m_gameSearchArtworkPlatform;
     std::map<uint32_t, std::wstring> m_discordTaiwanFallbacks;
     std::wstring m_gameArtworkPlatform;
     std::map<uint32_t, Games::Cover> m_searchDefaultCovers;

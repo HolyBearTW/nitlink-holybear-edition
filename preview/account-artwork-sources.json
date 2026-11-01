@@ -1,0 +1,43 @@
+[
+  {
+    "file": "preview/fixtures/account-forza-square.jpg",
+    "source": "https://store-images.s-microsoft.com/image/apps.18975.13718773309227929.bebdcc0e-1ed5-4778-8732-f4ef65a2f445.125d6b3b-492f-4e5f-8037-7ade230c8224",
+    "purpose": "BoxArt",
+    "product": "9NKX70BBCDRN"
+  },
+  {
+    "file": "preview/fixtures/account-forza-portrait.jpg",
+    "source": "https://store-images.s-microsoft.com/image/apps.49800.13718773309227929.bebdcc0e-1ed5-4778-8732-f4ef65a2f445.9ac09d39-064d-466c-81ca-2f1b6f0b95c5",
+    "purpose": "Poster",
+    "product": "9NKX70BBCDRN"
+  },
+  {
+    "file": "preview/fixtures/account-forza-landscape.jpg",
+    "source": "https://store-images.s-microsoft.com/image/apps.33953.13718773309227929.bebdcc0e-1ed5-4778-8732-f4ef65a2f445.9428b75f-2c08-4e70-9f95-281741b15341",
+    "purpose": "SuperHeroArt",
+    "product": "9NKX70BBCDRN"
+  },
+  {
+    "file": "preview/fixtures/account-halo-square.jpg",
+    "source": "https://store-images.s-microsoft.com/image/apps.54714.14330850369313893.a687698c-b891-44f6-9576-fe28978ce915.27742122-f062-410c-84f4-0fcf7b89524e",
+    "purpose": "BoxArt",
+    "product": "9PP5G1F0C2B6"
+  },
+  {
+    "file": "preview/fixtures/account-halo-portrait.jpg",
+    "source": "https://store-images.s-microsoft.com/image/apps.3823.14330850369313893.a687698c-b891-44f6-9576-fe28978ce915.5aada4fa-d850-4eb5-9100-33a81a5cde09",
+    "purpose": "Poster",
+    "product": "9PP5G1F0C2B6"
+  },
+  {
+    "file": "preview/fixtures/account-halo-landscape.jpg",
+    "source": "https://store-images.s-microsoft.com/image/apps.47030.14330850369313893.a687698c-b891-44f6-9576-fe28978ce915.ce613c75-aac4-4721-9941-6a254d061488",
+    "purpose": "SuperHeroArt",
+    "product": "9PP5G1F0C2B6"
+  },
+  {
+    "file": "preview/fixtures/account-mario-world.webp",
+    "source": "https://images.ctfassets.net/o5v89n4kg6h4/700100000968083650eca0894011f0a9605dd7946b86e3/d513fcac8eb3fdd683996c2c140fd439/701576595770f5bf0f2d56a335faa1d9545e499243cb96c4e4a127bb65b7bb9c.jpg?w=400&fm=webp",
+    "purpose": "Nintendo Taiwan public hero; representative demo artwork"
+  }
+]

@@ -7,7 +7,10 @@ if ((Get-Item -LiteralPath $packageRoot).Attributes -band [IO.FileAttributes]::R
 $required = @(
     'NitLink.exe', 'nitlink-menu.html', 'locales/en-US.js', 'locales/zh-TW.js', 'locales/de-DE.js',
     'locales/ko-KR.js', 'locales/ja-JP.js',
-    'assets/menu/menu.js', 'assets/menu/artwork-editor.js', 'assets/menu/preview-host.js', 'assets/nitlink.svg', 'game-search-expansions.json', 'official-artwork.json', 'unavailable-artwork.json',
+    'assets/menu/menu.js', 'assets/menu/artwork-editor.js', 'assets/menu/preview-host.js', 'assets/menu/account-library.js',
+    'assets/menu/platforms/nintendo-switch.svg', 'assets/menu/platforms/playstation.svg', 'assets/menu/platforms/xbox.svg',
+    'assets/menu/platforms/ATTRIBUTION.md', 'assets/menu/platforms/BOOTSTRAP-ICONS-LICENSE.txt',
+    'assets/nitlink.svg', 'assets/nitlink-mono.svg', 'game-search-expansions.json', 'official-artwork.json', 'unavailable-artwork.json',
     'assets/menu/Archivo-400.ttf', 'assets/menu/Archivo-500.ttf',
     'assets/menu/Archivo-600.ttf', 'assets/menu/Archivo-OFL.txt', 'assets/menu/kofi-cup.png',
     'assets/menu/contributors/holybear.png', 'assets/menu/contributors/cn115.jpg', 'assets/menu/contributors/n810k.png',

@@ -178,20 +178,50 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
     SettingsMessage result;
     result.action = actionIt->second.text;
     const auto& action = result.action;
-    if (action == L"javascriptException") {
+    if(action==L"getAccountCovers"||action==L"selectAccountCover"){
+        if(!value||value->kind!=Value::Kind::Object)return std::nullopt;
+        const auto key=value->fields.find(L"key");if(key==value->fields.end()||!Text(key->second,64))return std::nullopt;
+        std::string id;for(auto c:key->second.text){if(c>127)return std::nullopt;id+=static_cast<char>(c);}if(!Games::IsAccountGameKey(id))return std::nullopt;result.key=key->second.text;
+        if(action==L"selectAccountCover"){
+            if(value->fields.size()!=2||!Uint(*value,L"coverId",0xffffffffu,result.coverId)||!result.coverId)return std::nullopt;
+        }else {
+            const auto shape=value->fields.find(L"shape"),provider=value->fields.find(L"provider"),query=value->fields.find(L"officialQuery");
+            if(value->fields.size()!=6||shape==value->fields.end()||!Text(shape->second,16)||!OneOf(shape->second.text,{L"all",L"square",L"portrait",L"landscape"})||
+               provider==value->fields.end()||!Text(provider->second,16)||!OneOf(provider->second.text,{L"all",L"nintendo",L"community"})||query==value->fields.end()||!Text(query->second,256)||
+               !Uint(*value,L"page",1000,result.page)||!Uint(*value,L"request",0xffffffffu,result.request)||!result.request)return std::nullopt;
+            result.shape=shape->second.text;result.coverProvider=provider->second.text;result.catalogueQuery=query->second.text;
+        }
+    }else if(action==L"cancelXboxLogin"){
+        if(value)return std::nullopt;result.accountProvider=Accounts::Provider::Xbox;
+    }else if(action==L"beginManualAccountLink"||action==L"cancelNativeAccountLink"){
+        if(!value||!Text(*value,16))return std::nullopt;
+        const auto provider=Accounts::ParseProvider(value->text);if(!provider||*provider==Accounts::Provider::Xbox)return std::nullopt;result.accountProvider=*provider;
+    }else if(action==L"beginAccountLink"||action==L"syncAccount"||action==L"disconnectAccount"){
+        if(!value||!Text(*value,16))return std::nullopt;
+        const auto provider=Accounts::ParseProvider(value->text);if(!provider)return std::nullopt;result.accountProvider=*provider;
+    }else if(action==L"finishAccountLink"){
+        if(!value||value->kind!=Value::Kind::Object||value->fields.size()!=2)return std::nullopt;
+        const auto provider=value->fields.find(L"provider"),credential=value->fields.find(L"credential");
+        if(provider==value->fields.end()||credential==value->fields.end()||!Text(provider->second,16)||!Text(credential->second,4096)||credential->second.text.empty())return std::nullopt;
+        const auto parsed=Accounts::ParseProvider(provider->second.text);if(!parsed||*parsed==Accounts::Provider::Xbox)return std::nullopt;result.accountProvider=*parsed;result.text=credential->second.text;
+    }else if(action==L"linkAccountGame"){
+        if(!value||value->kind!=Value::Kind::Object||value->fields.size()!=2||!Uint(*value,L"gameId",0xffffffffu,result.gameId)||!result.gameId)return std::nullopt;
+        const auto key=value->fields.find(L"key");if(key==value->fields.end()||!Text(key->second,64))return std::nullopt;
+        std::string id;for(auto c:key->second.text){if(c>127)return std::nullopt;id+=static_cast<char>(c);}if(!Games::IsAccountGameKey(id))return std::nullopt;result.key=key->second.text;
+    }else if (action == L"javascriptException") {
         if (!value || !Text(*value, 512)) return std::nullopt;
         result.text = value->text;
     } else if (OneOf(action, {L"ready", L"cycleNoSignalMode", L"chooseNoSignalImage",
         L"clearNoSignalImage", L"cycleNoSignalFit", L"cycleNoSignalDimImage",
         L"cyclePresentPacing", L"cycleAspect", L"cyclePanelSide", L"cycleScaler",
         L"clearGame", L"resetGameSettings", L"saveGameSettings", L"getDeviceList", L"refreshDevices",
-        L"openScreenshotFolder", L"checkHolyBearUpdate", L"markHolyBearUpdateSeen"})) {
+        L"openScreenshotFolder", L"checkHolyBearUpdate", L"markHolyBearUpdateSeen",L"getAccountLibrary",L"openPsnCookie"})) {
         if (value) return std::nullopt;
     } else if (action == L"restoreAutoCover" || action == L"cancelGameSearch") {
         if (value) return std::nullopt;
     } else if(action==L"renderGameArtwork"){
         if(!value||value->kind!=Value::Kind::Object||value->fields.size()!=6||
-           !Uint(*value,L"gameId",0xffffffffu,result.gameId)||!result.gameId||!Uint(*value,L"coverId",0xffffffffu,result.coverId)||!result.coverId)return std::nullopt;
+           !Uint(*value,L"gameId",0xffffffffu,result.gameId)||!Uint(*value,L"coverId",0xffffffffu,result.coverId)||!result.coverId)return std::nullopt;
         const auto mode=value->fields.find(L"mode");
         if(mode==value->fields.end()||!Text(mode->second,16)||!OneOf(mode->second.text,{L"original",L"fit",L"crop"}))return std::nullopt;
         result.artworkMode=mode->second.text;
@@ -204,11 +234,11 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
             key->second.text.empty() || !Text(name->second,256)) return std::nullopt;
         std::string id;
         for(auto c:key->second.text){if(c>127)return std::nullopt;id.push_back(static_cast<char>(c));}
-        if(!FindGameById(id)&&!Games::DynamicId(id))return std::nullopt;
+        if(!FindGameById(id)&&!Games::DynamicId(id)&&!Games::IsAccountGameKey(id))return std::nullopt;
         result.key=key->second.text;result.text=name->second.text;
     } else if(action==L"applyAutoGameCover"){
         if(!value||value->kind!=Value::Kind::Object||value->fields.size()!=3||
-           !Uint(*value,L"gameId",0xffffffffu,result.gameId)||!result.gameId||
+           !Uint(*value,L"gameId",0xffffffffu,result.gameId)||
            !Uint(*value,L"request",0xffffffffu,result.request)||!result.request||
            !Uint(*value,L"coverId",0xffffffffu,result.coverId))return std::nullopt;
     } else if (action == L"searchGames" || action == L"getGameCovers" || action == L"selectGameCover") {
@@ -298,7 +328,7 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
                 if (c > 127) return std::nullopt;
                 id += static_cast<char>(c);
             }
-            if (!id.empty() && !FindGameById(id) && !Games::DynamicId(id))
+            if (!id.empty() && !FindGameById(id) && !Games::DynamicId(id) && !Games::IsAccountGameKey(id))
                 return std::nullopt;
         } else return std::nullopt;
     }

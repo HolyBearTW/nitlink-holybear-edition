@@ -31,9 +31,14 @@ inline constexpr Resource Resources[] = {
     {L"https://nitlink.invalid/locales/ko-KR.js", L"locales/ko-KR.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/locales/ja-JP.js", L"locales/ja-JP.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/menu.js", L"assets/menu/menu.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
+    {L"https://nitlink.invalid/assets/menu/account-library.js", L"assets/menu/account-library.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/artwork-editor.js", L"assets/menu/artwork-editor.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/preview-host.js", L"assets/menu/preview-host.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/nitlink.svg",L"assets/nitlink.svg",L"image/svg+xml",ResourceKind::Image},
+    {L"https://nitlink.invalid/assets/nitlink-mono.svg",L"assets/nitlink-mono.svg",L"image/svg+xml",ResourceKind::Image},
+    {L"https://nitlink.invalid/assets/menu/platforms/nintendo-switch.svg",L"assets/menu/platforms/nintendo-switch.svg",L"image/svg+xml",ResourceKind::Image},
+    {L"https://nitlink.invalid/assets/menu/platforms/playstation.svg",L"assets/menu/platforms/playstation.svg",L"image/svg+xml",ResourceKind::Image},
+    {L"https://nitlink.invalid/assets/menu/platforms/xbox.svg",L"assets/menu/platforms/xbox.svg",L"image/svg+xml",ResourceKind::Image},
     {L"https://nitlink.invalid/assets/menu/Archivo-400.ttf", L"assets/menu/Archivo-400.ttf", L"font/ttf", ResourceKind::Font},
     {L"https://nitlink.invalid/assets/menu/Archivo-500.ttf", L"assets/menu/Archivo-500.ttf", L"font/ttf", ResourceKind::Font},
     {L"https://nitlink.invalid/assets/menu/Archivo-600.ttf", L"assets/menu/Archivo-600.ttf", L"font/ttf", ResourceKind::Font},
@@ -51,7 +56,7 @@ inline bool CanReceiveMessage(std::wstring_view source, std::wstring_view curren
 }
 inline const Resource* FindResource(std::wstring_view uri) {
     for (const auto& resource : Resources) if (resource.uri == uri) return &resource;
-    constexpr std::wstring_view revision=L"?v=20261018-ko-ja";
+    constexpr std::wstring_view revision=L"?v=20261101-hud-layout1";
     if(uri.ends_with(revision)){
         uri.remove_suffix(revision.size());
         for(const auto& resource:Resources)if(resource.kind==ResourceKind::Script&&resource.uri==uri)return &resource;

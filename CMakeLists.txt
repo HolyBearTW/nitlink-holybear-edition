@@ -32,6 +32,8 @@ set(NITLINK_SOURCES
     src/app/game_identity.h
     src/app/game_service.h
     src/app/game_service.cpp
+    src/app/account_service.cpp
+    src/app/account_service.h
     src/app/xbox_auth_callback.cpp
     src/app/xbox_auth_callback.h
     src/app/nintendo_auth_callback.cpp
@@ -146,6 +148,7 @@ target_link_libraries(NitLink PRIVATE
     dwmapi
     windowscodecs
     winhttp
+    crypt32
     shell32
     bcrypt
     windowsapp
@@ -168,7 +171,7 @@ target_include_directories(NitLink PRIVATE
 install(TARGETS NitLink RUNTIME DESTINATION bin)
 install(FILES nitlink-menu.html DESTINATION bin)
 install(FILES game-search-expansions.json official-artwork.json unavailable-artwork.json DESTINATION bin)
-install(FILES assets/nitlink.svg DESTINATION bin/assets)
+install(FILES assets/nitlink.svg assets/nitlink-mono.svg DESTINATION bin/assets)
 install(DIRECTORY locales DESTINATION bin)
 install(DIRECTORY assets/menu DESTINATION bin/assets)
 install(FILES third_party/nis/NIS_Scaler.h third_party/nis/LICENSE.txt
@@ -214,6 +217,9 @@ add_custom_target(NitLinkRuntimeResources
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/assets/nitlink.svg
         $<TARGET_FILE_DIR:NitLink>/assets/nitlink.svg
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/assets/nitlink-mono.svg
+        $<TARGET_FILE_DIR:NitLink>/assets/nitlink-mono.svg
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/locales/en-US.js
         $<TARGET_FILE_DIR:NitLink>/locales/en-US.js

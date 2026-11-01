@@ -2281,8 +2281,15 @@ bool DX11Renderer::ConsumeDeviceLost()
 
 void DX11Renderer::SetPanelGlass(RECT pictureBounds)
 {
-    // The WebView supplies its actual rectangle in picture coordinates.
-    // Intersect with the current backbuffer while a resize is pending.
+    // The WebView supplies client pixels. Map them to the existing buffers
+    // while a user resize is pending, before the renderer applies its size.
+    RECT client{};GetClientRect(m_hwnd,&client);
+    if(client.right&&client.bottom){
+        pictureBounds.left=MulDiv(pictureBounds.left,m_windowWidth,client.right);
+        pictureBounds.right=MulDiv(pictureBounds.right,m_windowWidth,client.right);
+        pictureBounds.top=MulDiv(pictureBounds.top,m_windowHeight,client.bottom);
+        pictureBounds.bottom=MulDiv(pictureBounds.bottom,m_windowHeight,client.bottom);
+    }
     const RECT picture{0,0,static_cast<LONG>(m_windowWidth),static_cast<LONG>(m_windowHeight)};
     IntersectRect(&m_glassRect,&pictureBounds,&picture);
     m_glassScale=GetDpiForWindow(m_hwnd)/96.f;

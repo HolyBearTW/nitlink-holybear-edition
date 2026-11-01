@@ -1186,6 +1186,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // WebView and swap chain share a picture HWND so transparent settings
     // reveal the blurred picture, rather than the outer window's black fill.
     const bool settingsStarting = m_webviewSettings->Initialize(m_window->GetRenderHWND(), actualW, actualH);
+    m_window->SetMoveCallback([this](){if(m_webviewSettings)m_webviewSettings->Resize();});
     ApplyPanelLayout();
     m_gameService = std::make_unique<Games::GameService>();
     m_accountService = std::make_unique<Accounts::AccountService>();

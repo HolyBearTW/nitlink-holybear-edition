@@ -391,6 +391,7 @@ void WebViewSettings::Resize() {
     // A hidden control stays collapsed; Show(true) sizes it to the window.
     if (!m_controller || !m_visible) return;
     m_controller->put_Bounds(ComputeBounds());
+    m_controller->NotifyParentWindowPositionChanged();
 }
 
 // The browser draws the panel into a layered child window owned by its GPU

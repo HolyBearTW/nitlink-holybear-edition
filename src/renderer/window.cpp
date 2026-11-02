@@ -524,7 +524,7 @@ void Window::PaintCaption(HDC dc)
         if(!icon)icon=LoadIconW(m_hInstance,MAKEINTRESOURCEW(IDI_APP_ICON));
         if(icon){Bitmap brand(icon);graphics.DrawImage(&brand,12*scale,(height-18*scale)/2,18*scale,18*scale);}
     }
-    Font font(m_chromeLabels.fontFamily.c_str(),12*scale,FontStyleRegular,UnitPixel,
+    Font font(m_chromeLabels.fontFamily.c_str(),15*scale,FontStyleRegular,UnitPixel,
         m_chromeLabels.fontFamily==L"Archivo"?m_captionFonts.get():nullptr);StringFormat format;
     format.SetFormatFlags(StringFormatFlagsNoWrap);format.SetTrimming(StringTrimmingEllipsisCharacter);format.SetLineAlignment(StringAlignmentCenter);
     const auto first=CaptionButtonRect(m_isSettingsWindow?2:0);

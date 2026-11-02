@@ -149,6 +149,10 @@ int main() {
                english != korean && english != japanese,
                "all native locale tables define each settings/config warning");
     }
+    localization.SetPreference("zh-TW");
+    Expect(localization.PreferenceName() == "zh-TW" && localization.LocaleName() == L"zh-TW" &&
+           std::wstring(localization.UiFontFamily()) == L"Microsoft JhengHei",
+           "Traditional Chinese selects Microsoft JhengHei for native captions");
     localization.SetPreference("zh-CN");
     Expect(localization.PreferenceName() == "zh-CN" && localization.LocaleName() == L"zh-CN" &&
            std::wstring(localization.UiFontFamily()) == L"Microsoft YaHei UI",

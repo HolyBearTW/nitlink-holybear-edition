@@ -19,7 +19,7 @@ const Table& EnglishTable()
         {L"window.hud0", L"Standard HUD"},
         {L"window.hud1", L"Detailed HUD"},
         {L"window.hud2", L"Compact HUD"},
-        {L"window.settings", L"Settings (F1)"},
+        {L"window.settings", L"Settings"},
         {L"window.hidden", L"Hidden"},
         {L"overlay.help.contentFps", L"Estimated from changes between captured pictures, not the game engine frame rate."},
         {L"overlay.help.captureFps", L"Frames delivered by the capture card each second, including duplicate pictures."},
@@ -127,7 +127,7 @@ const Table& TraditionalChineseTable()
         {L"window.hud0", L"標準 HUD"},
         {L"window.hud1", L"詳細 HUD"},
         {L"window.hud2", L"精簡文字列"},
-        {L"window.settings", L"設定（F1）"},
+        {L"window.settings", L"設定"},
         {L"window.hidden", L"未顯示"},
         {L"overlay.help.contentFps", L"依擷取畫面的變化估計，不代表遊戲引擎實際產生的幀率。"},
         {L"overlay.help.captureFps", L"擷取卡每秒傳入程式的影格數，包含重複畫面。"},
@@ -235,7 +235,7 @@ const Table& SimplifiedChineseTable()
         {L"window.hud0", L"标准 HUD"},
         {L"window.hud1", L"详细 HUD"},
         {L"window.hud2", L"精简文字行"},
-        {L"window.settings", L"设置（F1）"},
+        {L"window.settings", L"设置"},
         {L"window.hidden", L"未显示"},
         {L"overlay.help.contentFps", L"根据采集画面的变化估计，不代表游戏引擎实际生成的帧率。"},
         {L"overlay.help.captureFps", L"采集卡每秒传入程序的帧数，包含重复画面。"},
@@ -344,7 +344,7 @@ const Table& GermanTable()
         {L"window.hud0", L"Standard-HUD"},
         {L"window.hud1", L"Detailliertes HUD"},
         {L"window.hud2", L"Kompakte Textzeile"},
-        {L"window.settings", L"Einstellungen (F1)"},
+        {L"window.settings", L"Einstellungen"},
         {L"window.hidden", L"Ausgeblendet"},
         {L"overlay.help.contentFps", L"Aus Änderungen der aufgenommenen Bilder geschätzt, nicht die Bildrate der Spiel-Engine."},
         {L"overlay.help.captureFps", L"Pro Sekunde von der Capture-Karte gelieferte Frames, einschließlich doppelter Bilder."},
@@ -452,7 +452,7 @@ const Table& KoreanTable()
         {L"window.hud0", L"표준 HUD"},
         {L"window.hud1", L"상세 HUD"},
         {L"window.hud2", L"간단한 텍스트"},
-        {L"window.settings", L"설정 (F1)"},
+        {L"window.settings", L"설정"},
         {L"window.hidden", L"숨김"},
         {L"overlay.help.contentFps", L"캡처된 화면의 변화를 바탕으로 추정한 값이며 게임 엔진의 실제 프레임 속도가 아닙니다."},
         {L"overlay.help.captureFps", L"캡처 카드가 초당 전달한 프레임 수입니다. 중복 화면도 포함합니다."},
@@ -560,7 +560,7 @@ const Table& JapaneseTable()
         {L"window.hud0", L"標準 HUD"},
         {L"window.hud1", L"詳細 HUD"},
         {L"window.hud2", L"コンパクト表示"},
-        {L"window.settings", L"設定（F1）"},
+        {L"window.settings", L"設定"},
         {L"window.hidden", L"非表示"},
         {L"overlay.help.contentFps", L"キャプチャ画像の変化から推定した値で、ゲームエンジンの実際のフレームレートではありません。"},
         {L"overlay.help.captureFps", L"キャプチャカードから毎秒届くフレーム数です。同じ画像の繰り返しも含みます。"},
@@ -808,7 +808,7 @@ std::wstring Localization::Format(
 const wchar_t* Localization::UiFontFamily(const wchar_t* fallback) const
 {
     return m_localeName == L"zh-CN" ? L"Microsoft YaHei UI"
-        : m_localeName == L"zh-TW" ? L"Microsoft JhengHei UI"
+        : m_localeName == L"zh-TW" ? L"Microsoft JhengHei"
         : m_localeName == L"ko-KR" ? L"Malgun Gothic"
         : m_localeName == L"ja-JP" ? L"Yu Gothic UI" : fallback;
 }

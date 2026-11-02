@@ -41,9 +41,9 @@ public:
         std::initializer_list<std::pair<std::wstring, std::wstring>> values) const;
 
     // Native text uses Microsoft YaHei UI for Simplified Chinese and
-    // Microsoft JhengHei UI for Traditional Chinese, Malgun Gothic for Korean,
-    // and Yu Gothic UI for Japanese;
-    // DirectWrite still applies its normal fallback chain for other glyphs.
+    // Microsoft JhengHei for Traditional Chinese, Malgun Gothic for Korean,
+    // and Yu Gothic UI for Japanese. The native renderer uses this family
+    // for its custom caption and signal status text.
     const wchar_t* UiFontFamily(const wchar_t* fallback = L"Segoe UI") const;
 
 private:

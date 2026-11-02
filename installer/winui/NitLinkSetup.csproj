@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- HarborSetup at 2c243bb, adapted for NitLink; GPL-3.0, see SOURCE.md. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <RootNamespace>NitLinkSetup</RootNamespace>
+    <AssemblyName>NitLinkSetupUi</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>../../assets/nitlink.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <EnableWinAppRunSupport>false</EnableWinAppRunSupport>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version Condition="'$(Version)' == ''">1.2.5.3</Version>
+    <Product>NitLink HolyBear Edition Setup</Product>
+    <Title>NitLink Setup</Title>
+    <Copyright>Copyright (c) Harbor contributors and NitLink Contributors</Copyright>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>
+    <WindowsAppSdkIncludeVersionInfo>true</WindowsAppSdkIncludeVersionInfo>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <WindowsPackageType>None</WindowsPackageType>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Theme.xaml" LogicalName="Theme.xaml" />
+    <EmbeddedResource Include="Localization/*.json" LogicalName="NitLinkSetup.Localization.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../LICENSE" LogicalName="NitLink.LICENSE" />
+    <EmbeddedResource Include="LICENSE" LogicalName="Setup.LICENSE" />
+    <EmbeddedResource Include="SOURCE.md" LogicalName="Setup.SOURCE" />
+    <Content Include="../../assets/nitlink.ico" Link="Assets/nitlink.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../assets/nitlink.svg" Link="Assets/nitlink.svg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.5.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.9" />
+  </ItemGroup>
+</Project>

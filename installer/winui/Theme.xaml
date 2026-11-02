@@ -1,0 +1,485 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Harbor's design tokens and control styles for its glass windows: text, stroke and fill colors per theme,
+  radii (panel 20, item 12, control 10), control heights (24 / 28 / 32 / 40) and the accent (霧藍).
+  The font is Noto Sans when installed, otherwise the Windows UI font for the language (Services/UiFont).
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Colors per theme, and the built-in controls (text boxes, drop-downs, check and radio buttons, lists, menus,
+         dialogs) aliased to them inside each theme so a runtime theme switch restyles them as well. -->
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <Color x:Key="UiText1Color">#EB141418</Color>
+            <Color x:Key="UiText2Color">#9E141418</Color>
+            <Color x:Key="UiText3Color">#6B141418</Color>
+            <Color x:Key="UiStrokeColor">#14000000</Color>
+            <Color x:Key="UiFillHoverColor">#0B000000</Color>
+            <Color x:Key="UiFillSelectedColor">#9EFFFFFF</Color>
+            <Color x:Key="UiFillControlColor">#80FFFFFF</Color>
+            <Color x:Key="UiSurfaceColor">#FFF6F6F8</Color>
+            <SolidColorBrush x:Key="UiText1Brush" Color="{ThemeResource UiText1Color}"/>
+            <SolidColorBrush x:Key="UiText2Brush" Color="{ThemeResource UiText2Color}"/>
+            <SolidColorBrush x:Key="UiText3Brush" Color="{ThemeResource UiText3Color}"/>
+            <SolidColorBrush x:Key="UiStrokeBrush" Color="{ThemeResource UiStrokeColor}"/>
+            <SolidColorBrush x:Key="UiFillHoverBrush" Color="{ThemeResource UiFillHoverColor}"/>
+            <SolidColorBrush x:Key="UiFillSelectedBrush" Color="{ThemeResource UiFillSelectedColor}"/>
+            <SolidColorBrush x:Key="UiFillControlBrush" Color="{ThemeResource UiFillControlColor}"/>
+            <SolidColorBrush x:Key="UiSurfaceBrush" Color="{ThemeResource UiSurfaceColor}"/>
+            <SolidColorBrush x:Key="UiAccentStateBrush" Color="#FF78B2ED"/>
+            <StaticResource x:Key="TextControlBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="TextControlForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlHeaderForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="ComboBoxBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxBackgroundPressed" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrushPointerOver" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrushPressed" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="ComboBoxDropDownGlyphForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="ComboBoxHeaderForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillChecked" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPressed" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeChecked" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillUnchecked" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeUnchecked" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseCheckedFill" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseCheckedStroke" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseFill" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseStroke" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ProgressBarForeground" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ProgressBarBackground" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ProgressRingForegroundThemeBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="HyperlinkButtonForeground" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFill" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="ListViewItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelected" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelectedPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelectedPressed" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorPointerOverBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorPressedBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="ExpanderHeaderBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ExpanderContentBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ExpanderHeaderBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ExpanderContentBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ContentDialogBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ContentDialogTopOverlay" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ContentDialogBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ContentDialogForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="FlyoutPresenterBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="FlyoutBorderThemeBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ToggleMenuFlyoutItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ToggleMenuFlyoutItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ComboBoxDropDownBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ComboBoxDropDownBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxItemPillFillBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CalendarDatePickerBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="CalendarDatePickerBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TimePickerButtonBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TimePickerButtonBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="InfoBarInformationalSeverityBackgroundBrush" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="InfoBarBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="PivotHeaderItemForegroundSelected" ResourceKey="UiText1Brush"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <Color x:Key="UiText1Color">#F0FFFFFF</Color>
+            <Color x:Key="UiText2Color">#A3FFFFFF</Color>
+            <Color x:Key="UiText3Color">#66FFFFFF</Color>
+            <Color x:Key="UiStrokeColor">#14FFFFFF</Color>
+            <Color x:Key="UiFillHoverColor">#0FFFFFFF</Color>
+            <Color x:Key="UiFillSelectedColor">#1FFFFFFF</Color>
+            <Color x:Key="UiFillControlColor">#12FFFFFF</Color>
+            <Color x:Key="UiSurfaceColor">#FF303030</Color>
+            <SolidColorBrush x:Key="UiText1Brush" Color="{ThemeResource UiText1Color}"/>
+            <SolidColorBrush x:Key="UiText2Brush" Color="{ThemeResource UiText2Color}"/>
+            <SolidColorBrush x:Key="UiText3Brush" Color="{ThemeResource UiText3Color}"/>
+            <SolidColorBrush x:Key="UiStrokeBrush" Color="{ThemeResource UiStrokeColor}"/>
+            <SolidColorBrush x:Key="UiFillHoverBrush" Color="{ThemeResource UiFillHoverColor}"/>
+            <SolidColorBrush x:Key="UiFillSelectedBrush" Color="{ThemeResource UiFillSelectedColor}"/>
+            <SolidColorBrush x:Key="UiFillControlBrush" Color="{ThemeResource UiFillControlColor}"/>
+            <SolidColorBrush x:Key="UiSurfaceBrush" Color="{ThemeResource UiSurfaceColor}"/>
+            <SolidColorBrush x:Key="UiAccentStateBrush" Color="#FF78B2ED"/>
+            <StaticResource x:Key="TextControlBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="TextControlForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlHeaderForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="ComboBoxBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxBackgroundPressed" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrushPointerOver" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrushPressed" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="ComboBoxDropDownGlyphForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="ComboBoxHeaderForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillChecked" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPressed" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeChecked" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillUnchecked" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeUnchecked" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseCheckedFill" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseCheckedStroke" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseFill" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseStroke" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ProgressBarForeground" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ProgressBarBackground" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ProgressRingForegroundThemeBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="HyperlinkButtonForeground" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFill" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="ListViewItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelected" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelectedPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelectedPressed" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorPointerOverBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorPressedBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="ExpanderHeaderBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ExpanderContentBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ExpanderHeaderBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ExpanderContentBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ContentDialogBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ContentDialogTopOverlay" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ContentDialogBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ContentDialogForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="FlyoutPresenterBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="FlyoutBorderThemeBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ToggleMenuFlyoutItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ToggleMenuFlyoutItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ComboBoxDropDownBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ComboBoxDropDownBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxItemPillFillBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CalendarDatePickerBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="CalendarDatePickerBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TimePickerButtonBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TimePickerButtonBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="InfoBarInformationalSeverityBackgroundBrush" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="InfoBarBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="PivotHeaderItemForegroundSelected" ResourceKey="UiText1Brush"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <StaticResource x:Key="UiText1Color" ResourceKey="SystemColorWindowTextColor"/>
+            <StaticResource x:Key="UiText2Color" ResourceKey="SystemColorWindowTextColor"/>
+            <StaticResource x:Key="UiText3Color" ResourceKey="SystemColorGrayTextColor"/>
+            <StaticResource x:Key="UiStrokeColor" ResourceKey="SystemColorWindowTextColor"/>
+            <StaticResource x:Key="UiFillHoverColor" ResourceKey="SystemColorWindowColor"/>
+            <StaticResource x:Key="UiFillSelectedColor" ResourceKey="SystemColorWindowColor"/>
+            <StaticResource x:Key="UiFillControlColor" ResourceKey="SystemColorWindowColor"/>
+            <StaticResource x:Key="UiSurfaceColor" ResourceKey="SystemColorWindowColor"/>
+            <SolidColorBrush x:Key="UiText1Brush" Color="{ThemeResource UiText1Color}"/>
+            <SolidColorBrush x:Key="UiText2Brush" Color="{ThemeResource UiText2Color}"/>
+            <SolidColorBrush x:Key="UiText3Brush" Color="{ThemeResource UiText3Color}"/>
+            <SolidColorBrush x:Key="UiStrokeBrush" Color="{ThemeResource UiStrokeColor}"/>
+            <SolidColorBrush x:Key="UiFillHoverBrush" Color="{ThemeResource UiFillHoverColor}"/>
+            <SolidColorBrush x:Key="UiFillSelectedBrush" Color="{ThemeResource UiFillSelectedColor}"/>
+            <SolidColorBrush x:Key="UiFillControlBrush" Color="{ThemeResource UiFillControlColor}"/>
+            <SolidColorBrush x:Key="UiSurfaceBrush" Color="{ThemeResource UiSurfaceColor}"/>
+            <SolidColorBrush x:Key="UiAccentStateBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <StaticResource x:Key="TextControlBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="TextControlForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="TextControlHeaderForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="ComboBoxBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxBackgroundPressed" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrushPointerOver" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxBorderBrushPressed" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="ComboBoxDropDownGlyphForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="ComboBoxHeaderForeground" ResourceKey="UiText2Brush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillChecked" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPressed" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeChecked" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundFillUnchecked" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="CheckBoxCheckBackgroundStrokeUnchecked" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseCheckedFill" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseCheckedStroke" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseFill" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="RadioButtonOuterEllipseStroke" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ProgressBarForeground" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ProgressBarBackground" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ProgressRingForegroundThemeBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="HyperlinkButtonForeground" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFill" ResourceKey="UiText3Brush"/>
+            <StaticResource x:Key="ListViewItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelected" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelectedPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemBackgroundSelectedPressed" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorPointerOverBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemSelectionIndicatorPressedBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="ListViewItemForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="ExpanderHeaderBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ExpanderContentBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="ExpanderHeaderBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ExpanderContentBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ContentDialogBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ContentDialogTopOverlay" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ContentDialogBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ContentDialogForeground" ResourceKey="UiText1Brush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="FlyoutPresenterBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="FlyoutBorderThemeBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ToggleMenuFlyoutItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ToggleMenuFlyoutItemBackgroundPressed" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ComboBoxDropDownBackground" ResourceKey="UiSurfaceBrush"/>
+            <StaticResource x:Key="ComboBoxDropDownBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundPointerOver" ResourceKey="UiFillHoverBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="UiFillSelectedBrush"/>
+            <StaticResource x:Key="ComboBoxItemPillFillBrush" ResourceKey="UiAccentStateBrush"/>
+            <StaticResource x:Key="CalendarDatePickerBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="CalendarDatePickerBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="TimePickerButtonBackground" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="TimePickerButtonBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="InfoBarInformationalSeverityBackgroundBrush" ResourceKey="UiFillControlBrush"/>
+            <StaticResource x:Key="InfoBarBorderBrush" ResourceKey="UiStrokeBrush"/>
+            <StaticResource x:Key="PivotHeaderItemForegroundSelected" ResourceKey="UiText1Brush"/>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <Color x:Key="UiAccentColor">#FF78B2ED</Color>
+    <SolidColorBrush x:Key="UiAccentBrush" Color="{StaticResource UiAccentColor}"/>
+    <Color x:Key="UiDangerColor">#FFE5484D</Color>
+    <SolidColorBrush x:Key="UiDangerBrush" Color="{StaticResource UiDangerColor}"/>
+    <SolidColorBrush x:Key="UiSuccessBrush" Color="#FF2F9E5B"/>
+    <SolidColorBrush x:Key="UiWarningBrush" Color="#FFF5A524"/>
+    <CornerRadius x:Key="UiRadiusItem">12</CornerRadius>
+    <CornerRadius x:Key="UiRadiusControl">10</CornerRadius>
+    <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
+    <CornerRadius x:Key="OverlayCornerRadius">14</CornerRadius>
+    <Thickness x:Key="ContentDialogPadding">24,22,24,22</Thickness>
+
+    <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+        <Setter Property="CornerRadius" Value="10"/><Setter Property="MinHeight" Value="32"/><Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+        <Setter Property="CornerRadius" Value="10"/><Setter Property="MinHeight" Value="32"/><Setter Property="MinWidth" Value="220"/><Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style TargetType="NumberBox">
+        <Setter Property="CornerRadius" Value="10"/><Setter Property="MinHeight" Value="32"/><Setter Property="MinWidth" Value="140"/>
+    </Style>
+
+    <!-- Group title above a card; note text under it -->
+    <Style x:Key="UiGroupTitle" TargetType="TextBlock">
+        <Setter Property="Margin" Value="2,20,0,8"/><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{ThemeResource UiText2Brush}"/>
+    </Style>
+    <Style x:Key="UiNote" TargetType="TextBlock">
+        <Setter Property="Margin" Value="2,6,2,0"/><Setter Property="FontSize" Value="11"/><Setter Property="LineHeight" Value="18"/>
+        <Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Foreground" Value="{ThemeResource UiText3Brush}"/>
+    </Style>
+    <Style x:Key="UiSectionTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="20"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{ThemeResource UiText1Brush}"/>
+    </Style>
+    <Style x:Key="UiBody" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/><Setter Property="LineHeight" Value="19"/><Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Foreground" Value="{ThemeResource UiText2Brush}"/>
+    </Style>
+
+    <!-- Icon button: transparent, neutral fill on hover -->
+    <Style x:Key="UiIconButton" TargetType="Button">
+        <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Foreground" Value="{ThemeResource UiText2Brush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="Transparent" CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter x:Name="Content" Padding="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Bg.Background" Value="{ThemeResource UiFillHoverBrush}"/><Setter Target="Content.Foreground" Value="{ThemeResource UiText1Brush}"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Bg.Background" Value="{ThemeResource UiFillHoverBrush}"/><Setter Target="Content.Foreground" Value="{ThemeResource UiText1Brush}"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Bg.Opacity" Value="0.4"/></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- Sidebar item: icon and label on the left, neutral fill on hover; the selection is a SlidingHighlight behind it. -->
+    <Style x:Key="UiNavItem" TargetType="Button">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="Height" Value="36"/><Setter Property="Padding" Value="12,0,12,0"/>
+        <Setter Property="CornerRadius" Value="10"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{ThemeResource UiText2Brush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="Transparent" CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Padding="{TemplateBinding Padding}" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="{TemplateBinding FontSize}"
+                                          FontWeight="{TemplateBinding FontWeight}" Foreground="{TemplateBinding Foreground}"/>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Bg.Background" Value="{ThemeResource UiFillHoverBrush}"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Bg.Background" Value="{ThemeResource UiFillHoverBrush}"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Bg.Opacity" Value="0.4"/></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- Subtle text button: the icon button's look with room for a label (secondary links, toggles). -->
+    <Style x:Key="UiSubtleButton" TargetType="Button" BasedOn="{StaticResource UiIconButton}">
+        <Setter Property="Width" Value="NaN"/><Setter Property="Padding" Value="10,0,10,0"/><Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <!-- Text button: neutral fill and thin stroke, darker on hover; the implicit style for every Button -->
+    <Style x:Key="UiTextButton" TargetType="Button">
+        <Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="12,0,12,0"/><Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{ThemeResource UiText1Brush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root">
+                        <Border x:Name="Bg" Background="{ThemeResource UiFillControlBrush}" BorderBrush="{ThemeResource UiStrokeBrush}" BorderThickness="1" CornerRadius="{TemplateBinding CornerRadius}"/>
+                        <Border x:Name="Hover" Background="{ThemeResource UiFillHoverBrush}" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <ContentPresenter Padding="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.4"/></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="Button" BasedOn="{StaticResource UiTextButton}"/>
+
+    <!-- Accent button for the one main action in a footer (settings 儲存): same size as a text button, accent fill -->
+    <Style x:Key="UiAccentButton" TargetType="Button" BasedOn="{StaticResource UiTextButton}">
+        <Setter Property="Foreground" Value="#FF111923"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root">
+                        <Border Background="{StaticResource UiAccentBrush}" CornerRadius="{TemplateBinding CornerRadius}"/>
+                        <Border x:Name="Hover" Background="#1FFFFFFF" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <Border x:Name="Press" Background="#1A000000" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <ContentPresenter Padding="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{TemplateBinding Foreground}"/>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Press.Opacity" Value="1"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Primary button for the installer's single main action: same size as a text button, accent fill, white semibold text -->
+    <Style x:Key="UiPrimaryButton" TargetType="Button">
+        <Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="12,0,12,0"/><Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Background" Value="{StaticResource UiAccentBrush}"/><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="#FF111923"/><Setter Property="UseSystemFocusVisuals" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}"/>
+                        <Border x:Name="Hover" Background="#1FFFFFFF" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <Border x:Name="Press" Background="#1A000000" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <Border x:Name="Ring" Margin="-3" BorderBrush="{TemplateBinding Background}" BorderThickness="2" CornerRadius="13" Opacity="0"/>
+                        <ContentPresenter Padding="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" Foreground="{TemplateBinding Foreground}"/>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Press.Opacity" Value="1"/></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Bg.Opacity" Value="0.45"/></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="FocusStates">
+                                <VisualState x:Name="Unfocused"/>
+                                <VisualState x:Name="PointerFocused"/>
+                                <VisualState x:Name="Focused"><VisualState.Setters><Setter Target="Ring.Opacity" Value="0.55"/></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- List rows: 10 px corners, neutral hover, the selected fill from the theme and the accent only as the selection mark -->
+    <Style x:Key="UiListItem" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="10,0,8,0"/>
+        <Setter Property="Margin" Value="0,1"/>
+        <Setter Property="MinHeight" Value="56"/>
+    </Style>
+    <Style TargetType="InfoBar"><Setter Property="CornerRadius" Value="12"/></Style>
+    <Style TargetType="Expander"><Setter Property="CornerRadius" Value="12"/></Style>
+    <Style TargetType="CalendarDatePicker"><Setter Property="CornerRadius" Value="10"/></Style>
+    <Style TargetType="TimePicker"><Setter Property="CornerRadius" Value="10"/></Style>
+    <Style TargetType="PasswordBox">
+        <Setter Property="CornerRadius" Value="10"/><Setter Property="MinHeight" Value="32"/><Setter Property="FontSize" Value="12"/>
+    </Style>
+</ResourceDictionary>

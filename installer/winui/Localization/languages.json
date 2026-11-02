@@ -1,0 +1,26 @@
+[
+  {
+    "Id": "en-US",
+    "Name": "English"
+  },
+  {
+    "Id": "zh-TW",
+    "Name": "繁體中文"
+  },
+  {
+    "Id": "zh-CN",
+    "Name": "简体中文"
+  },
+  {
+    "Id": "de-DE",
+    "Name": "Deutsch"
+  },
+  {
+    "Id": "ja-JP",
+    "Name": "日本語"
+  },
+  {
+    "Id": "ko-KR",
+    "Name": "한국어"
+  }
+]

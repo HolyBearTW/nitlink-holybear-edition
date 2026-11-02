@@ -2,6 +2,7 @@
 #include "window_composition.h"
 #include "window_motion.h"
 #include "../resource.h"
+#include "../app/holybear_version.h"
 #include <algorithm>
 #include <cmath>
 #include <dwmapi.h>
@@ -51,6 +52,7 @@ Window::~Window()
 bool Window::Create(HINSTANCE hInstance, const Desc& desc)
 {
     m_hInstance = hInstance;
+    m_isSettingsWindow=desc.settingsWindow;
     m_windowedClientSize = {desc.width, desc.height};
     Gdiplus::GdiplusStartupInput graphicsStartup;
     if(Gdiplus::GdiplusStartup(&m_gdiplusToken,&graphicsStartup,nullptr)!=Gdiplus::Ok)return false;
@@ -87,7 +89,8 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
                                             IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
     if (!wc.hIconSm) wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
     
-    if (!RegisterClassExW(&wc)) {
+    WNDCLASSEXW registeredWindow{sizeof(registeredWindow)};
+    if (!GetClassInfoExW(hInstance,wc.lpszClassName,&registeredWindow)&&!RegisterClassExW(&wc)) {
         return false;
     }
 
@@ -101,13 +104,13 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     rc.bottom+=MulDiv(36,static_cast<int>(dpi),96);
 
     m_hwnd = CreateWindowExW(
-        0,
+        WS_EX_NOREDIRECTIONBITMAP,
         L"NitLinkWindowClass",
         desc.title.c_str(),
         style,
         CW_USEDEFAULT, CW_USEDEFAULT,
         rc.right - rc.left, rc.bottom,
-        nullptr, nullptr, hInstance, this
+        desc.owner, nullptr, hInstance, this
     );
 
     if (!m_hwnd) return false;
@@ -118,14 +121,14 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     WNDCLASSEXW registeredVideo{sizeof(registeredVideo)};
     if(!GetClassInfoExW(hInstance,videoClass.lpszClassName,&registeredVideo)&&!RegisterClassExW(&videoClass))return false;
     const auto content=GetContentBounds();
-    m_videoWindow=CreateWindowExW(0,videoClass.lpszClassName,L"",WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS|WS_CLIPCHILDREN,
+    m_videoWindow=CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP,videoClass.lpszClassName,L"",WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS|WS_CLIPCHILDREN,
         content.left,content.top,content.right-content.left,content.bottom-content.top,m_hwnd,nullptr,hInstance,this);
     if(!m_videoWindow)return false;
 
     INITCOMMONCONTROLSEX controls{sizeof(controls),ICC_WIN95_CLASSES};InitCommonControlsEx(&controls);
     m_captionTooltip=CreateWindowExW(WS_EX_TOPMOST,TOOLTIPS_CLASSW,nullptr,WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX,
         CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,m_hwnd,nullptr,hInstance,nullptr);
-    for(int i=0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;tool.uFlags=TTF_SUBCLASS;
+    for(int i=m_isSettingsWindow?2:0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;tool.uFlags=TTF_SUBCLASS;
         tool.rect=CaptionButtonRect(i);tool.lpszText=const_cast<wchar_t*>(L"");SendMessageW(m_captionTooltip,TTM_ADDTOOLW,0,reinterpret_cast<LPARAM>(&tool));}
     UpdateCaptionTooltips();
 
@@ -149,6 +152,8 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     int backdrop=m_composition?1:3; // NONE for separate glass, transient fallback.
     m_desktopGlass=SUCCEEDED(DwmSetWindowAttribute(m_hwnd,38,&backdrop,sizeof(backdrop)));
     if(m_composition){
+        const DWMNCRENDERINGPOLICY policy=DWMNCRP_DISABLED;
+        DwmSetWindowAttribute(m_hwnd,DWMWA_NCRENDERING_POLICY,&policy,sizeof(policy));
         const COLORREF noBorder=0xfffffffe;
         DwmSetWindowAttribute(m_hwnd,34,&noBorder,sizeof(noBorder));
         BOOL noPeek=TRUE;DwmSetWindowAttribute(m_hwnd,11,&noPeek,sizeof(noPeek));
@@ -219,8 +224,8 @@ void Window::AdvanceMotion()
                 interpolate(m_glide.from.right,m_glide.to.right),interpolate(m_glide.from.bottom,m_glide.to.bottom)};
             const int x=m_glide.drawn.left-m_glide.host.left,y=m_glide.drawn.top-m_glide.host.top;
             const int diameter=static_cast<int>(std::lround(2*WindowMotion::Radius*GetDpiForWindow(m_hwnd)/96.f));
-            auto region=CreateRoundRectRgn(x,y,x+m_glide.drawn.right-m_glide.drawn.left+1,
-                y+m_glide.drawn.bottom-m_glide.drawn.top+1,diameter,diameter);
+            auto region=CreateRoundRectRgn(x,y,x+m_glide.drawn.right-m_glide.drawn.left,
+                y+m_glide.drawn.bottom-m_glide.drawn.top,diameter,diameter);
             if(!SetWindowRgn(m_hwnd,region,TRUE))DeleteObject(region);
             UpdateGlassPosition();
         }
@@ -325,15 +330,16 @@ RECT Window::CaptionButtonRect(int index) const
 {
     const auto client=LayoutBounds();
     const int dpi=static_cast<int>(GetDpiForWindow(m_hwnd));
-    const int unit=MulDiv(42,dpi,96),gap=MulDiv(8,dpi,96);
-    const int left=client.right-5*unit-gap+index*unit+(index>=2?gap:0);
-    return {left,client.top,left+unit,client.top+CaptionHeight()};
+    const int unit=MulDiv(28,dpi,96),step=MulDiv(30,dpi,96),gap=MulDiv(10,dpi,96);
+    const int left=client.right-MulDiv(10,dpi,96)-unit-(4-index)*step-(index<2?gap:0);
+    const int top=client.top+(CaptionHeight()-unit)/2;
+    return {left,top,left+unit,top+unit};
 }
 
 int Window::CaptionButtonAt(POINT point) const
 {
     if(!CaptionHeight())return -1;
-    for(int i=0;i<5;++i){const auto rect=CaptionButtonRect(i);if(PtInRect(&rect,point))return i;}
+    for(int i=m_isSettingsWindow?2:0;i<5;++i){const auto rect=CaptionButtonRect(i);if(PtInRect(&rect,point))return i;}
     return -1;
 }
 
@@ -349,7 +355,7 @@ void Window::UpdateCaptionTooltips()
     m_captionTooltips={m_chromeLabels.hud[m_hudMode]+(m_hudVisible?L"":L" ("+m_chromeLabels.hidden+L")"),m_chromeLabels.settings,
         m_chromeLabels.minimize,IsZoomed(m_hwnd)?m_chromeLabels.restore:m_chromeLabels.maximize,m_chromeLabels.close};
     if(!m_captionTooltip)return;
-    for(int i=0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;
+    for(int i=m_isSettingsWindow?2:0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;
         tool.lpszText=m_captionTooltips[i].data();tool.rect=CaptionButtonRect(i);
         SendMessageW(m_captionTooltip,TTM_UPDATETIPTEXTW,0,reinterpret_cast<LPARAM>(&tool));
         SendMessageW(m_captionTooltip,TTM_NEWTOOLRECTW,0,reinterpret_cast<LPARAM>(&tool));}
@@ -365,7 +371,7 @@ void Window::SetChromeState(unsigned hudMode,bool hudVisible,bool settingsVisibl
 void Window::SetChromeLabels(ChromeLabels labels)
 {
     if(labels==m_chromeLabels)return;
-    m_chromeLabels=std::move(labels);UpdateCaptionTooltips();RefreshCaption();
+    m_chromeLabels=std::move(labels);UpdateCaptionTooltips();RefreshCaption();PaintGlassStatus();
 }
 
 void Window::LayoutContent()
@@ -373,7 +379,20 @@ void Window::LayoutContent()
     const auto bounds=GetContentBounds();
     if(m_videoWindow)SetWindowPos(m_videoWindow,nullptr,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,
         SWP_NOZORDER|SWP_NOACTIVATE);
-    MARGINS glass{0,0,m_composition?0:CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
+    if(m_videoWindow&&m_composition){
+        if(m_glassStatus){auto empty=CreateRectRgn(0,0,0,0);if(!SetWindowRgn(m_videoWindow,empty,TRUE))DeleteObject(empty);}
+        else if(IsRectEmpty(&m_panelBackdrop))SetWindowRgn(m_videoWindow,nullptr,TRUE);
+        else{
+            auto video=CreateRectRgn(0,0,bounds.right-bounds.left,bounds.bottom-bounds.top);
+            auto panel=CreateRectRgn(m_panelBackdrop.left-bounds.left,m_panelBackdrop.top-bounds.top,
+                m_panelBackdrop.right-bounds.left,m_panelBackdrop.bottom-bounds.top);
+            CombineRgn(video,video,panel,RGN_DIFF);DeleteObject(panel);
+            if(!SetWindowRgn(m_videoWindow,video,TRUE))DeleteObject(video);
+        }
+    }
+    if(!m_composition){
+        MARGINS glass{0,0,CaptionHeight(),0};DwmExtendFrameIntoClientArea(m_hwnd,&glass);
+    }
     if(m_composition&&!m_glide.active){
         RECT rect{};GetWindowRect(m_hwnd,&rect);
         const SIZE size{rect.right-rect.left,rect.bottom-rect.top};
@@ -382,21 +401,90 @@ void Window::LayoutContent()
         }else if(size.cx!=m_regionSize.cx||size.cy!=m_regionSize.cy){
             m_regionSize=size;
             const int diameter=static_cast<int>(std::lround(2*WindowMotion::Radius*GetDpiForWindow(m_hwnd)/96.f));
-            auto region=CreateRoundRectRgn(0,0,rect.right-rect.left+1,rect.bottom-rect.top+1,diameter,diameter);
+            auto region=CreateRoundRectRgn(0,0,rect.right-rect.left,rect.bottom-rect.top,diameter,diameter);
             if(!SetWindowRgn(m_hwnd,region,TRUE))DeleteObject(region);
         }
     }
     UpdateGlassPosition();
     UpdateCaptionTooltips();RefreshCaption();
+    PaintGlassStatus();
 }
 
 void Window::UpdateGlassPosition()
 {
     if(!m_composition)return;
-    if(!CaptionHeight()||!IsWindowVisible(m_hwnd)||IsIconic(m_hwnd)){m_composition->HideGlass();return;}
+    if((!CaptionHeight()&&IsRectEmpty(&m_panelBackdrop)&&!m_glassStatus)||!IsWindowVisible(m_hwnd)||IsIconic(m_hwnd)){m_composition->HideGlass();return;}
     RECT bounds{};GetWindowRect(m_hwnd,&bounds);
     if(m_glide.active)bounds=m_glide.drawn;
     m_composition->PlaceGlass(bounds,GetDpiForWindow(m_hwnd)/96.f);
+    if(!CaptionHeight())m_composition->AnimateGlass(true,false);
+}
+
+void Window::SetGlassEffect(bool enabled,float strength)
+{
+    if(m_composition){m_composition->SetGlassEnabled(enabled);m_composition->SetBlurStrength(strength);}
+}
+
+void Window::SetPanelBackdrop(RECT bounds)
+{
+    if(EqualRect(&bounds,&m_panelBackdrop))return;
+    m_panelBackdrop=bounds;LayoutContent();
+}
+
+void Window::SetGlassStatus(std::optional<GlassStatus> status)
+{
+    if(status==m_glassStatus)return;
+    m_glassStatus=std::move(status);LayoutContent();
+}
+
+void Window::PaintGlassStatus()
+{
+    if(!m_composition)return;
+    if(!m_glassStatus){m_composition->HideStatus();return;}
+    using namespace Gdiplus;
+    auto bounds=GetContentBounds();
+    if(!IsRectEmpty(&m_panelBackdrop)){
+        if(m_panelBackdrop.left<=bounds.left&&m_panelBackdrop.right>=bounds.right){m_composition->HideStatus();return;}
+        if(m_panelBackdrop.left>bounds.left)bounds.right=m_panelBackdrop.left;
+        else bounds.left=m_panelBackdrop.right;
+    }
+    const float scale=std::min(GetDpiForWindow(m_hwnd)/96.f,
+        std::min((bounds.right-bounds.left)/552.f,(bounds.bottom-bounds.top)/306.f));
+    if(scale<=0)return;
+    const int width=static_cast<int>(520*scale),height=static_cast<int>(274*scale);
+    Bitmap bitmap(width,height,PixelFormat32bppPARGB);Graphics graphics(&bitmap);
+    graphics.SetSmoothingMode(SmoothingModeAntiAlias);graphics.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+    graphics.Clear(Color(0,0,0,0));
+    GraphicsPath card;const float d=24*scale,w=static_cast<float>(width-1),h=static_cast<float>(height-1);
+    card.AddArc(0.f,0.f,d,d,180,90);card.AddArc(w-d,0.f,d,d,270,90);
+    card.AddArc(w-d,h-d,d,d,0,90);card.AddArc(0.f,h-d,d,d,90,90);card.CloseFigure();
+    SolidBrush cardTint(Color(24,255,255,255)),ink(Color(245,235,238,242)),muted(Color(205,190,200,213));
+    SolidBrush accent(Color(255,117,180,241));Pen rule(Color(25,255,255,255),scale);
+    graphics.FillPath(&cardTint,&card);graphics.DrawPath(&rule,&card);
+    const auto* fonts=m_chromeLabels.fontFamily==L"Archivo"?m_captionFonts.get():nullptr;
+    Font smallFont(m_chromeLabels.fontFamily.c_str(),11*scale,FontStyleRegular,UnitPixel,fonts);
+    Font body(m_chromeLabels.fontFamily.c_str(),13*scale,FontStyleRegular,UnitPixel,fonts);
+    Font heading(m_chromeLabels.fontFamily.c_str(),23*scale,FontStyleBold,UnitPixel,fonts);
+    if(m_captionLogo){
+        const float logoH=18*scale,logoW=logoH*m_captionLogo->GetWidth()/m_captionLogo->GetHeight();
+        graphics.DrawImage(m_captionLogo.get(),32*scale,28*scale,logoW,logoH);
+        graphics.DrawString(HolyBear::Version.data(),static_cast<INT>(HolyBear::Version.size()),&smallFont,
+            RectF(44*scale+logoW,31*scale,150*scale,20*scale),nullptr,&muted);
+    }
+    StringFormat right;right.SetAlignment(StringAlignmentFar);right.SetTrimming(StringTrimmingEllipsisCharacter);
+    graphics.DrawString(m_glassStatus->state.c_str(),-1,&smallFont,RectF(280*scale,31*scale,208*scale,22*scale),&right,&muted);
+    graphics.FillEllipse(&accent,static_cast<float>(width-24*scale),35*scale,5*scale,5*scale);
+    graphics.DrawLine(&rule,32*scale,64*scale,width-32*scale,64*scale);
+    graphics.DrawString(m_glassStatus->headline.c_str(),-1,&heading,RectF(32*scale,96*scale,width-64*scale,38*scale),nullptr,&ink);
+    graphics.DrawString(m_glassStatus->description.c_str(),-1,&body,RectF(32*scale,140*scale,width-64*scale,48*scale),nullptr,&muted);
+    graphics.DrawLine(&rule,32*scale,196*scale,width-32*scale,196*scale);
+    graphics.DrawString(m_glassStatus->hint.c_str(),-1,&smallFont,RectF(32*scale,214*scale,width-64*scale,48*scale),nullptr,&muted);
+    graphics.Flush();BitmapData data;Rect area(0,0,width,height);
+    if(bitmap.LockBits(&area,ImageLockModeRead,PixelFormat32bppPARGB,&data)==Ok){
+        m_composition->PaintStatus(data.Scan0,data.Stride,width,height,
+            bounds.left+(bounds.right-bounds.left-width)/2,bounds.top+(bounds.bottom-bounds.top-height)/2);
+        bitmap.UnlockBits(&data);
+    }
 }
 
 void Window::InvokeCaptionButton(int index)
@@ -419,7 +507,8 @@ void Window::PaintCaption(HDC dc)
     graphics.SetInterpolationMode(InterpolationModeHighQualityBicubic);
     graphics.Clear(m_composition?Color(0,0,0,0):m_desktopGlass?Color(26,18,18,22):Color(255,30,30,34));
     const BYTE alpha=GetForegroundWindow()==m_hwnd?240:180;
-    SolidBrush ink(Color(alpha,245,245,248));Pen line(Color(alpha,235,235,240),1.25f*scale);
+    SolidBrush ink(Color(alpha,245,245,248));Pen line(Color(alpha,235,235,240),1.75f*16/24*scale);
+    line.SetStartCap(LineCapRound);line.SetEndCap(LineCapRound);line.SetLineJoin(LineJoinRound);
     wchar_t title[1024]{};GetWindowTextW(m_hwnd,title,1024);
     float textLeft=39*scale;
     const wchar_t* captionText=title;
@@ -438,28 +527,51 @@ void Window::PaintCaption(HDC dc)
     Font font(m_chromeLabels.fontFamily.c_str(),12*scale,FontStyleRegular,UnitPixel,
         m_chromeLabels.fontFamily==L"Archivo"?m_captionFonts.get():nullptr);StringFormat format;
     format.SetFormatFlags(StringFormatFlagsNoWrap);format.SetTrimming(StringTrimmingEllipsisCharacter);format.SetLineAlignment(StringAlignmentCenter);
-    const auto first=CaptionButtonRect(0);
+    const auto first=CaptionButtonRect(m_isSettingsWindow?2:0);
     RectF titleRect(textLeft,0,std::max(0.f,first.left-client.left-textLeft-10*scale),static_cast<float>(height));
-    graphics.DrawString(captionText,-1,&font,titleRect,&format,&ink);
-    for(int i=0;i<5;++i){
+    if(!m_isSettingsWindow)graphics.DrawString(captionText,-1,&font,titleRect,&format,&ink);
+    for(int i=m_isSettingsWindow?2:0;i<5;++i){
         auto rect=CaptionButtonRect(i);OffsetRect(&rect,-client.left,-client.top);
         const float cx=(rect.left+rect.right)/2.f,cy=height/2.f;
         if(m_captionHover==i||m_captionPressed==i||(i==1&&m_settingsVisible)){
             SolidBrush hover(i==4?Color(220,196,43,45):i==1&&m_settingsVisible?Color(65,100,170,230):Color(m_captionPressed==i?55:30,255,255,255));
-            graphics.FillRectangle(&hover,Rect(rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top));
+            GraphicsPath outline;const float d=16*scale;
+            outline.AddArc(static_cast<float>(rect.left),static_cast<float>(rect.top),d,d,180,90);
+            outline.AddArc(rect.right-d,static_cast<float>(rect.top),d,d,270,90);
+            outline.AddArc(rect.right-d,rect.bottom-d,d,d,0,90);
+            outline.AddArc(static_cast<float>(rect.left),rect.bottom-d,d,d,90,90);outline.CloseFigure();
+            graphics.FillPath(&hover,&outline);
         }
         if(i==0){
-            Pen hud(Color(m_hudVisible?alpha:105,235,235,240),1.3f*scale);
+            Pen hud(Color(m_hudVisible?alpha:105,235,235,240),1.75f*16/24*scale);
+            hud.SetStartCap(LineCapRound);hud.SetEndCap(LineCapRound);hud.SetLineJoin(LineJoinRound);
             if(m_hudMode==0){graphics.DrawRectangle(&hud,cx-8*scale,cy-6*scale,16*scale,12*scale);graphics.DrawLine(&hud,cx-5*scale,cy-2*scale,cx+5*scale,cy-2*scale);graphics.DrawLine(&hud,cx-5*scale,cy+2*scale,cx+2*scale,cy+2*scale);}
             else if(m_hudMode==1){for(int row=0;row<3;++row){const float y=cy+(row-1)*4*scale;graphics.DrawLine(&hud,cx-8*scale,y,cx-5*scale,y);graphics.DrawLine(&hud,cx-2*scale,y,cx+8*scale,y);}}
             else {graphics.DrawLine(&hud,cx-8*scale,cy,cx-4*scale,cy);graphics.DrawLine(&hud,cx-1*scale,cy,cx+3*scale,cy);graphics.DrawLine(&hud,cx+6*scale,cy,cx+9*scale,cy);}
-        }else if(i==1){Font gear(L"Segoe MDL2 Assets",15*scale,FontStyleRegular,UnitPixel);StringFormat centered;centered.SetAlignment(StringAlignmentCenter);centered.SetLineAlignment(StringAlignmentCenter);
-            graphics.DrawString(L"\uE713",1,&gear,RectF(static_cast<float>(rect.left),0,static_cast<float>(rect.right-rect.left),static_cast<float>(height)),&centered,&ink);
-        }else if(i==2)graphics.DrawLine(&line,cx-5*scale,cy,cx+5*scale,cy);
-        else if(i==3){if(IsZoomed(m_hwnd)){graphics.DrawRectangle(&line,cx-3*scale,cy-5*scale,8*scale,8*scale);graphics.DrawRectangle(&line,cx-5*scale,cy-3*scale,8*scale,8*scale);}else graphics.DrawRectangle(&line,cx-5*scale,cy-5*scale,10*scale,10*scale);}
-        else {graphics.DrawLine(&line,cx-4.5f*scale,cy-4.5f*scale,cx+4.5f*scale,cy+4.5f*scale);graphics.DrawLine(&line,cx+4.5f*scale,cy-4.5f*scale,cx-4.5f*scale,cy+4.5f*scale);}
+        }else if(i==1){
+            PointF points[24];
+            for(int vertex=0;vertex<24;++vertex){
+                const float angle=vertex*3.14159265f/12.f;
+                const float radius=(vertex%4==0||vertex%4==3?7.f:5.5f)*scale;
+                points[vertex]={cx+std::cos(angle)*radius,cy+std::sin(angle)*radius};
+            }
+            graphics.DrawPolygon(&line,points,24);graphics.DrawEllipse(&line,cx-2*scale,cy-2*scale,4*scale,4*scale);
+        }else if(i==2)graphics.DrawLine(&line,cx-14.f/3*scale,cy,cx+14.f/3*scale,cy);
+        else if(i==3){
+            if(IsZoomed(m_hwnd)){
+                graphics.DrawLine(&line,cx-2*scale,cy-5*scale,cx+5*scale,cy-5*scale);
+                graphics.DrawLine(&line,cx+5*scale,cy-5*scale,cx+5*scale,cy+2*scale);
+            }
+            const float side=(IsZoomed(m_hwnd)?8.f:28.f/3)*scale,d=8.f/3*scale;
+            const float x=cx-side/2-(IsZoomed(m_hwnd)?scale:0),y=cy-side/2+(IsZoomed(m_hwnd)?scale:0);
+            GraphicsPath box;
+            box.AddArc(x,y,d,d,180,90);box.AddArc(x+side-d,y,d,d,270,90);
+            box.AddArc(x+side-d,y+side-d,d,d,0,90);box.AddArc(x,y+side-d,d,d,90,90);box.CloseFigure();
+            graphics.DrawPath(&line,&box);
+        }
+        else {graphics.DrawLine(&line,cx-4*scale,cy-4*scale,cx+4*scale,cy+4*scale);graphics.DrawLine(&line,cx+4*scale,cy-4*scale,cx-4*scale,cy+4*scale);}
     }
-    Pen border(Color(28,255,255,255));graphics.DrawLine(&border,0,height-1,width,height-1);graphics.Flush();
+    graphics.Flush();
     BitmapData data;Rect area(0,0,width,height);
     if(bitmap.LockBits(&area,ImageLockModeRead,PixelFormat32bppPARGB,&data)==Ok){
         if(m_composition)m_composition->PaintCaption(data.Scan0,data.Stride,width,height,client.left,client.top);
@@ -882,6 +994,12 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         // The entire window is our client, including all resize grips.
         // Windows must never reserve or paint a native caption above it.
         return 0;
+    case WM_NCPAINT:
+        if(self&&self->m_composition)return 0;
+        break;
+    case WM_NCACTIVATE:
+        if(self&&self->m_composition)return TRUE;
+        break;
     case WM_NCHITTEST:
         if(self&&self->CaptionHeight()){
             POINT point{static_cast<short>(LOWORD(lParam)),static_cast<short>(HIWORD(lParam))};ScreenToClient(hwnd,&point);
@@ -1011,6 +1129,9 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     // not change on the following clipped boundary frames.
                     const auto result=DefWindowProcW(hwnd,msg,wParam,lParam);
                     RECT to{};GetWindowRect(hwnd,&to);
+                    // Native placement may hide/show the host during the
+                    // transition. Restore its separate material as well.
+                    if(!iconic)self->m_composition->AnimateGlass(true,false);
                     if(iconic)self->BeginFade(true);
                     else if(self->ShouldAnimate()&&dpi==GetDpiForWindow(hwnd)&&!EqualRect(&from,&to)){
                         RECT client{},host{};GetClientRect(hwnd,&client);UnionRect(&host,&from,&to);
@@ -1160,6 +1281,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         }
         // Pending settings are committed while the child browser is still alive.
         if (self && self->m_onClose) self->m_onClose();
+        if(self&&self->m_isSettingsWindow){ShowWindow(hwnd,SW_HIDE);return 0;}
         break;
 
     case WM_DESTROY:
@@ -1167,7 +1289,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             self->SetVideoAvailable(false);
             if(self->m_composition)self->m_composition->HideGlass();
         }
-        PostQuitMessage(0);
+        if(!self||!self->m_isSettingsWindow)PostQuitMessage(0);
         return 0;
 
     case WM_ERASEBKGND:

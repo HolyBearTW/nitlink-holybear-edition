@@ -7,6 +7,7 @@
 #include <functional>
 #include <array>
 #include <memory>
+#include <optional>
 #include "playback_power.h"
 
 namespace Gdiplus { class Bitmap; class PrivateFontCollection; }
@@ -22,6 +23,8 @@ public:
         uint32_t     width  = 1920;
         uint32_t     height = 1080;
         bool         darkMode = true;
+        bool         settingsWindow = false;
+        HWND         owner = nullptr;
     };
 
     // Input event callbacks -- set by the application to route mouse/keyboard
@@ -93,6 +96,13 @@ public:
     RECT GetContentBounds() const;
     void SetChromeState(unsigned hudMode, bool hudVisible, bool settingsVisible);
     void SetChromeLabels(ChromeLabels labels);
+    void SetGlassEffect(bool enabled, float strength);
+    void SetPanelBackdrop(RECT bounds);
+    struct GlassStatus {
+        std::wstring headline,description,hint,state;
+        bool operator==(const GlassStatus&) const = default;
+    };
+    void SetGlassStatus(std::optional<GlassStatus> status);
     std::pair<uint32_t, uint32_t> GetClientSize() const;
     std::pair<uint32_t, uint32_t> GetWindowedClientSize() const { return m_windowedClientSize; }
     bool WasResized() const { return m_wasResized; }
@@ -126,6 +136,7 @@ private:
     void UpdateCaptionTooltips();
     void InvokeCaptionButton(int index);
     void UpdateGlassPosition();
+    void PaintGlassStatus();
     bool ShouldAnimate() const;
     void BeginFade(bool show, UINT completionCommand = 0);
     void AdvanceMotion();
@@ -153,7 +164,10 @@ private:
     std::unique_ptr<Gdiplus::PrivateFontCollection> m_captionFonts;
     std::unique_ptr<WindowComposition> m_composition;
     bool       m_desktopGlass = false;
+    bool       m_isSettingsWindow = false;
     SIZE       m_regionSize{};
+    RECT       m_panelBackdrop{};
+    std::optional<GlassStatus> m_glassStatus;
     unsigned   m_hudMode = 0;
     bool       m_hudVisible = false, m_settingsVisible = false;
     int        m_captionHover = -1, m_captionPressed = -1;

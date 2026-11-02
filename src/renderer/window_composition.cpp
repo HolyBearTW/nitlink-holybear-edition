@@ -55,8 +55,39 @@ struct BackdropSaturation : implements<BackdropSaturation,IGraphicsEffect,
     HRESULT __stdcall GetPropertyCount(UINT* count) noexcept override {*count=1;return S_OK;}
     HRESULT __stdcall GetProperty(UINT index,ABI::Windows::Foundation::IPropertyValue** value) noexcept override {
         if(index)return E_INVALIDARG;
-        try {auto property=PropertyValue::CreateSingle(1.6f);*value=reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(property));return S_OK;}
+        try {auto property=PropertyValue::CreateSingle(1.6f).as<winrt::Windows::Foundation::IPropertyValue>();*value=reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(property));return S_OK;}
         catch(...){return to_hresult();}
+    }
+    HRESULT __stdcall GetSource(UINT index,EffectAbi::IGraphicsEffectSource** source) noexcept override {
+        if(index)return E_INVALIDARG;
+        *source=reinterpret_cast<EffectAbi::IGraphicsEffectSource*>(get_abi(m_source));(*source)->AddRef();return S_OK;
+    }
+    HRESULT __stdcall GetSourceCount(UINT* count) noexcept override {*count=1;return S_OK;}
+};
+
+struct BackdropBlur : implements<BackdropBlur,IGraphicsEffect,
+    IGraphicsEffectSource,EffectAbi::IGraphicsEffectD2D1Interop> {
+    hstring m_name=L"BackdropBlur";
+    IGraphicsEffectSource m_source;
+    explicit BackdropBlur(IGraphicsEffectSource source):m_source(std::move(source)){}
+    hstring Name() const {return m_name;}
+    void Name(hstring const& value){m_name=value;}
+    HRESULT __stdcall GetEffectId(GUID* id) noexcept override {*id=CLSID_D2D1GaussianBlur;return S_OK;}
+    HRESULT __stdcall GetNamedPropertyMapping(LPCWSTR name,UINT* index,EffectAbi::GRAPHICS_EFFECT_PROPERTY_MAPPING* mapping) noexcept override {
+        if(wcscmp(name,L"BlurAmount"))return E_INVALIDARG;
+        *index=D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION;*mapping=EffectAbi::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT;return S_OK;
+    }
+    HRESULT __stdcall GetPropertyCount(UINT* count) noexcept override {*count=3;return S_OK;}
+    HRESULT __stdcall GetProperty(UINT index,ABI::Windows::Foundation::IPropertyValue** value) noexcept override {
+        if(index>2)return E_INVALIDARG;
+        try {
+            winrt::Windows::Foundation::IInspectable property{nullptr};
+            if(index==0)property=PropertyValue::CreateSingle(0);
+            else if(index==1)property=PropertyValue::CreateUInt32(D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED);
+            else property=PropertyValue::CreateUInt32(D2D1_BORDER_MODE_HARD);
+            auto typed=property.as<winrt::Windows::Foundation::IPropertyValue>();
+            *value=reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(typed));return S_OK;
+        }catch(...){return to_hresult();}
     }
     HRESULT __stdcall GetSource(UINT index,EffectAbi::IGraphicsEffectSource** source) noexcept override {
         if(index)return E_INVALIDARG;
@@ -88,7 +119,12 @@ struct WindowComposition::Impl {
     Compositor compositor{nullptr};
     winrt::Windows::UI::Composition::Desktop::DesktopWindowTarget contentTarget{nullptr},glassTarget{nullptr};
     ContainerVisual contentRoot{nullptr},glassRoot{nullptr};
-    SpriteVisual caption{nullptr},material{nullptr},luminosity{nullptr},tint{nullptr};
+    SpriteVisual material{nullptr},luminosity{nullptr},tint{nullptr};
+    struct UISurface {
+        ComPtr<IDXGISwapChain1> chain;
+        SpriteVisual visual{nullptr};
+        unsigned width=0,height=0;
+    } caption,status;
     std::array<SpriteVisual,2> shadows{nullptr,nullptr};
     CompositionRoundedRectangleGeometry maskGeometry{nullptr},clipGeometry{nullptr},outerGeometry{nullptr},innerGeometry{nullptr};
     ShapeVisual mask{nullptr},edges{nullptr};
@@ -96,9 +132,10 @@ struct WindowComposition::Impl {
     winrt::Windows::UI::ViewManagement::UISettings settings{nullptr};
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
-    ComPtr<IDXGISwapChain1> captionChain;
-    unsigned captionWidth=0,captionHeight=0;
     float2 glassSize{};
+    CompositionEffectBrush blurBrush{nullptr};
+    float blurStrength=0;
+    bool enabled=true;
     bool solid=false;
 
     ~Impl(){
@@ -114,23 +151,28 @@ struct WindowComposition::Impl {
         return target;
     }
 
-    void TitleSurface(unsigned width,unsigned height){
-        if(captionChain){
-            check_hresult(captionChain->ResizeBuffers(2,width,height,DXGI_FORMAT_B8G8R8A8_UNORM,0));
-        }else{
+    void Paint(UISurface& ui,const void* pixels,unsigned pitch,unsigned width,unsigned height,int x,int y){
+        if(ui.chain&&(width!=ui.width||height!=ui.height))
+            check_hresult(ui.chain->ResizeBuffers(2,width,height,DXGI_FORMAT_B8G8R8A8_UNORM,0));
+        if(!ui.chain){
             ComPtr<IDXGIDevice> dxgi;check_hresult(device.As(&dxgi));
             ComPtr<IDXGIAdapter> adapter;check_hresult(dxgi->GetAdapter(&adapter));
             ComPtr<IDXGIFactory2> factory;check_hresult(adapter->GetParent(IID_PPV_ARGS(&factory)));
             DXGI_SWAP_CHAIN_DESC1 desc{};desc.Width=width;desc.Height=height;desc.Format=DXGI_FORMAT_B8G8R8A8_UNORM;
             desc.SampleDesc.Count=1;desc.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT;desc.BufferCount=2;
             desc.Scaling=DXGI_SCALING_STRETCH;desc.SwapEffect=DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;desc.AlphaMode=DXGI_ALPHA_MODE_PREMULTIPLIED;
-            check_hresult(factory->CreateSwapChainForComposition(device.Get(),&desc,nullptr,&captionChain));
+            check_hresult(factory->CreateSwapChainForComposition(device.Get(),&desc,nullptr,&ui.chain));
             ICompositionSurface surface{nullptr};
             check_hresult(compositor.as<ABI::Windows::UI::Composition::ICompositorInterop>()->
-                CreateCompositionSurfaceForSwapChain(captionChain.Get(),reinterpret_cast<ABI::Windows::UI::Composition::ICompositionSurface**>(put_abi(surface))));
-            caption.Brush(compositor.CreateSurfaceBrush(surface));
+                CreateCompositionSurfaceForSwapChain(ui.chain.Get(),reinterpret_cast<ABI::Windows::UI::Composition::ICompositionSurface**>(put_abi(surface))));
+            ui.visual.Brush(compositor.CreateSurfaceBrush(surface));
         }
-        captionWidth=width;captionHeight=height;
+        ui.width=width;ui.height=height;
+        ComPtr<ID3D11Texture2D> buffer;check_hresult(ui.chain->GetBuffer(0,IID_PPV_ARGS(&buffer)));
+        context->UpdateSubresource(buffer.Get(),0,nullptr,pixels,pitch,0);
+        check_hresult(ui.chain->Present(0,0));ui.visual.Offset({static_cast<float>(x),static_cast<float>(y),0});
+        ui.visual.Size({static_cast<float>(width),static_cast<float>(height)});ui.visual.IsVisible(true);
+        controller.Commit();
     }
 };
 
@@ -152,16 +194,22 @@ bool WindowComposition::Initialize(HWND content)
         D3D_FEATURE_LEVEL level{};
         check_hresult(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,D3D11_CREATE_DEVICE_BGRA_SUPPORT,
             nullptr,0,D3D11_SDK_VERSION,&p.device,&level,&p.context));
-        SetWindowLongW(content,GWL_EXSTYLE,originalStyle|WS_EX_NOREDIRECTIONBITMAP);
+        // NOREDIRECTIONBITMAP is a creation-time style on the host HWND.
+        // Setting it here leaves the opaque GDI surface in the composition.
         p.contentTarget=p.Target(content);p.contentRoot=p.compositor.CreateContainerVisual();
-        p.contentRoot.RelativeSizeAdjustment({1,1});p.caption=p.compositor.CreateSpriteVisual();
-        p.contentRoot.Children().InsertAtTop(p.caption);p.contentTarget.Root(p.contentRoot);
+        p.contentRoot.RelativeSizeAdjustment({1,1});p.caption.visual=p.compositor.CreateSpriteVisual();
+        p.status.visual=p.compositor.CreateSpriteVisual();p.status.visual.IsVisible(false);
+        p.contentRoot.Children().InsertAtTop(p.caption.visual);p.contentRoot.Children().InsertAtTop(p.status.visual);
+        p.contentTarget.Root(p.contentRoot);
 
         WNDCLASSEXW cls{sizeof(cls)};cls.hInstance=GetModuleHandleW(nullptr);cls.lpfnWndProc=GlassProc;cls.lpszClassName=L"NitLinkGlassBackdrop";
         WNDCLASSEXW registered{sizeof(registered)};
         if(!GetClassInfoExW(cls.hInstance,cls.lpszClassName,&registered))check_bool(RegisterClassExW(&cls));
         p.glass=CreateWindowExW(WS_EX_NOACTIVATE|WS_EX_NOREDIRECTIONBITMAP|WS_EX_LAYERED|WS_EX_TOOLWINDOW|WS_EX_TRANSPARENT,
-            cls.lpszClassName,L"",WS_POPUP,0,0,1,1,nullptr,nullptr,cls.hInstance,nullptr);
+            cls.lpszClassName,L"",WS_POPUP,0,0,1,1,GetWindow(content,GW_OWNER),nullptr,cls.hInstance,nullptr);
+        // The material and its content must belong to the same owner group.
+        // Otherwise activating an owned settings window can put its unowned
+        // glass behind the main window while the transparent UI stays above it.
         check_bool(p.glass);SetLayeredWindowAttributes(p.glass,0,255,LWA_ALPHA);
         BOOL host=TRUE;check_hresult(DwmSetWindowAttribute(p.glass,17,&host,sizeof(host)));
         DWORD corner=1;DwmSetWindowAttribute(p.glass,33,&corner,sizeof(corner));
@@ -206,26 +254,48 @@ void WindowComposition::RefreshTheme()
 {
     auto& p=*m_impl;
     winrt::Windows::UI::ViewManagement::AccessibilitySettings accessibility;
-    p.solid=!p.settings.AdvancedEffectsEnabled()||accessibility.HighContrast();
-    if(p.solid)p.material.Brush(p.compositor.CreateColorBrush(GlassColor(1,22,22,25)));
+    p.solid=!p.enabled||!p.settings.AdvancedEffectsEnabled()||accessibility.HighContrast();
+    if(p.solid){p.blurBrush=nullptr;p.material.Brush(p.compositor.CreateColorBrush(GlassColor(1,22,22,25)));}
     else{
         CompositionEffectSourceParameter source(L"Backdrop");
-        auto effect=make<BackdropSaturation>(source);
-        auto brush=p.compositor.CreateEffectFactory(effect).CreateBrush();
-        brush.SetSourceParameter(L"Backdrop",p.compositor.CreateHostBackdropBrush());p.material.Brush(brush);
+        auto saturation=make<BackdropSaturation>(source);
+        auto effect=make<BackdropBlur>(saturation);
+        p.blurBrush=p.compositor.CreateEffectFactory(effect,{L"BackdropBlur.BlurAmount"}).CreateBrush();
+        p.blurBrush.SetSourceParameter(L"Backdrop",p.compositor.CreateHostBackdropBrush());
+        p.blurBrush.Properties().InsertScalar(L"BackdropBlur.BlurAmount",32*p.blurStrength);
+        p.material.Brush(p.blurBrush);
     }
     p.luminosity.Opacity(p.solid?0.f:1.f);p.tint.Opacity(p.solid?0.f:1.f);
     p.controller.Commit();
 }
 
-void WindowComposition::PaintCaption(const void* pixels,unsigned pitch,unsigned width,unsigned height,int x,int y)
+void WindowComposition::SetBlurStrength(float strength)
 {
     auto& p=*m_impl;
-    if(width!=p.captionWidth||height!=p.captionHeight)p.TitleSurface(width,height);
-    ComPtr<ID3D11Texture2D> buffer;check_hresult(p.captionChain->GetBuffer(0,IID_PPV_ARGS(&buffer)));
-    p.context->UpdateSubresource(buffer.Get(),0,nullptr,pixels,pitch,0);
-    check_hresult(p.captionChain->Present(0,0));p.caption.Offset({static_cast<float>(x),static_cast<float>(y),0});
-    p.caption.Size({static_cast<float>(width),static_cast<float>(height)});p.controller.Commit();
+    if(p.blurStrength==strength)return;
+    p.blurStrength=strength;
+    if(p.blurBrush){p.blurBrush.Properties().InsertScalar(L"BackdropBlur.BlurAmount",32*strength);p.controller.Commit();}
+}
+
+void WindowComposition::SetGlassEnabled(bool enabled)
+{
+    if(m_impl->enabled==enabled)return;
+    m_impl->enabled=enabled;RefreshTheme();
+}
+
+void WindowComposition::PaintCaption(const void* pixels,unsigned pitch,unsigned width,unsigned height,int x,int y)
+{
+    m_impl->Paint(m_impl->caption,pixels,pitch,width,height,x,y);
+}
+
+void WindowComposition::PaintStatus(const void* pixels,unsigned pitch,unsigned width,unsigned height,int x,int y)
+{
+    m_impl->Paint(m_impl->status,pixels,pitch,width,height,x,y);
+}
+
+void WindowComposition::HideStatus()
+{
+    m_impl->status.visual.IsVisible(false);m_impl->controller.Commit();
 }
 
 void WindowComposition::PlaceGlass(RECT bounds,float dpi)

@@ -12,10 +12,14 @@ public:
     ~WindowComposition();
     bool Initialize(HWND content);
     void PaintCaption(const void* pixels,unsigned pitch,unsigned width,unsigned height,int x,int y);
+    void PaintStatus(const void* pixels,unsigned pitch,unsigned width,unsigned height,int x,int y);
+    void HideStatus();
     void PlaceGlass(RECT bounds,float dpi);
     void AnimateGlass(bool show,bool animate);
     void HideGlass();
     void RefreshTheme();
+    void SetBlurStrength(float strength);
+    void SetGlassEnabled(bool enabled);
     bool AnimationsEnabled() const;
 private:
     struct Impl;

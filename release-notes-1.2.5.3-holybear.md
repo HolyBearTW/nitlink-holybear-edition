@@ -6,6 +6,8 @@
 
 ## 本次更新
 
+- 安裝程式直接移植 Harbor 的獨立 WinUI 介面，改用 NitLink Logo、淺藍品牌色及六種語言字型；提供安裝、更新、進度、完成、失敗及解除安裝畫面。偵測到已安裝時顯示「更新 NitLink」，沿用安裝位置與桌面捷徑選項。更新前會先請該安裝的 NitLink 儲存並結束。
+- 安裝與解除安裝沿用 NitLink 的 NSIS 引擎，保留設定、連動帳號、擷取圖片及其他使用者檔案；Windows 10、靜默操作及無法啟動 WinUI 執行環境時保留既有安裝介面。獨立 WinUI 安裝介面採 GPLv3，完整對應原始碼隨套件附於 `licenses/setup-ui-source.zip`，主程式維持 MIT 授權。
 - 視窗與遊戲容器在建立時設定合成背景，避免事後設定未生效而保留不透明底層；停用自訂標題列下方的系統邊框繪製，並修正圓角裁切多出一像素的範圍。最大化還原後會重新顯示獨立玻璃層。
 - 標題列按鈕改為 28px 圓角操作區，統一細線圖示、齒輪及 HUD 的尺寸與間距，依 DPI 縮放。
 - 視窗使用整合式標題列，模糊桌面背景；標題列保留獨立高度，不會覆蓋遊戲畫面。新增齒輪按鈕開啟 F1，以及圖示隨標準、詳細、精簡模式切換的 HUD 按鈕。全螢幕與子母畫面不顯示標題列。
@@ -37,6 +39,7 @@
 
 - JavaScript 語法及六種語系靜態檢查通過；五項封裝設定頁安全測試、遊戲搜尋對應及原生視窗狀態測試通過。視窗測試在隔離桌面確認主視窗與獨立設定視窗的玻璃層跟隨移動、失焦及最小化／還原，並確認兩者為頂層工作列視窗。
 - 本次驗收建置的完整無篩選 CTest 已通過 60／60，失敗與跳過均為 0。實際程式畫面仍待使用者驗收；自動化視窗測試不代表所有 Windows 桌面、顯示卡與 HDR 模式的像素結果相同。
+- 獨立安裝器另通過安裝／更新判斷、六語系、系統語言解析、含空白與中文的路徑、桌面捷徑選項及引擎失敗回報檢查；以隔離目錄、登錄項及捷徑名稱完成實際安裝、更新與解除安裝，核對所有檔案雜湊及設定、帳號資料保留。Windows 10 與缺少執行環境的實際畫面仍須在對應系統確認。
 - 仍須人工確認連續桌面玻璃、連動模糊程度、獨立設定視窗、無訊號玻璃、左右／全版面板、經典樣式模式、字標與語系字型、齒輪與三種 HUD 圖示，以及開啟／最小化／最大化／還原動畫、視窗縮放、DPI、全螢幕、子母畫面與 HDR／SDR 顯示。
 - GC553Pro／Switch 2 的既有擷取修正已完成真實實機驗收；本次保留既有擷取行為，帳號與圖片功能仍須以驗收版確認實際服務回應。
 - 自動模式無法取得更新率時，維持既有的 30 Hz fallback。
@@ -44,6 +47,7 @@
 ## 已知限制
 
 - 桌面模糊效果需要支援系統背景材質的 Windows 11；不支援的系統會使用深色標題列。Windows 關閉透明效果時，系統材質可能顯示為實色。
+- WinUI 安裝介面需要 Windows 11、.NET 10 及 Windows App Runtime。缺少執行環境時會顯示對應提示；無法啟動時改用原有安裝介面，NitLink 主程式不新增 .NET 相依性。
 - 動畫使用 Harbor 相同的分層方式、時間與 Bézier 曲線，以 NitLink 原生 Windows Composition 介面實作；保留遊戲的 HWND swap chain，沒有加入 WinUI 執行階段。實際動畫、連動桌面玻璃、獨立設定視窗及無訊號玻璃仍待此驗收包人工確認。
 - Nintendo Play Activity 的遊戲圖示與台灣搜尋的橫式主圖不保證提供直式包裝圖；官方商品頁有直式圖，也不代表這兩個介面會回傳它。
 - 社群資料庫未收錄、平台未提供圖片或服務暫時無法回應時，仍可能沒有可用候選；沒有完整名稱相符結果的遊戲需由使用者選擇搜尋結果。
@@ -54,10 +58,10 @@
 
 - 原始專案：@nitlink-dev，[nitlink-dev/nitlink](https://github.com/nitlink-dev/nitlink)；整合與維護：@HolyBearTW。
 - 透明標題字標來自原始專案的 [NitLink lockup](https://github.com/nitlink-dev/nitlink/blob/77d87b40248867b82cd56a0fff4e32314834e314/docs/images/nitlink-lockup.svg)，保留原始 SVG，原生介面使用透明 PNG 呈現。
-- 玻璃層與動畫行為參考 @tavricccc 的 [Harbor GlassWindow](https://github.com/tavricccc/harbor/blob/a56ab11d48fd654f3131ce0ec115ad50d6e5e30f/src/Harbor/Glass/GlassWindow.cs)、[GlassSurface](https://github.com/tavricccc/harbor/blob/a56ab11d48fd654f3131ce0ec115ad50d6e5e30f/src/Harbor/Glass/GlassSurface.cs) 與 [Motion](https://github.com/tavricccc/harbor/blob/a56ab11d48fd654f3131ce0ec115ad50d6e5e30f/src/Harbor/Controls/Motion.cs) 的設計及參數；以 Windows 公開 API 實作，未將 Harbor 的 C#／WinUI 程式碼加入套件。
+- 主程式玻璃層與動畫行為參考 @tavricccc 的 [Harbor GlassWindow](https://github.com/tavricccc/harbor/blob/a56ab11d48fd654f3131ce0ec115ad50d6e5e30f/src/Harbor/Glass/GlassWindow.cs)、[GlassSurface](https://github.com/tavricccc/harbor/blob/a56ab11d48fd654f3131ce0ec115ad50d6e5e30f/src/Harbor/Glass/GlassSurface.cs) 與 [Motion](https://github.com/tavricccc/harbor/blob/a56ab11d48fd654f3131ce0ec115ad50d6e5e30f/src/Harbor/Controls/Motion.cs) 的設計及參數，以 Windows 公開 API 實作。獨立安裝介面另外移植 [HarborSetup](https://github.com/tavricccc/harbor/tree/2c243bbbaa1bba4f412b6082964ba03eca64b84a/src/HarborSetup) 原碼，保留 GPLv3 授權與來源說明。
 - 保留 @CN115 的音訊工作、@n810K 等貢獻者工作，以及 @Noka123 與 @i0rph 的翻譯貢獻。
 - 保留 [MIT 授權](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE)、[第三方授權](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md)與[來源紀錄](https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/HOLYBEAR-SOURCES.json)。
 
 ## English Summary
 
-This version adds a desktop-blurred integrated title bar with Settings and three-mode HUD controls, plus a shared desktop-glass F1 background with linked blur strength, an independent settings window using the Full layout, a glass No Signal screen and a classic style option. It improves community artwork lookup, automatic matching, edition-specific covers, automatic retries, loading feedback, and clearing local games. The full unfiltered CTest suite passed 60/60 with no failures or skipped tests, including packaged settings and native window lifecycle checks. User visual acceptance remains pending.
+This version adds a desktop-blurred integrated title bar with Settings and three-mode HUD controls, plus a shared desktop-glass F1 background with linked blur strength, an independent settings window using the Full layout, a glass No Signal screen and a classic style option. It improves community artwork lookup, automatic matching, edition-specific covers, automatic retries, loading feedback, and clearing local games. An independent GPLv3 WinUI setup port from Harbor adds NitLink branding, six languages and an update screen for existing installations; Windows 10 and silent operations retain the NSIS interface. Installer source accompanies the payload. The full unfiltered CTest suite passed 60/60 with no failures or skipped tests, including packaged settings and native window lifecycle checks. Installer handoff and isolated install/upgrade/uninstall checks also passed. User visual acceptance remains pending.

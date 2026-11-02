@@ -236,6 +236,14 @@ attribution requirements:
 - **Used for:** Local profile previews in About. The images remain attributed
   to their respective contributors; NitLink's MIT license does not relicense them.
 
+## Independent WinUI setup interface
+
+- **Source:** @tavricccc's [HarborSetup](https://github.com/tavricccc/harbor/tree/2c243bbbaa1bba4f412b6082964ba03eca64b84a/src/HarborSetup), including its theme, icon control and localization loader.
+- **License:** GPL-3.0 for `installer/winui` and its independent `NitLinkSetupUi.exe`; the NitLink application retains its MIT license.
+- **Changes:** NitLink branding, six installer languages, locale fonts, and integration with NitLink's NSIS install/update/uninstall engine.
+- **Corresponding source:** `licenses/setup-ui-source.zip` in the distributed payload, including the full GPL text, source notices and build inputs. The Lucide icon paths retain their ISC license in `installer/winui/LICENSE-Lucide.txt`.
+- **Runtime dependencies:** Microsoft .NET and Windows App SDK use their respective Microsoft and third-party notices; they are shared prerequisites, not bundled runtimes.
+
 ## GitHub Mark icon (Primer Octicons)
 
 - **Source:** https://github.com/primer/octicons/blob/main/icons/mark-github-16.svg

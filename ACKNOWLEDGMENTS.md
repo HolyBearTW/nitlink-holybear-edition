@@ -79,6 +79,8 @@ project authorship or maintainership.
 
 ## About contributor cards
 
+- @tavricccc — [HarborSetup](https://github.com/tavricccc/harbor/tree/2c243bbbaa1bba4f412b6082964ba03eca64b84a/src/HarborSetup), adapted as the independent GPLv3 NitLink setup UI with its original notices and corresponding source.
+
 - Contributor profile images are sourced from the public GitHub avatars of
   [HolyBearTW](https://github.com/HolyBearTW), [CN115](https://github.com/CN115)
   and [n810K](https://github.com/n810K). The images remain attributed to their

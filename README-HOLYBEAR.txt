@@ -14,7 +14,12 @@ Alternatively run the multilingual Setup.exe. It installs under your user's
 standard Programs directory, creates Start menu shortcuts, and offers optional
 desktop shortcut and launch. The settings interface supports English,
 Traditional Chinese, Simplified Chinese, German, Japanese and Korean, with a
-manual selector. The Setup wizard is available in English and both Chinese variants.
+manual selector. Windows 11 uses a Harbor-derived WinUI setup with install,
+update and uninstall screens, NitLink branding, and all six interface languages.
+This independent GPLv3 UI requires .NET 10 and Windows App Runtime. Windows 10,
+silent installation, and missing-runtime fallback use the existing native wizard
+(English and both Chinese variants). The installer source accompanies the payload
+at licenses/setup-ui-source.zip. The NitLink application remains MIT licensed.
 Upgrades and uninstall retain your settings and other generated user files.
 The installer does not migrate or change an existing original NitLink installation.
 

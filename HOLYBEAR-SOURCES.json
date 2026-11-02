@@ -19,6 +19,14 @@
     "commit": "240f1b0a91620bdf287eb57863136624a6b87b14",
     "license": "MIT"
   },
+  "installerUi": {
+    "repository": "tavricccc/harbor",
+    "commit": "2c243bbbaa1bba4f412b6082964ba03eca64b84a",
+    "paths": ["src/HarborSetup", "src/Harbor/Themes/Theme.xaml", "src/Harbor/Controls/Icon.cs", "src/Harbor/Localization"],
+    "license": "GPL-3.0",
+    "scope": "Independent setup interface; the NitLink application retains MIT licensing.",
+    "sourceArchive": "licenses/setup-ui-source.zip"
+  },
   "selectivePorts": {
     "repository": "nitlink-dev/nitlink",
     "tag": "v1.2.4",

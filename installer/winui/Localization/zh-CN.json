@@ -4,7 +4,7 @@
   "Common.Minimize": "最小化",
   "Installer.DesktopIcon": "创建桌面快捷方式",
   "Installer.Install": "安装",
-  "Installer.InstallDetail": "NitLink 只会为你的账户安装到 {0}。",
+  "Installer.InstallDetail": "NitLink 仅为当前用户安装，可自定义安装位置。",
   "Installer.InstallFailed": "无法安装 NitLink",
   "Installer.InstallHeading": "安装 NitLink",
   "Installer.Installing": "正在安装 NitLink…",
@@ -27,5 +27,8 @@
   "Installer.ViewLicense": "许可与源代码",
   "Installer.LaunchNitLink": "打开 NitLink",
   "Installer.CloseApp": "NitLink 仍在运行，请关闭后重试。",
-  "Installer.EngineFailed": "安装操作失败（代码 {0}）。"
+  "Installer.EngineFailed": "安装操作失败（代码 {0}）。",
+  "Installer.Directory": "安装位置",
+  "Installer.Browse": "浏览…",
+  "Installer.InvalidDirectory": "请选择完整的安装文件夹，不能仅选择磁盘根目录。"
 }

@@ -17,9 +17,20 @@ try
     var engine = Path.Combine(scratch, "engine.exe");
     File.Copy(Environment.ProcessPath!, engine);
     var target = Path.Combine(scratch, "遊戲設定 with spaces");
-    Installer.Configure(["--engine", engine, "--directory", target, "--language", "1028"]);
+    Installer.Configure(["--engine", engine, "--directory", Path.Combine(scratch, "default"), "--language", "1028"]);
     Require(!Installer.IsInstalled, "fresh target selects the install screen");
     Require(Installer.LanguagePreference() == "zh-TW", "native language selection reaches WinUI");
+    Installer.SelectInstallDirectory(@"D:\NitLink");
+    Require(Installer.InstallDir == @"D:\NitLink", "reinstall can select the user's custom drive path without touching it");
+    foreach (var invalid in new[] { "NitLink", Path.GetPathRoot(target)!, target + "\"" })
+    {
+        var rejected = false;
+        try { Installer.SelectInstallDirectory(invalid); }
+        catch (ArgumentException) { rejected = true; }
+        Require(rejected && Installer.InstallDir == @"D:\NitLink", "invalid input preserves the last valid installation directory");
+    }
+    Installer.SelectInstallDirectory(target);
+    Require(Installer.InstallDir == target && !Directory.Exists(target), "selecting a different install directory updates the target without creating files");
     Directory.CreateDirectory(target);
     File.WriteAllText(Path.Combine(target, "NitLink.exe"), "synthetic installed-app fixture");
     Require(Installer.IsInstalled, "existing target selects the update screen");
@@ -28,6 +39,7 @@ try
         File.WriteAllText(Path.Combine(target, "nitlink.json"), JsonSerializer.Serialize(new { language }));
         Require(Installer.LanguagePreference() == language, "saved language " + language);
         Strings.Initialize(language, []);
+        Require(Strings.Get("Installer.Directory").Length > 0 && Strings.Get("Installer.Browse").Length > 0 && Strings.Get("Installer.InvalidDirectory").Length > 0, "directory controls are localized in " + language);
         Require(Strings.Format("Installer.UpgradeDetail", target).Contains(target), "update path is visible in " + language);
         Require(Strings.Format("Installer.UninstallDetail", target).Contains(target), "removal path is visible in " + language);
     }

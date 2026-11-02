@@ -16,6 +16,8 @@ desktop shortcut and launch. The settings interface supports English,
 Traditional Chinese, Simplified Chinese, German, Japanese and Korean, with a
 manual selector. Windows 11 uses a Harbor-derived WinUI setup with install,
 update and uninstall screens, NitLink branding, and all six interface languages.
+Fresh installs and reinstalls offer an editable install path and a folder picker;
+updates keep the detected install location.
 This independent GPLv3 UI requires .NET 10 and Windows App Runtime. Windows 10,
 silent installation, and missing-runtime fallback use the existing native wizard
 (English and both Chinese variants). The installer source accompanies the payload

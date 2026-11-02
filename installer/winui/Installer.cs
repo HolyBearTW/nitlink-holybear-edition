@@ -25,11 +25,22 @@ internal static class Installer
                 case "/uninstall": IsUninstall = true; break;
                 case "--auto-update": AutoUpdate = true; break;
                 case "--engine": engine = Path.GetFullPath(args[++i]); break;
-                case "--directory": InstallDir = Path.GetFullPath(args[++i]); break;
+                case "--directory": SelectInstallDirectory(args[++i]); break;
                 case "--language": requestedLanguage = args[++i]; break;
             }
         }
         if (!File.Exists(engine) || InstallDir.Length == 0) throw new ArgumentException("Start this interface through the NitLink setup executable.");
+    }
+
+    public static void SelectInstallDirectory(string directory)
+    {
+        if (!Path.IsPathFullyQualified(directory) || directory.IndexOfAny(Path.GetInvalidPathChars()) >= 0 ||
+            directory.IndexOfAny(['"', '<', '>', '|', '*', '?']) >= 0)
+            throw new ArgumentException(Strings.Get("Installer.InvalidDirectory"));
+        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        if (string.Equals(fullPath, Path.GetPathRoot(fullPath), StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException(Strings.Get("Installer.InvalidDirectory"));
+        InstallDir = fullPath;
     }
 
     public static string LanguagePreference()

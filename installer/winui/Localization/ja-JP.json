@@ -4,7 +4,7 @@
   "Common.Minimize": "最小化",
   "Installer.DesktopIcon": "デスクトップにショートカットを作成",
   "Installer.Install": "インストール",
-  "Installer.InstallDetail": "このユーザー用に NitLink を {0} にインストールします。",
+  "Installer.InstallDetail": "現在のユーザー用に NitLink をインストールします。保存先を選択できます。",
   "Installer.InstallFailed": "NitLink をインストールできませんでした",
   "Installer.InstallHeading": "NitLink をインストール",
   "Installer.Installing": "NitLink をインストール中…",
@@ -27,5 +27,8 @@
   "Installer.ViewLicense": "ライセンスとソースコード",
   "Installer.LaunchNitLink": "NitLink を開く",
   "Installer.CloseApp": "NitLink が実行中です。終了してから再試行してください。",
-  "Installer.EngineFailed": "インストール処理に失敗しました（コード {0}）。"
+  "Installer.EngineFailed": "インストール処理に失敗しました（コード {0}）。",
+  "Installer.Directory": "インストール先",
+  "Installer.Browse": "参照…",
+  "Installer.InvalidDirectory": "ドライブのルートではなく、完全なフォルダーパスを指定してください。"
 }

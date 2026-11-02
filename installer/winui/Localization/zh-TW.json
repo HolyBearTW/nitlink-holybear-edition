@@ -4,7 +4,7 @@
   "Common.Minimize": "最小化",
   "Installer.DesktopIcon": "建立桌面捷徑",
   "Installer.Install": "安裝",
-  "Installer.InstallDetail": "NitLink 只會為你的帳號安裝到 {0}。",
+  "Installer.InstallDetail": "NitLink 只會為目前使用者安裝，可自訂安裝位置。",
   "Installer.InstallFailed": "無法安裝 NitLink",
   "Installer.InstallHeading": "安裝 NitLink",
   "Installer.Installing": "正在安裝 NitLink…",
@@ -27,5 +27,8 @@
   "Installer.ViewLicense": "授權與原始碼",
   "Installer.LaunchNitLink": "開啟 NitLink",
   "Installer.CloseApp": "NitLink 仍在執行，請關閉後再試。",
-  "Installer.EngineFailed": "安裝作業失敗（代碼 {0}）。"
+  "Installer.EngineFailed": "安裝作業失敗（代碼 {0}）。",
+  "Installer.Directory": "安裝位置",
+  "Installer.Browse": "瀏覽…",
+  "Installer.InvalidDirectory": "請選擇完整的安裝資料夾，不能只選磁碟根目錄。"
 }

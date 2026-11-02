@@ -6,7 +6,8 @@ https://github.com/tavricccc/harbor/tree/2c243bbbaa1bba4f412b6082964ba03eca64b84
 
 Copyright: Harbor contributors; NitLink adaptations by @HolyBearTW, 2026-11-02.
 Changes: NitLink branding, six installer languages and their fonts, install/update
-detection, and integration with NitLink's existing NSIS install/uninstall engine.
+detection, an install-directory field and folder picker, and integration with
+NitLink's existing NSIS install/uninstall engine.
 The engine preserves settings, linked accounts, captures and other user files.
 The independent NitLink application retains its MIT license.
 

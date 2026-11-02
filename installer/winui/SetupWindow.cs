@@ -31,6 +31,7 @@ internal sealed class SetupWindow : Window
     private readonly CheckBox desktop = new() { Content = Strings.Get("Installer.DesktopIcon"), IsChecked = Installer.HasDesktopShortcut };
     private readonly ProgressBar progress = new() { IsIndeterminate = true, Height = 6, MinHeight = 6, CornerRadius = new CornerRadius(3), Margin = new Thickness(24, 10, 24, 0), Visibility = Visibility.Collapsed };
     private readonly StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center, Padding = new Thickness(40, 8, 40, 28) };
+    private bool directoryValid = true;
 
     public SetupWindow(bool uninstall, bool autoUpdate)
     {
@@ -61,6 +62,48 @@ internal sealed class SetupWindow : Window
         body.Children.Add(progress);
         if (!uninstall)
         {
+            if (!Installer.IsInstalled)
+            {
+                var directory = new TextBox { Text = Installer.InstallDir, MinWidth = 0, MaxLength = 1000 };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(directory, Strings.Get("Installer.Directory"));
+                var browse = new Button { Content = Strings.Get("Installer.Browse"), VerticalAlignment = VerticalAlignment.Center };
+                var pathRow = new Grid { ColumnSpacing = 8 };
+                pathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                pathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                pathRow.Children.Add(directory);
+                Grid.SetColumn(browse, 1);
+                pathRow.Children.Add(browse);
+                var pathError = new TextBlock { Text = Strings.Get("Installer.InvalidDirectory"), TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brush("UiText2Brush"), Visibility = Visibility.Collapsed };
+                var pathContent = new StackPanel { Spacing = 8 };
+                pathContent.Children.Add(new TextBlock { Text = Strings.Get("Installer.Directory"), Foreground = Brush("UiText2Brush"), FontSize = 12 });
+                pathContent.Children.Add(pathRow);
+                pathContent.Children.Add(pathError);
+                options.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Padding = new Thickness(14, 10, 14, 10),
+                    Background = Brush("UiFillControlBrush"), BorderBrush = Brush("UiStrokeBrush"), Child = pathContent
+                });
+                directory.TextChanged += (_, _) =>
+                {
+                    try
+                    {
+                        Installer.SelectInstallDirectory(directory.Text);
+                        directoryValid = true;
+                    }
+                    catch (Exception error) when (error is ArgumentException or PathTooLongException or NotSupportedException)
+                    {
+                        directoryValid = false;
+                    }
+                    pathError.Visibility = directoryValid ? Visibility.Collapsed : Visibility.Visible;
+                    ShowIntro();
+                };
+                browse.Click += async (_, _) =>
+                {
+                    var picker = new Microsoft.Windows.Storage.Pickers.FolderPicker(AppWindow.Id);
+                    var selected = await picker.PickSingleFolderAsync();
+                    if (selected is not null) directory.Text = selected.Path;
+                };
+            }
             options.Children.Add(new Border
             {
                 CornerRadius = new CornerRadius(12),
@@ -156,8 +199,9 @@ internal sealed class SetupWindow : Window
             Show(Strings.Get("Installer.UpgradeHeading"), Strings.Format("Installer.UpgradeDetail", Installer.InstallDir),
                 (Strings.Get("Common.Cancel"), false, Close), (Strings.Get("Installer.Update"), true, Run));
         else
-            Show(Strings.Get("Installer.InstallHeading"), Strings.Format("Installer.InstallDetail", Installer.InstallDir),
+            Show(Strings.Get("Installer.InstallHeading"), Strings.Get("Installer.InstallDetail"),
                 (Strings.Get("Common.Cancel"), false, Close), (Strings.Get("Installer.Install"), true, Run));
+        ((Button)buttons.Children[^1]).IsEnabled = directoryValid;
     }
 
     private async void Run()

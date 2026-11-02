@@ -4,7 +4,7 @@
   "Common.Minimize": "Minimieren",
   "Installer.DesktopIcon": "Desktopverknüpfung erstellen",
   "Installer.Install": "Installieren",
-  "Installer.InstallDetail": "NitLink wird nur für Ihr Konto unter {0} installiert.",
+  "Installer.InstallDetail": "NitLink wird für Ihr Konto installiert. Wählen Sie den Installationsordner.",
   "Installer.InstallFailed": "NitLink konnte nicht installiert werden",
   "Installer.InstallHeading": "NitLink installieren",
   "Installer.Installing": "NitLink wird installiert…",
@@ -27,5 +27,8 @@
   "Installer.ViewLicense": "Lizenzen und Quellcode",
   "Installer.LaunchNitLink": "NitLink öffnen",
   "Installer.CloseApp": "NitLink läuft noch. Schließen Sie es und versuchen Sie es erneut.",
-  "Installer.EngineFailed": "Der Installationsvorgang ist fehlgeschlagen (Code {0})."
+  "Installer.EngineFailed": "Der Installationsvorgang ist fehlgeschlagen (Code {0}).",
+  "Installer.Directory": "Installationsordner",
+  "Installer.Browse": "Durchsuchen…",
+  "Installer.InvalidDirectory": "Wählen Sie einen vollständigen Ordnerpfad statt eines Laufwerksstamms."
 }

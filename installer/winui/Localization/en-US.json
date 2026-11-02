@@ -4,7 +4,7 @@
   "Common.Minimize": "Minimize",
   "Installer.DesktopIcon": "Create a desktop shortcut",
   "Installer.Install": "Install",
-  "Installer.InstallDetail": "NitLink installs for your account only, into {0}.",
+  "Installer.InstallDetail": "Install NitLink for your account. Choose where to install it.",
   "Installer.InstallFailed": "Could not install NitLink",
   "Installer.InstallHeading": "Install NitLink",
   "Installer.Installing": "Installing NitLink…",
@@ -27,5 +27,8 @@
   "Installer.ViewLicense": "Licenses and source",
   "Installer.LaunchNitLink": "Open NitLink",
   "Installer.CloseApp": "NitLink is still running. Close it and try again.",
-  "Installer.EngineFailed": "The installation operation failed (code {0})."
+  "Installer.EngineFailed": "The installation operation failed (code {0}).",
+  "Installer.Directory": "Install location",
+  "Installer.Browse": "Browse…",
+  "Installer.InvalidDirectory": "Choose a full installation folder path, rather than a drive root."
 }

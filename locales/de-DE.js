@@ -502,7 +502,7 @@ window.NitLinkLocales['de-DE'] = {
   "game.status.idle": "Bereit",
   "game.status.loading": "Wird geladen…",
   "game.status.resolving": "Spieldaten werden zugeordnet…",
-  "game.status.matchRequired": "Wähle unten ein Spiel aus den Suchergebnissen, um Community-Bilder zu laden.",
+  "game.status.matchRequired": "Keine automatische Zuordnung gefunden. Wähle Coverdaten aus den Suchergebnissen.",
   "game.coverLoadingProgress": "Cover werden geladen: {loaded}/{total}",
   "game.status.ok": "Wählen Sie unten eine Bildkachel aus.",
   "game.status.partial": "Die Ergebnisse sind möglicherweise unvollständig. Versuchen Sie es mit dem deutschen oder englischen Titel.",

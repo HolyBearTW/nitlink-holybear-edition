@@ -288,8 +288,12 @@ window.NitLinkGameTitles = (() => {
       const selected=model.games.find(game=>game.key===current.key),saved=local.games.find(game=>game.key===current.key);
       const targets=[current.name,selected?.name,...Object.values(selected?.displayNames||{}),...Object.values(saved?.displayNames||{})].map(normalize).filter(Boolean);
       const matches=games.filter(game=>[game.name,game.displayName,...Object.values(game.titles||{}),...(game.artworkSources||[]).map(source=>source.productTitle)].some(name=>targets.includes(normalize(name))));
-      if(matches.length===1)this.linkSearchResult(matches[0].id);
-      else document.dispatchEvent(new CustomEvent('accountcoverschanged',{detail:{lookupStatus:games.length?'matchRequired':['ok','partial'].includes(status)?'empty':status}}));
+      // The base release is the canonical cover library when both it and a
+      // platform edition match the same account title. The mapping button
+      // remains available for a different manual choice.
+      matches.sort((a,b)=>Number(titles.isSwitch2(a))-Number(titles.isSwitch2(b))||Number(b.source==='wikidata')-Number(a.source==='wikidata'));
+      if(matches.length)this.linkSearchResult(matches[0].id);
+      else document.dispatchEvent(new CustomEvent('accountcoverschanged',{detail:{lookupStatus:games.length?'matchRequired':['ok','empty'].includes(status)?'empty':status}}));
     },
     linkSearchResult(gameId) { if(!linkTarget||!gameId)return false;post('linkAccountGame',{key:linkTarget,gameId});linkTarget='';render();return true; }
   };

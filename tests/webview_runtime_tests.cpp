@@ -451,24 +451,23 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
                 Check(!message||message->action!=L"linkAccountGame","a shared title word never maps an unrelated game");
             }
         }
-        if(i==1){
-            const auto ambiguousStart=messages.size();
-            auto ambiguous=search;auto duplicate=search.reply.games.back();duplicate.id=799901;
-            ambiguous.reply.games.push_back(duplicate);host.PostMessage(NitLink::SerializeGameResult(ambiguous));
-            Check(PumpUntil([&]{return Script(view,L"document.querySelectorAll('.game-result').length===3&&!document.getElementById('account-match-note').hidden")==L"true";}),
-                "multiple matching editions require a user's selection");
-            for(size_t n=ambiguousStart;n<messages.size();++n){
-                const auto message=NitLink::ParseSettingsMessage(messages[n]);
-                Check(!message||message->action!=L"linkAccountGame","ambiguous catalogue matches are never chosen automatically");
-            }
+        if(i==3){
+            search.reply.games.back().source=L"wikidata";
+            auto edition=search.reply.games.back();edition.id=799901;
+            edition.name+=L" - Nintendo Switch 2 Edition";
+            edition.displayName+=L" · Switch 2 版";
+            edition.source=L"steamgriddb";
+            search.reply.games.push_back(edition);
         }
         auto linkStart=messages.size();host.PostMessage(NitLink::SerializeGameResult(search));
+        if(i==3)Check(PumpUntil([&]{return Script(view,L"document.querySelectorAll('.game-result').length===3")==L"true";}),
+            "the base game and its Switch 2 Edition remain separate search results");
         Check(PumpUntil([&]{
             for(size_t n=linkStart;n<messages.size();++n){
                 const auto message=NitLink::ParseSettingsMessage(messages[n]);
                 if(message&&message->action==L"linkAccountGame"&&message->gameId==800000u+i)return true;
             }return false;
-        }),"only the matching complete title is linked; demo and Switch 2 suffixes resolve to the original game");
+        }),"the complete title links automatically, preferring the base cover library over a Switch 2 Edition");
         if(i==0)Script(view,L"document.getElementById('game-shape-square').click()");
         const auto mappedStart=messages.size();
         const auto mapped=std::wstring(LR"JS((()=>{

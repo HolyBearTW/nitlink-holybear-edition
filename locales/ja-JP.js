@@ -500,7 +500,7 @@ window.NitLinkLocales['ja-JP'] = {
   'game.status.idle': '準備完了',
   'game.status.loading': '読み込み中…',
   'game.status.resolving': 'ゲーム情報を照合中…',
-  'game.status.matchRequired': 'コミュニティ画像を読み込むには、下の検索結果からゲームを選択してください。',
+  'game.status.matchRequired': '自動で対応するゲームが見つかりません。検索結果からカバー情報を選択してください。',
   'game.coverLoadingProgress': 'カバーを読み込み中：{loaded}/{total}',
   'game.status.ok': '下の画像カードを選んでください。',
   'game.status.partial': '結果が一部不足している可能性があります。英語名でもお試しください。',

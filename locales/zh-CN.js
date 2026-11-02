@@ -285,7 +285,7 @@ window.NitLinkLocales['zh-CN'] = {
   "game.status.idle": "就绪",
   "game.status.loading": "加载中…",
   "game.status.resolving": "正在匹配游戏数据…",
-  "game.status.matchRequired": "请选择下方的游戏搜索结果以加载社区图片。",
+  "game.status.matchRequired": "未找到可自动匹配的游戏；请从搜索结果选择封面资料。",
   "game.coverLoadingProgress": "封面加载中：{loaded}/{total}",
   "game.status.ok": "点击下方图片卡片即可选择。",
   "game.status.partial": "搜索结果可能不完整，试试游戏英文名称看看。",

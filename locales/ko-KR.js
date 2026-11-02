@@ -550,7 +550,7 @@ Object.assign(window.NitLinkLocales['ko-KR'], {
   'game.status.idle': '준비됨',
   'game.status.loading': '불러오는 중…',
   'game.status.resolving': '게임 정보를 연결하는 중…',
-  'game.status.matchRequired': '커뮤니티 이미지를 불러오려면 아래 검색 결과에서 게임을 선택하세요.',
+  'game.status.matchRequired': '자동으로 일치하는 게임을 찾지 못했습니다. 검색 결과에서 표지 정보를 선택하세요.',
   'game.coverLoadingProgress': '커버 불러오는 중: {loaded}/{total}',
   'game.status.ok': '아래 이미지 카드를 선택하세요.',
   'game.status.partial': '결과가 일부 누락되었을 수 있습니다. 영어 제목으로 검색해 보세요.',

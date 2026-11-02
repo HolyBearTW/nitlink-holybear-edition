@@ -286,7 +286,7 @@ window.NitLinkLocales['en-US'] = {
   "game.status.idle": "Ready",
   "game.status.loading": "Loading…",
   "game.status.resolving": "Matching game data…",
-  "game.status.matchRequired": "Choose a game from the search results below to load community artwork.",
+  "game.status.matchRequired": "No automatic match found. Choose cover data from the search results.",
   "game.coverLoadingProgress": "Loading covers: {loaded}/{total}",
   "game.status.ok": "Choose an image card below.",
   "game.status.partial": "Results may be incomplete. Try the English title.",

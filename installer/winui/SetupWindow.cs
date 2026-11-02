@@ -1,22 +1,21 @@
 // Derived from Harbor, commit 2c243bb; modified for NitLink. GPL-3.0. See SOURCE.md.
 using System.Runtime.InteropServices;
 using NitLinkSetup.Controls;
+using NitLinkSetup.Glass;
 using NitLinkSetup.Localization;
-using Microsoft.UI.Input;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Windows.Graphics;
 
 namespace NitLinkSetup;
 
 /// Harbor's setup layout, with NitLink branding: a 48 px head, centred logo,
 /// title, option card and bottom actions.
-internal sealed class SetupWindow : Window
+internal sealed class SetupWindow
 {
     private const int WindowWidth = 520, WindowHeight = 600;
+    private readonly GlassWindow window;
 
     private readonly bool uninstall, autoUpdate;
     private readonly Grid root = new() { RequestedTheme = ElementTheme.Dark };
@@ -37,15 +36,16 @@ internal sealed class SetupWindow : Window
     {
         this.uninstall = uninstall;
         this.autoUpdate = autoUpdate && !uninstall;
-        Title = Strings.Get(uninstall ? "Installer.UninstallTitle" : "Installer.Title");
         root.Language = Strings.Language;
-        root.Background = (Brush)Application.Current.Resources["UiSurfaceBrush"];
+        root.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        window = new GlassWindow(root, Strings.Get(uninstall ? "Installer.UninstallTitle" : "Installer.Title"),
+            WindowWidth, WindowHeight, resizable: false);
 
         var caption = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-        caption.Children.Add(HeadButton("minus", "Common.Minimize", () => (AppWindow.Presenter as OverlappedPresenter)?.Minimize()));
+        caption.Children.Add(HeadButton("minus", "Common.Minimize", () => window.Minimize()));
         caption.Children.Add(HeadButton("close", "Common.Close", Close));
         head.Children.Add(caption);
         root.Children.Add(head);
@@ -99,7 +99,7 @@ internal sealed class SetupWindow : Window
                 };
                 browse.Click += async (_, _) =>
                 {
-                    var picker = new Microsoft.Windows.Storage.Pickers.FolderPicker(AppWindow.Id);
+                    var picker = new Microsoft.Windows.Storage.Pickers.FolderPicker(window.AppWindow.Id);
                     var selected = await picker.PickSingleFolderAsync();
                     if (selected is not null) directory.Text = selected.Path;
                 };
@@ -116,7 +116,7 @@ internal sealed class SetupWindow : Window
             var license = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Center };
             license.Children.Add(new TextBlock { Text = Strings.Get("Installer.LicenseAgreement"), VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["UiNote"] });
             var view = new HyperlinkButton { Content = Strings.Get("Installer.ViewLicense"), Padding = new Thickness(4, 2, 4, 2), FontSize = 11 };
-            view.Click += async (_, _) => await ShowLicense();
+            view.Click += (_, _) => ShowLicense();
             license.Children.Add(view);
             options.Children.Add(license);
             body.Children.Add(options);
@@ -126,9 +126,7 @@ internal sealed class SetupWindow : Window
         root.Children.Add(scroll);
         Grid.SetRow(buttons, 2);
         root.Children.Add(buttons);
-        Content = root;
-
-        ConfigureWindow();
+        window.SetCaption(head);
         if (this.autoUpdate)
             Run();
         else
@@ -146,49 +144,8 @@ internal sealed class SetupWindow : Window
         return button;
     }
 
-    private void ConfigureWindow()
-    {
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "nitlink.ico"));
-        var presenter = OverlappedPresenter.Create();
-        presenter.IsResizable = false;
-        presenter.IsMaximizable = false;
-        // The head draws its own minimize and close; Windows keeps the border and rounded corners.
-        presenter.SetBorderAndTitleBar(true, false);
-        AppWindow.SetPresenter(presenter);
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(head);
-
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var corners = 2;
-        DwmSetWindowAttribute(hwnd, 33, ref corners, sizeof(int));
-        root.ActualThemeChanged += (_, _) => SyncTitleBar(hwnd);
-        SyncTitleBar(hwnd);
-
-        var scale = GetDpiForWindow(hwnd) / 96.0;
-        AppWindow.ResizeClient(new SizeInt32((int)Math.Round(WindowWidth * scale), (int)Math.Round(WindowHeight * scale)));
-        var size = AppWindow.Size;
-        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-        AppWindow.Move(new PointInt32(work.X + (work.Width - size.Width) / 2, work.Y + (work.Height - size.Height) / 2));
-        // Only the head drags; its buttons stay clickable.
-        root.Loaded += (_, _) => DragRegion();
-        head.SizeChanged += (_, _) => DragRegion();
-    }
-
-    private void DragRegion()
-    {
-        if (head.XamlRoot is null)
-            return;
-        var scale = head.XamlRoot.RasterizationScale;
-        var width = head.ActualWidth - 8 - 2 * 28;
-        InputNonClientPointerSource.GetForWindowId(AppWindow.Id).SetRegionRects(NonClientRegionKind.Caption,
-            [new RectInt32(0, 0, (int)Math.Round(width * scale), (int)Math.Round(head.ActualHeight * scale))]);
-    }
-
-    private void SyncTitleBar(nint hwnd)
-    {
-        var dark = !new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast && root.ActualTheme == ElementTheme.Dark ? 1 : 0;
-        DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int));
-    }
+    public void Activate() => window.Show();
+    private void Close() => window.Close();
 
     private void ShowIntro()
     {
@@ -274,23 +231,38 @@ internal sealed class SetupWindow : Window
         }
     }
 
-    private async Task ShowLicense()
+    private void ShowLicense()
     {
-        var text = new TextBlock { Text = await Task.Run(() => Installer.License), TextWrapping = TextWrapping.Wrap, FontSize = 12, IsTextSelectionEnabled = true };
-        var dialog = new ContentDialog
+        var pane = new Grid { RequestedTheme = root.ActualTheme, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+        pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        pane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var dialog = new GlassWindow(pane, Strings.Get("Installer.ViewLicense"), 560, 600, resizable: false) { IsMinimizable = false };
+        var caption = new Grid { Height = 48, Padding = new Thickness(20, 0, 8, 0), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+        caption.Children.Add(new TextBlock
         {
-            XamlRoot = root.XamlRoot,
-            Title = Strings.Get("Installer.ViewLicense"),
-            Content = new ScrollViewer { Content = text, MaxHeight = 360 },
-            CloseButtonText = Strings.Get("Common.Close"),
-            RequestedTheme = root.ActualTheme,
-        };
-        await dialog.ShowAsync();
+            Text = Strings.Get("Installer.ViewLicense"), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center, Foreground = Brush("UiText1Brush")
+        });
+        var close = HeadButton("close", "Common.Close", dialog.Close);
+        close.HorizontalAlignment = HorizontalAlignment.Right;
+        caption.Children.Add(close);
+        pane.Children.Add(caption);
+        var text = new TextBlock { Text = Installer.License, TextWrapping = TextWrapping.Wrap, FontSize = 12, IsTextSelectionEnabled = true, Foreground = Brush("UiText1Brush") };
+        var scroll = new ScrollViewer { Content = text, Padding = new Thickness(24, 8, 24, 8) };
+        Grid.SetRow(scroll, 1);
+        pane.Children.Add(scroll);
+        var done = new Button { Content = Strings.Get("Common.Close"), Style = (Style)Application.Current.Resources["UiPrimaryButton"], HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(24, 16, 24, 24) };
+        done.Click += (_, _) => dialog.Close();
+        Grid.SetRow(done, 2);
+        pane.Children.Add(done);
+        dialog.SetCaption(caption);
+        // Preserve the original modal interaction without assigning an owner
+        // that could independently hide either unowned glass surface.
+        EnableWindow(window.Handle, false);
+        dialog.Closed += (_, _) => { EnableWindow(window.Handle, true); window.Activate(); };
+        dialog.Show();
     }
 
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(nint hwnd);
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
+    [DllImport("user32.dll")] private static extern bool EnableWindow(nint hwnd, bool enabled);
 }

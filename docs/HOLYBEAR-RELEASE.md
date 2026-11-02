@@ -7,6 +7,14 @@ HDMI identity implementation. No upstream PR branch is changed by this flow.
 
 ## Preparing a version
 
+For the independent WinUI setup, also run `scripts/test-winui-installer.ps1`
+and `scripts/test-winui-glass.ps1` on Windows 11 with .NET 10 and the matching
+Windows App Runtime. The glass checks use the production setup on inactive
+desktops and cover moves, focus notifications, minimize/restore, hide/show and
+the license viewer for install/update/uninstall. Record this local evidence
+with the release artifacts; the Windows Server CI runner still checks the
+native fallback installer. These checks do not replace the complete CTest gate.
+
 Update VERSION, CMake's numeric version, app.rc's four-part numeric/string
 versions, src/app/holybear_version.h, the existing HUD version tag, the HTML nitlink-version metadata, README-HOLYBEAR.txt
 and `release-notes-<VERSION>.md`. The package script checks their agreement.

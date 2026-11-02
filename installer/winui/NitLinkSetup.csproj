@@ -12,6 +12,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WinUISDKReferences>false</WinUISDKReferences>
     <EnableMsixTooling>true</EnableMsixTooling>
     <EnableWinAppRunSupport>false</EnableWinAppRunSupport>
@@ -32,6 +33,15 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
   </PropertyGroup>
+  <!-- Compile the actual UI/host into an isolated lifecycle test executable.
+       No test driver or test entry point is included in the shipped installer. -->
+  <PropertyGroup Condition="'$(SetupLifecycleChecks)' == 'true'">
+    <AssemblyName>NitLinkSetupLifecycleChecks</AssemblyName>
+    <StartupObject>NitLinkSetup.LifecycleChecks</StartupObject>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(SetupLifecycleChecks)' == 'true'">
+    <Compile Include="../winui.tests/LifecycleChecks.cs" Link="LifecycleChecks.cs" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Theme.xaml" LogicalName="Theme.xaml" />
     <EmbeddedResource Include="Localization/*.json" LogicalName="NitLinkSetup.Localization.%(Filename)%(Extension)" />

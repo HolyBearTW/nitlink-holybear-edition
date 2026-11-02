@@ -40,6 +40,7 @@ $setupSource = Join-Path $stage 'licenses/setup-ui-source.zip'
 $setupInputs = @('installer', 'VERSION', 'LICENSE', 'README-HOLYBEAR.txt',
     'assets/nitlink.ico', 'assets/nitlink.svg', 'assets/installer',
     'scripts/build-installer.ps1', 'scripts/build-winui-installer.ps1',
+    'scripts/test-winui-installer.ps1', 'scripts/test-winui-glass.ps1',
     'scripts/holy-bear-common.ps1', 'scripts/get-nsis.ps1',
     'scripts/validate-package.ps1', 'scripts/verify-installer.ps1',
     # Get-HolyBearVersion verifies these application identity declarations.

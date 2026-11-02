@@ -9,6 +9,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="LifecycleChecks.cs" />
     <Compile Include="../winui/Installer.cs" Link="Installer.cs" />
     <Compile Include="../winui/Localization/*.cs" Link="Localization/%(Filename)%(Extension)" />
     <EmbeddedResource Include="../winui/Localization/*.json" LogicalName="NitLinkSetup.Localization.%(Filename)%(Extension)" />

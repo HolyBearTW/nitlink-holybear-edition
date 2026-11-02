@@ -217,16 +217,14 @@ struct Config {
     std::string  noSignalFit = "contain";  // contain | cover | stretch
     bool         noSignalDimImage = true;
 
-    // Where the F1 panel opens. "right" and "left" dock it as a strip beside
-    // the picture, which keeps playing underneath. "full" covers the whole
-    // picture with the wide layout. An opaque Full panel holds a black frame;
-    // glass/translucent panels leave the picture playing underneath.
-    std::string  panelSide  = "right";
+    // "window" opens independent settings; right/left dock and full covers
+    // the picture. Glass surfaces share the native desktop backdrop.
+    std::string  panelSide  = "window";
     // Width of the docked panel in device-independent pixels.
     int          panelWidth = 500;
     float        panelOpacity = 1.0f;
     std::string  panelEffect = "blur";
-    float        panelBlurOpacity = 0.65f;
+    float        panelBlurStrength = 0.0f; // Extra blur over the system baseline.
 
     // (hdrMode string field stripped: Reference/Vibrant was an earlier
     //  fake-HDR pipeline. The current path negotiates real HDR10 via

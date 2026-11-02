@@ -206,10 +206,9 @@ bool WindowComposition::Initialize(HWND content)
         WNDCLASSEXW registered{sizeof(registered)};
         if(!GetClassInfoExW(cls.hInstance,cls.lpszClassName,&registered))check_bool(RegisterClassExW(&cls));
         p.glass=CreateWindowExW(WS_EX_NOACTIVATE|WS_EX_NOREDIRECTIONBITMAP|WS_EX_LAYERED|WS_EX_TOOLWINDOW|WS_EX_TRANSPARENT,
-            cls.lpszClassName,L"",WS_POPUP,0,0,1,1,GetWindow(content,GW_OWNER),nullptr,cls.hInstance,nullptr);
-        // The material and its content must belong to the same owner group.
-        // Otherwise activating an owned settings window can put its unowned
-        // glass behind the main window while the transparent UI stays above it.
+            cls.lpszClassName,L"",WS_POPUP,0,0,1,1,nullptr,nullptr,cls.hInstance,nullptr);
+        // Keep the material unowned, like the content window. Windows can
+        // otherwise hide an owned glass layer while its content remains visible.
         check_bool(p.glass);SetLayeredWindowAttributes(p.glass,0,255,LWA_ALPHA);
         BOOL host=TRUE;check_hresult(DwmSetWindowAttribute(p.glass,17,&host,sizeof(host)));
         DWORD corner=1;DwmSetWindowAttribute(p.glass,33,&corner,sizeof(corner));

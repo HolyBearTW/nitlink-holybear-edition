@@ -22,7 +22,8 @@ void HotkeyManager::ApplyBindings(const ShortcutBindings& bindings) {
 }
 
 void HotkeyManager::Poll(ShortcutInputContext context) {
-    if(GetForegroundWindow()!=m_hwnd){
+    const HWND foreground=GetForegroundWindow();
+    if(foreground!=m_hwnd&&(!m_settingsWindow||foreground!=m_settingsWindow)){
         for(auto& hotkey:m_hotkeys)hotkey.wasPressed=false;
         return;
     }

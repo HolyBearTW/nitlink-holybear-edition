@@ -9,11 +9,10 @@
 #include <map>
 #include <vector>
 #include <array>
+#include <optional>
 #include "game_service.h"
 
-// WebViewSettings: host a WebView2 control as a CHILD of the picture window,
-// occupying the selected dock within its client area below the title bar.
-// Glass and translucent settings keep the game rendering underneath.
+// A child WebView2 occupying the selected content area below native chrome.
 class WebViewSettings {
 public:
     using MessageCallback = std::function<void(const std::wstring&)>;
@@ -22,7 +21,7 @@ public:
     WebViewSettings(const WebViewSettings&) = delete;
     WebViewSettings& operator=(const WebViewSettings&) = delete;
 
-    // Initialize attaches WebView2 to `parent` (the picture HWND).
+    // Initialize attaches WebView2 to its native host window.
     // Width/height are the initial parent client size; the controller
     // bounds track parent size automatically via Resize().
     bool Initialize(HWND parent, int width, int height);
@@ -49,6 +48,9 @@ public:
     // immediately while the panel is visible.
     enum class Dock { Full, Right, Left };
     void SetDock(Dock dock, int widthDip);
+    void SetContentBounds(RECT bounds) { m_contentBounds=bounds; Resize(); }
+    bool SetParentWindow(HWND parent);
+    HWND GetParentWindow() const { return m_parent; }
     Dock GetDock() const { return m_dock; }
     RECT GetBounds() const { return ComputeBounds(); }
 
@@ -97,6 +99,7 @@ private:
     };
     std::vector<BrowserSurface> m_hiddenSurfaces;
     Dock m_dock = Dock::Full;
+    std::optional<RECT> m_contentBounds;
     int  m_widthDip = 500;
     bool m_transparent = false;
 

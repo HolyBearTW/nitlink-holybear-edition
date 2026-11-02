@@ -24,7 +24,6 @@ public:
         uint32_t     height = 1080;
         bool         darkMode = true;
         bool         settingsWindow = false;
-        HWND         owner = nullptr;
     };
 
     // Input event callbacks -- set by the application to route mouse/keyboard
@@ -156,6 +155,8 @@ private:
         ULONGLONG started = 0;
     } m_glide;
     float m_contentOpacity = 1;
+    bool m_glassHiddenByMinimize = false;
+    bool m_restoringIconic = false;
 
     HWND       m_hwnd = nullptr;
     HWND       m_videoWindow = nullptr, m_captionTooltip = nullptr;

@@ -417,17 +417,15 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     AppLog(L"Initialize: begin");
 
     // Load configuration. Tracks whether this was a fresh install (no
-    // config file yet) so the settings menu can be opened automatically
-    // on first launch: guides new users to the feature toggles instead
-    // of leaving them on a black "NO SIGNAL" screen wondering what to do.
-    m_firstLaunch = !std::filesystem::exists("nitlink.json");
+    // config file yet) for startup diagnostics only. Settings open on request.
+    const bool firstLaunch = !std::filesystem::exists("nitlink.json");
     m_config = std::make_unique<Config>();
     const bool configLoaded = m_config->Load("nitlink.json");
     Localization::Instance().SetPreference(m_config->language);
     if (!configLoaded) {
         AppLog(L"Initialize: " + ConfigWarning());
     } else {
-        AppLog(m_firstLaunch ? L"Initialize: config loaded (first launch)" : L"Initialize: config loaded");
+        AppLog(firstLaunch ? L"Initialize: config loaded (first launch)" : L"Initialize: config loaded");
     }
 
     m_window = std::make_unique<Window>();
@@ -509,6 +507,9 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     // the matching callback lets WM_LBUTTONUP release that capture promptly.
     overlayInput.onMouseUp = [](int, int) {};
     m_window->SetInputCallbacks(std::move(overlayInput));
+    m_window->SetGlassEffect(m_config->panelEffect=="blur",m_config->panelBlurStrength);
+    if(m_config->panelEffect=="blur")m_window->SetGlassStatus(Window::GlassStatus{
+        Tr(L"overlay.initializingCapture"),Tr(L"overlay.waitingForHdmi"),Tr(L"overlay.checkHdmi"),Tr(L"overlay.waitingForSource")});
     m_window->Show(nCmdShow);
     AppLog(L"Initialize: startup frame presented and window shown");
     if (startupOverlayOk) ApplyNoSignalSettings();
@@ -1183,10 +1184,11 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             ShowToast(Tr(retrying ? L"toast.settingsRetry" : reason.c_str()),
                       std::chrono::milliseconds(10000));
     });
-    // WebView and swap chain share a picture HWND so transparent settings
-    // reveal the blurred picture, rather than the outer window's black fill.
-    const bool settingsStarting = m_webviewSettings->Initialize(m_window->GetRenderHWND(), actualW, actualH);
-    m_window->SetMoveCallback([this](){if(m_webviewSettings)m_webviewSettings->Resize();});
+    const bool settingsStarting = m_webviewSettings->Initialize(m_window->GetHWND(), actualW, actualH);
+    m_window->SetMoveCallback([this](){
+        if(m_webviewSettings&&m_webviewSettings->GetParentWindow()==m_window->GetHWND())
+            m_webviewSettings->SetContentBounds(m_window->GetContentBounds());
+    });
     ApplyPanelLayout();
     m_gameService = std::make_unique<Games::GameService>();
     m_accountService = std::make_unique<Accounts::AccountService>();
@@ -1261,12 +1263,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             if (m_toastText == Tr(L"toast.settingsStarting") || m_toastText == Tr(L"toast.settingsRetry"))
                 m_toastText.clear();
             PushSettingsState();
-            // First-launch experience: if there was no config file on
-            // startup (fresh install), open the settings menu now so the
-            // user sees the controls right away. Reset the flag so this
-            // only fires once per session.
-            if (m_firstLaunch || m_settingsOpenPending) {
-                m_firstLaunch = false;
+            // Open only when the user requested settings while the page was loading.
+            if (m_settingsOpenPending) {
                 m_settingsOpenPending = false;
                 if (!m_settingsVisible) ToggleSettings();
                 AppLog(L"settings opened after page readiness");
@@ -1461,11 +1459,16 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             return;
         }
         if (action == L"setPanelOpacity") {
-            if(m_config->panelEffect=="blur")m_config->panelBlurOpacity=static_cast<float>(message->number);
-            else m_config->panelOpacity = static_cast<float>(message->number);
+            m_config->panelOpacity = static_cast<float>(message->number);
             ApplyPanelLayout();
             // Like PiP opacity, persist on exit rather than writing during a drag.
-            m_webviewSettings->PostMessage(L"{\"panelOpacity\":" + std::to_wstring(m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity) + L"}");
+            m_webviewSettings->PostMessage(L"{\"panelOpacity\":" + std::to_wstring(m_config->panelOpacity) + L"}");
+            return;
+        }
+        if (action == L"setPanelBlurStrength") {
+            m_config->panelBlurStrength=static_cast<float>(message->number);
+            ApplyPanelLayout();
+            m_webviewSettings->PostMessage(L"{\"panelBlurStrength\":" + std::to_wstring(m_config->panelBlurStrength) + L"}");
             return;
         }
         if(action==L"setPanelEffect"){
@@ -1632,6 +1635,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     }
 
     m_hotkeyManager = std::make_unique<HotkeyManager>(m_window->GetHWND());
+    if(m_settingsWindow)m_hotkeyManager->SetSettingsWindow(m_settingsWindow->GetHWND());
     m_hotkeyManager->Register(ShortcutAction::toggle_fullscreen, [this]() { ToggleFullscreen(); });
     m_hotkeyManager->Register(ShortcutAction::toggle_fullscreen_f11, [this]() { ToggleFullscreen(); });
     m_hotkeyManager->Register(ShortcutAction::toggle_pip, [this]() { TogglePiP(); });
@@ -2543,15 +2547,23 @@ void Application::Run()
         // and the branch the render section will select. This is deliberately
         // not emitted for every render iteration.
         const bool panelCoversPicture = m_settingsVisible && m_webviewSettings &&
+            m_config->panelSide!="window" &&
             m_webviewSettings->GetDock() == WebViewSettings::Dock::Full &&
-            (m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity)==1.0f;
+            m_config->panelEffect=="classic" && m_config->panelOpacity==1.0f;
         m_window->SetChromeState(m_config->hudMode,m_showOverlay,m_settingsVisible);
         RECT panelGlass{};
         if(m_settingsVisible&&m_webviewSettings&&m_webviewSettings->IsVisible()&&
-            m_config->panelEffect=="blur"&&m_config->panelBlurOpacity<1.0f){
+            m_config->panelSide!="window" && m_config->panelEffect=="blur"){
             panelGlass=m_webviewSettings->GetBounds();
         }
-        m_renderer->SetPanelGlass(panelGlass);
+        m_window->SetPanelBackdrop(panelGlass);
+        const bool glassStatus=m_config->panelEffect=="blur" &&
+            (presentationState==PresentationState::NoSignal||presentationState==PresentationState::WaitingForCapture) &&
+            (m_config->noSignalMode!="image"||!m_overlay||!m_overlay->HasNoSignalImage());
+        if(glassStatus)m_window->SetGlassStatus(Window::GlassStatus{
+            Tr(presentationState==PresentationState::NoSignal?L"overlay.inputSignalLost":L"overlay.initializingCapture"),
+            Tr(L"overlay.waitingForHdmi"),Tr(L"overlay.checkHdmi"),Tr(L"overlay.waitingForSource")});
+        else m_window->SetGlassStatus(std::nullopt);
         m_window->SetVideoAvailable(
             presentationState == PresentationState::Capture && !panelCoversPicture);
         if (!m_hasPresentationStateDiagnostic ||
@@ -3336,6 +3348,7 @@ void Application::Shutdown()
     if (m_nisUpscaler)   { m_nisUpscaler->Shutdown();   m_nisUpscaler.reset(); }
     if (m_frameDiffer)   { m_frameDiffer->Shutdown();   m_frameDiffer.reset(); }
     if (m_renderer) m_renderer.reset();
+    if (m_settingsWindow) m_settingsWindow.reset();
     if (m_window)   m_window.reset();
 }
 
@@ -3484,7 +3497,6 @@ void Application::ToggleSettings()
     if (!m_webviewSettings || !m_webviewSettings->IsReady()) {
         m_settingsVisible = false;
         if (m_webviewSettings && m_webviewSettings->IsStarting()) {
-            m_firstLaunch = false;
             m_settingsOpenPending = !m_settingsOpenPending;
             if (m_settingsOpenPending) ShowToast(Tr(L"toast.settingsStarting"), std::chrono::milliseconds(4000));
             else if (m_toastText == Tr(L"toast.settingsStarting")) m_toastText.clear();
@@ -3495,11 +3507,27 @@ void Application::ToggleSettings()
         ShowToast(text, std::chrono::milliseconds(15000));
         return;
     }
-    m_settingsVisible = !m_settingsVisible;
+    const bool independent=m_settingsWindow&&m_config->panelSide=="window";
+    const bool restore=independent&&IsIconic(m_settingsWindow->GetHWND());
+    const bool visible=independent&&IsWindowVisible(m_settingsWindow->GetHWND());
+    if(visible&&!restore){
+        SendMessageW(m_settingsWindow->GetHWND(),WM_SYSCOMMAND,SC_CLOSE,0);
+        return;
+    }
+    m_settingsVisible = independent&&!visible || restore || !m_settingsVisible;
     m_shortcutInputContext=ShortcutInputContext::Normal;
     if(!m_settingsVisible)m_webviewSettings->PostMessage(L"{\"shortcutCaptureCancelled\":true}");
     if (m_webviewSettings) {
+        ApplyPanelLayout();
         m_webviewSettings->Show(m_settingsVisible);
+        if(m_settingsWindow&&m_config->panelSide=="window"){
+            if(m_settingsVisible){
+                if(restore)SendMessageW(m_settingsWindow->GetHWND(),WM_SYSCOMMAND,SC_RESTORE,0);
+                SetForegroundWindow(m_settingsWindow->GetHWND());
+            }else{
+                ShowWindow(m_settingsWindow->GetHWND(),SW_HIDE);
+            }
+        }
         // Push current state every time the menu opens so toggles reflect
         // the truth: important for things that can change outside the menu
         // (Alt+H for HDR, Ctrl+G for game cycle).
@@ -4608,18 +4636,76 @@ void Application::CycleNoSignalDimImage()
 
 std::wstring Application::ApplyPanelLayout()
 {
-    std::string side = m_config ? m_config->panelSide : std::string("right");
+    std::string side = m_config ? m_config->panelSide : std::string("window");
+    if(side=="window"&&!m_settingsWindow){
+        auto settings=std::make_unique<Window>();
+        MONITORINFO monitor{sizeof(monitor)};
+        GetMonitorInfoW(MonitorFromWindow(m_window->GetHWND(),MONITOR_DEFAULTTONEAREST),&monitor);
+        const int dpi=static_cast<int>(GetDpiForWindow(m_window->GetHWND()));
+        Window::Desc desc;desc.settingsWindow=true;
+        desc.width=std::min<LONG>(MulDiv(1100,dpi,96),monitor.rcWork.right-monitor.rcWork.left-40);
+        desc.height=std::min<LONG>(MulDiv(760,dpi,96),monitor.rcWork.bottom-monitor.rcWork.top-MulDiv(36,dpi,96)-40);
+        if(settings->Create(GetModuleHandleW(nullptr),desc)){
+            m_settingsWindow=std::move(settings);
+            RECT rect{};GetWindowRect(m_settingsWindow->GetHWND(),&rect);
+            SetWindowPos(m_settingsWindow->GetHWND(),nullptr,
+                monitor.rcWork.left+(monitor.rcWork.right-monitor.rcWork.left-(rect.right-rect.left))/2,
+                monitor.rcWork.top+(monitor.rcWork.bottom-monitor.rcWork.top-(rect.bottom-rect.top))/2,
+                0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+            m_settingsWindow->SetCloseCallback([this](){
+                if(m_config->panelSide!="window")return;
+                m_settingsVisible=false;m_shortcutInputContext=ShortcutInputContext::Normal;
+                m_webviewSettings->PostMessage(L"{\"shortcutCaptureCancelled\":true}");
+                m_webviewSettings->Show(false);
+            });
+            m_settingsWindow->SetMoveCallback([this](){
+                if(m_webviewSettings&&m_webviewSettings->GetParentWindow()==m_settingsWindow->GetHWND())
+                    m_webviewSettings->SetContentBounds(m_settingsWindow->GetContentBounds());
+            });
+            if(m_hotkeyManager)m_hotkeyManager->SetSettingsWindow(m_settingsWindow->GetHWND());
+            UpdateWindowTitle(false);
+        }else{
+            side="right";m_config->panelSide=side;
+            ShowToast(Tr(L"toast.settingsStartFailed"),std::chrono::seconds(4));
+        }
+    }
+    Window* host=side=="window"?m_settingsWindow.get():m_window.get();
     WebViewSettings::Dock dock = WebViewSettings::Dock::Right;
     if (side == "left")      dock = WebViewSettings::Dock::Left;
-    else if (side == "full") dock = WebViewSettings::Dock::Full;
+    else if (side == "full"||side=="window") dock = WebViewSettings::Dock::Full;
     else                     side = "right";
+    const bool glass=m_config->panelEffect=="blur";
+    m_window->SetGlassEffect(glass,m_config->panelBlurStrength);
+    if(m_settingsWindow){
+        m_settingsWindow->SetGlassEffect(glass,m_config->panelBlurStrength);
+        m_settingsWindow->SetPanelBackdrop(m_settingsWindow->GetContentBounds());
+    }
     if (m_webviewSettings) {
+        const bool moved=m_webviewSettings->GetParentWindow()!=host->GetHWND();
+        if(moved){
+            m_webviewSettings->Show(false);
+            if(!m_webviewSettings->SetParentWindow(host->GetHWND())){
+                m_config->panelSide=m_settingsWindow&&m_webviewSettings->GetParentWindow()==m_settingsWindow->GetHWND()?"window":"right";
+                ShowToast(Tr(L"toast.settingsStartFailed"),std::chrono::seconds(4));
+                return ApplyPanelLayout();
+            }
+        }
+        m_webviewSettings->SetContentBounds(host->GetContentBounds());
         m_webviewSettings->SetDock(dock, m_config ? m_config->panelWidth : 500);
         m_webviewSettings->SetTransparentBackground(dock != WebViewSettings::Dock::Full ||
-            (m_config && (m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity)<1.0f));
+            (m_config && (m_config->panelEffect=="blur" || m_config->panelOpacity<1.0f)));
+        if(moved&&m_settingsVisible)m_webviewSettings->Show(true);
+        if(m_settingsWindow){
+            if(side!="window")ShowWindow(m_settingsWindow->GetHWND(),SW_HIDE);
+            else if(m_settingsVisible&&!IsWindowVisible(m_settingsWindow->GetHWND())){
+                if(!m_webviewSettings->IsVisible())m_webviewSettings->Show(true);
+                m_settingsWindow->Show(SW_SHOWNORMAL);
+            }
+        }
     }
     if (side == "left") return L"Left";
     if (side == "full") return L"Full";
+    if (side == "window") return L"Window";
     return L"Right";
 }
 
@@ -4627,7 +4713,7 @@ void Application::CyclePanelSide()
 {
     if (!m_config) return;
     const std::string current = m_config->panelSide;
-    m_config->panelSide = (current == "right") ? "left" : (current == "left") ? "full" : "right";
+    m_config->panelSide = (current == "window") ? "right" : (current == "right") ? "left" : (current == "left") ? "full" : "window";
     m_config->Save("nitlink.json");
     const std::wstring label = ApplyPanelLayout();
     AppLog(L"Panel position: " + label);
@@ -5134,7 +5220,8 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     js << L"\"panelSide\":\"" << ApplyPanelLayout() << L"\",";
     js << L"\"panelWidth\":" << m_config->panelWidth << L",";
     js << L"\"panelEffect\":\"" << Utf8ToWide(m_config->panelEffect) << L"\",";
-    js << L"\"panelOpacity\":" << (m_config->panelEffect=="blur"?m_config->panelBlurOpacity:m_config->panelOpacity) << L",";
+    js << L"\"panelOpacity\":" << m_config->panelOpacity << L",";
+    js << L"\"panelBlurStrength\":" << m_config->panelBlurStrength << L",";
     js << L"\"configWarning\":\"" << JsonEscapeWide(ConfigWarning()) << L"\",";
     if (m_captureDevice) {
         auto fmt = m_captureDevice->GetOutputFormat();
@@ -6050,9 +6137,11 @@ void Application::RefreshGameArtworkContext()
 void Application::UpdateWindowTitle(bool refreshDiscord)
 {
     if (!m_window) return;
-    m_window->SetChromeLabels({{Tr(L"window.hud0"),Tr(L"window.hud1"),Tr(L"window.hud2")},
+    const Window::ChromeLabels chrome{{Tr(L"window.hud0"),Tr(L"window.hud1"),Tr(L"window.hud2")},
         Tr(L"window.settings"),Tr(L"window.hidden"),Tr(L"window.minimize"),Tr(L"window.maximize"),Tr(L"window.restore"),Tr(L"window.close"),
-        Localization::Instance().UiFontFamily(L"Archivo")});
+        Localization::Instance().UiFontFamily(L"Archivo")};
+    m_window->SetChromeLabels(chrome);
+    if(m_settingsWindow){m_settingsWindow->SetChromeLabels(chrome);m_settingsWindow->SetTitle(L"NitLink - "+Tr(L"window.settings"));}
     RefreshGameArtworkContext();
 
     m_lastHdmiDisplayRange = GetConfirmedHdmiRange();

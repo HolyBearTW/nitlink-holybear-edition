@@ -100,10 +100,10 @@
     };
     const localizeValue = value => ({
       Auto: 'value.auto', Stretch: 'value.stretch',
-      Right: 'value.right', Left: 'value.left', Full: 'value.full'
+      Right: 'value.right', Left: 'value.left', Full: 'value.full', Window: 'value.window'
     }[value] ? t({
       Auto: 'value.auto', Stretch: 'value.stretch',
-      Right: 'value.right', Left: 'value.left', Full: 'value.full'
+      Right: 'value.right', Left: 'value.left', Full: 'value.full', Window: 'value.window'
     }[value]) : value);
     // A real NitLink host will immediately push its effective locale. When
     // this file is opened directly for static testing, use the browser-local
@@ -495,6 +495,18 @@
       panelOpacityValue.textContent = panelOpacitySlider.value + '%';
       document.documentElement.style.setProperty('--panel-opacity', opacity);
       post('setPanelOpacity', opacity);
+    });
+    const panelBlurSlider = document.getElementById('slider-panel-blur');
+    const panelBlurValue = document.getElementById('slider-panel-blur-val');
+    const setPanelBlurVisual = strength => {
+      if (typeof strength !== 'number' || panelBlurSlider.matches(':active')) return;
+      const pct = Math.round(strength * 100);
+      panelBlurSlider.value = pct;
+      panelBlurValue.textContent = pct + '%';
+    };
+    panelBlurSlider.addEventListener('input', () => {
+      panelBlurValue.textContent = panelBlurSlider.value + '%';
+      post('setPanelBlurStrength', Number(panelBlurSlider.value) / 100);
     });
 
     // Capture source picker + manual format override.
@@ -1785,11 +1797,12 @@
       setPiPOpacityVisual(s.pipOpacity);
       if(s.panelEffect){panelEffect.value=s.panelEffect;document.documentElement.dataset.panelEffect=s.panelEffect;}
       setPanelOpacityVisual(s.panelOpacity);
+      setPanelBlurVisual(s.panelBlurStrength);
       if (s.aspectRatio) setText('aspect-val', localizeValue(s.aspectRatio));
       if (s.panelSide) {
         setText('panel-side-val', localizeValue(s.panelSide));
-        document.documentElement.dataset.side = String(s.panelSide).toLowerCase();
         panelSide=String(s.panelSide).toLowerCase();
+        document.documentElement.dataset.side = panelSide==='window'?'full':panelSide;
       }
       if(typeof s.panelWidth==='number'){panelWidth=s.panelWidth;panelResize.setAttribute('aria-valuenow',String(panelWidth));}
       let configWarning = document.getElementById('config-warning');
@@ -1898,6 +1911,7 @@
         if (msg && msg.gamePageReset) window._resetGamePage();
         if (msg && typeof msg.pipOpacity === 'number') setPiPOpacityVisual(msg.pipOpacity);
         if (msg && typeof msg.panelOpacity === 'number') setPanelOpacityVisual(msg.panelOpacity);
+        if (msg && typeof msg.panelBlurStrength === 'number') setPanelBlurVisual(msg.panelBlurStrength);
       });
       post('ready');
     }

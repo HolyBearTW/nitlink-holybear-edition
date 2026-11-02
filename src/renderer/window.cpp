@@ -104,13 +104,13 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     rc.bottom+=MulDiv(36,static_cast<int>(dpi),96);
 
     m_hwnd = CreateWindowExW(
-        WS_EX_NOREDIRECTIONBITMAP,
+        WS_EX_NOREDIRECTIONBITMAP | WS_EX_APPWINDOW,
         L"NitLinkWindowClass",
         desc.title.c_str(),
         style,
         CW_USEDEFAULT, CW_USEDEFAULT,
         rc.right - rc.left, rc.bottom,
-        desc.owner, nullptr, hInstance, this
+        nullptr, nullptr, hInstance, this
     );
 
     if (!m_hwnd) return false;
@@ -1071,6 +1071,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     case WM_SIZE:
         if (self) {
             if (wParam == SIZE_MINIMIZED) {
+                self->m_glassHiddenByMinimize = true;
                 self->m_playbackPower.SetActive(false);
                 if(self->m_composition)self->m_composition->HideGlass();
             }
@@ -1080,6 +1081,11 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         // gives 0x0 dimensions and would crash the renderer)
         if (self && wParam != SIZE_MINIMIZED) {
             self->LayoutContent();
+            if(self->m_glassHiddenByMinimize){
+                self->m_glassHiddenByMinimize=false;
+                if(!self->m_restoringIconic&&self->m_composition&&self->CaptionHeight())
+                    self->m_composition->AnimateGlass(true,false);
+            }
             if(self->m_onMove)self->m_onMove();
             self->m_wasResized = true;
             // Only the normal window size belongs to the next windowed launch.
@@ -1127,7 +1133,9 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     }
                     // Establish the final layout once; renderer dimensions do
                     // not change on the following clipped boundary frames.
+                    self->m_restoringIconic=iconic;
                     const auto result=DefWindowProcW(hwnd,msg,wParam,lParam);
+                    self->m_restoringIconic=false;
                     RECT to{};GetWindowRect(hwnd,&to);
                     // Native placement may hide/show the host during the
                     // transition. Restore its separate material as well.
@@ -1148,12 +1156,26 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         if (self && self->m_playbackPower.SuppressesScreenSaver(wParam)) return 0;
         break;
 
+    case WM_WINDOWPOSCHANGING:
+        if(self&&self->m_composition&&!self->m_glide.active&&IsWindowVisible(hwnd)&&!IsIconic(hwnd)){
+            const auto* position=reinterpret_cast<const WINDOWPOS*>(lParam);
+            if(position&&(position->flags&SWP_NOSIZE)&&!(position->flags&SWP_NOMOVE)){
+                RECT current{};GetWindowRect(hwnd,&current);
+                self->m_composition->PlaceGlass({position->x,position->y,
+                    position->x+current.right-current.left,position->y+current.bottom-current.top},GetDpiForWindow(hwnd)/96.f);
+            }
+        }
+        break;
+
+    case WM_WINDOWPOSCHANGED:
+        if(self&&!IsIconic(hwnd))self->UpdateGlassPosition();
+        break;
+
     case WM_MOVE:
         // Native dragging runs a modal message loop. Notify the child browser
         // here, while deferred monitor detection waits for the application loop.
         if (self) {
             self->m_wasMoved = true;
-            self->UpdateGlassPosition();
             if (self->m_onMove) self->m_onMove();
         }
         return 0;
@@ -1171,7 +1193,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         return 0;
 
     case WM_ACTIVATE:
-        if(self){self->RefreshCaption();self->UpdateGlassPosition();}
+        if(self){self->RefreshCaption();if(LOWORD(wParam)!=WA_INACTIVE)self->UpdateGlassPosition();}
         // Reconcile child-controller position when activation returns.
         if (self && self->m_onMove && LOWORD(wParam) != WA_INACTIVE) {
             self->m_onMove();

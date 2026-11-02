@@ -27,7 +27,7 @@ int main()
         !legacyLoaded.noSignalDimImage) return 2;
 
     NitLink::Config defaults;
-    if(defaults.panelWidth!=500||defaults.panelOpacity!=1.0f)return 24;
+    if(defaults.panelSide!="window"||defaults.panelWidth!=500||defaults.panelOpacity!=1.0f||defaults.panelBlurStrength!=0.0f)return 24;
     if (defaults.holyBearAutoUpdateCheck || defaults.holyBearUpdateLastCheckUtc) return 20;
     if (!defaults.Save(path.string())) return 3;
     NitLink::Config defaultLoaded;
@@ -42,6 +42,7 @@ int main()
     saved.hudMode=2;saved.compactHudColor=0x43eb72;saved.compactHudMetrics=5;saved.compactHudTextSize=24;
     saved.panelWidth=720;
     saved.panelOpacity=0.64f;
+    saved.panelBlurStrength=0.83f;
     saved.holyBearAutoUpdateCheck = true;
     saved.holyBearUpdateLastCheckUtc = 1791730000;
     saved.holyBearUpdateLatestTag = "v1.2.4.2-holybear";
@@ -57,7 +58,7 @@ int main()
     NitLink::Config loaded;
     if (!loaded.Load(path.string())) return 7;
     if(loaded.shortcutBindings!=saved.shortcutBindings||loaded.hudMode!=2||loaded.compactHudColor!=0x43eb72||loaded.compactHudMetrics!=5||loaded.compactHudTextSize!=24)return 27;
-    if(loaded.panelWidth!=720||loaded.panelOpacity!=saved.panelOpacity)return 25;
+    if(loaded.panelWidth!=720||loaded.panelOpacity!=saved.panelOpacity||loaded.panelBlurStrength!=saved.panelBlurStrength)return 25;
     if (!loaded.holyBearAutoUpdateCheck || loaded.holyBearUpdateLastCheckUtc != saved.holyBearUpdateLastCheckUtc ||
         loaded.holyBearUpdateLatestTag != saved.holyBearUpdateLatestTag || loaded.holyBearUpdateSeenTag != saved.holyBearUpdateSeenTag) return 21;
     if (loaded.audioFifoMs != 7 || loaded.audioRenderMs != 9 || loaded.audioDrift || !loaded.audioExclusive) return 18;

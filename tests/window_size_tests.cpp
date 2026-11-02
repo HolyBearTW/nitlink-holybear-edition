@@ -1,5 +1,6 @@
 #include "app/config.h"
 #include "renderer/window.h"
+#include <objbase.h>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -110,6 +111,52 @@ static void CheckClose(CloseState state, const std::filesystem::path& configPath
     while (PeekMessageW(&message, nullptr, WM_QUIT, WM_QUIT, PM_REMOVE)) {}
 }
 
+static void CheckGlassWindows()
+{
+    const auto instance=GetModuleHandleW(nullptr);
+    {
+        Window main,settings;
+        Window::Desc mainDesc;mainDesc.width=800;mainDesc.height=500;
+        Window::Desc settingsDesc;settingsDesc.width=700;settingsDesc.height=500;settingsDesc.settingsWindow=true;
+        Require(main.Create(instance,mainDesc)&&settings.Create(instance,settingsDesc),
+            "Main and independent settings windows create together");
+        for(const auto hwnd:{main.GetHWND(),settings.GetHWND()}){
+            Require(GetWindow(hwnd,GW_OWNER)==nullptr,"Both content windows remain unowned taskbar windows");
+            Require((GetWindowLongW(hwnd,GWL_EXSTYLE)&WS_EX_APPWINDOW)!=0,
+                "Both content windows join the application's taskbar group");
+        }
+        main.SetGlassStatus(Window::GlassStatus{L"No signal",L"Waiting for source",L"Check HDMI",L"Waiting"});
+        settings.SetPanelBackdrop(settings.GetContentBounds());
+        main.Show(SW_SHOWNOACTIVATE);settings.Show(SW_SHOWNOACTIVATE);
+        if(FindWindowW(L"NitLinkGlassBackdrop",nullptr)){
+            for(const auto hwnd:{main.GetHWND(),settings.GetHWND()}){
+                const auto glass=GetWindow(hwnd,GW_HWNDNEXT);
+                wchar_t name[64]{};if(glass)GetClassNameW(glass,name,64);
+                Require(std::wstring_view(name)==L"NitLinkGlassBackdrop"&&IsWindowVisible(glass),
+                    "Each visible window has its glass directly behind it");
+                RECT before{},after{};GetWindowRect(glass,&before);
+                RECT host{};GetWindowRect(hwnd,&host);
+                Require(SetWindowPos(hwnd,nullptr,host.left+42,host.top+23,0,0,
+                    SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE)!=FALSE,"Window moves");
+                GetWindowRect(glass,&after);
+                Require(after.left-before.left==42&&after.top-before.top==23&&IsWindowVisible(glass),
+                    "Glass follows a drag without becoming transparent");
+                SendMessageW(hwnd,WM_ACTIVATE,WA_INACTIVE,0);
+                Require(IsWindowVisible(glass),"Deactivating the window preserves its glass");
+                ShowWindow(hwnd,SW_MINIMIZE);
+                Require(IsIconic(hwnd)&&!IsWindowVisible(glass),"Minimizing hides the glass");
+                SendMessageW(hwnd,WM_SYSCOMMAND,SC_RESTORE,0);
+                Require(!IsIconic(hwnd)&&IsWindowVisible(glass),
+                    "Restoring the window restores its glass immediately");
+            }
+        }else std::cout << "SKIP Glass compositor unavailable on isolated desktop\n";
+        SendMessageW(settings.GetHWND(),WM_CLOSE,0,0);
+        SendMessageW(main.GetHWND(),WM_CLOSE,0,0);
+    }
+    Require(UnregisterClassW(L"NitLinkWindowClass",instance)!=FALSE,
+        "The independent glass windows release their content class");
+}
+
 int main()
 {
     // Fullscreen and PiP transitions run on an inactive desktop so checks never cover the user's screen.
@@ -118,6 +165,12 @@ int main()
     const HDESK desktop = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, GENERIC_ALL, nullptr);
     if (!desktop || !SetThreadDesktop(desktop)) {
         std::cerr << "FAIL Could not create an isolated test desktop\n";
+        return 1;
+    }
+    // The real application keeps its STA alive for the lifetime of its UI
+    // windows. Do the same when this test repeatedly recreates them.
+    if(FAILED(CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED))){
+        std::cerr << "FAIL Could not initialize the UI apartment\n";
         return 1;
     }
     int result = 0;
@@ -129,6 +182,7 @@ int main()
                            CloseState::FullscreenRoundTrip, CloseState::PiPRoundTrip}) {
             CheckClose(state, configPath);
         }
+        CheckGlassWindows();
         std::cout << "PASS Window size survives resize, close and reopen in all seven window states\n";
     } catch (const std::exception& error) {
         std::cerr << "FAIL " << error.what() << '\n';
@@ -136,5 +190,6 @@ int main()
     }
     std::error_code ignored;
     if (!configPath.empty()) std::filesystem::remove(configPath, ignored);
+    CoUninitialize();
     return result;
 }

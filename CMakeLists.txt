@@ -501,7 +501,7 @@ if(BUILD_TESTING)
         src/app/config.cpp
     )
     target_include_directories(NitLinkWindowSizeTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(NitLinkWindowSizeTests PRIVATE user32 gdi32 dwmapi)
+    target_link_libraries(NitLinkWindowSizeTests PRIVATE user32 gdi32 dwmapi ole32)
     add_test(NAME window_size_persistence COMMAND NitLinkWindowSizeTests)
 
     add_executable(NitLinkPlaybackPowerTests

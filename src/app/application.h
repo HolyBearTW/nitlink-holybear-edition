@@ -266,6 +266,7 @@ private:
 
     // Core components
     std::unique_ptr<Window>           m_window;
+    std::unique_ptr<Window>           m_settingsWindow;
     std::unique_ptr<DX11Renderer>     m_renderer;
     std::unique_ptr<CaptureDevice>    m_captureDevice;
     std::unique_ptr<FrameBuffer>      m_frameBuffer;
@@ -354,7 +355,6 @@ private:
     // True if nitlink.json didn't exist when Initialize ran. Used to
     // pop the settings menu open automatically on first launch so users
     // can discover the feature toggles without hunting for F1.
-    bool m_firstLaunch = false;
     std::atomic<bool> m_screenshotRequested{false};
 
     // Path of the most recent screenshot saved by TakeScreenshot,

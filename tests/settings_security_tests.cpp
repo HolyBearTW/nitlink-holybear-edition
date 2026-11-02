@@ -202,6 +202,10 @@ int main() {
         Expect(ParseSettingsMessage(L"{\"action\":\"setPanelOpacity\",\"value\":" + std::wstring(value) + L"}").has_value(), "panel opacity accepts the supported range");
     for (auto value : {L"0.09", L"1.01", L"null", L"\"0.64\""})
         Expect(!ParseSettingsMessage(L"{\"action\":\"setPanelOpacity\",\"value\":" + std::wstring(value) + L"}"), "panel opacity rejects invalid boundary input");
+    for (auto value : {L"0", L"0.5", L"1"})
+        Expect(ParseSettingsMessage(L"{\"action\":\"setPanelBlurStrength\",\"value\":" + std::wstring(value) + L"}").has_value(), "blur strength accepts its full range");
+    for (auto value : {L"-0.01", L"1.01", L"null", L"\"0.5\""})
+        Expect(!ParseSettingsMessage(L"{\"action\":\"setPanelBlurStrength\",\"value\":" + std::wstring(value) + L"}"), "blur strength rejects invalid boundary input");
     for (auto invalid : {L"NaN", L"Infinity", L"-Infinity", L"1e999", L"1e-999", L"1.01",
          L"-0.01", L"01", L".5", L"1.", L"+1", L"0x1", L"1f", L"true", L"null", L"[]",
          L"{}", L"\"0.5\""}) {
@@ -354,7 +358,7 @@ int main() {
     pending.Store(3,L"old panel opacity");pending.Store(3,L"latest panel opacity");
     pending.Drain(slotsBudget,134,true,collect);
     Expect(delivered.back()==L"latest panel opacity"&&pending.Empty(),"panel opacity retains its final value independently of the other sliders");
-    pending.Store(0, std::wstring(8193, L'x')); pending.Store(4, L"invalid slot");
+    pending.Store(0, std::wstring(8193, L'x')); pending.Store(5, L"invalid slot");
     Expect(pending.Empty(), "slot indices and storage remain bounded");
     pending.Store(0, L"stale"); pending.Clear();
     Expect(pending.Empty(), "source/lifetime reset drops pending values");
@@ -379,12 +383,12 @@ int main() {
     Expect(FindResource(L"https://nitlink.invalid/locales/de-DE.js") != nullptr,"German locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ko-KR.js") != nullptr,"Korean locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ja-JP.js") != nullptr,"Japanese locale resource is allowlisted");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261102-glass1253-1")!=nullptr,"fixed script revision maps to packaged editor");
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261102-sharedglass1253-3")!=nullptr,"fixed script revision maps to packaged editor");
     Expect(!FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=other"),"unapproved revision rejected");
     Expect(ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":0.2,"y":0.8,"zoom":1.5}})").has_value(),"bounded artwork recipe bridge");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":-1,"y":0.8,"zoom":1.5}})"),"negative crop rejected");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"fit","x":0.2,"y":0.8,"zoom":1,"url":"https://evil.test/image"}})"),"artwork editor cannot submit arbitrary URLs");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/account-library.js?v=20261102-glass1253-1")!=nullptr,"account script has an exact packaged revision");
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/account-library.js?v=20261102-sharedglass1253-3")!=nullptr,"account script has an exact packaged revision");
     Expect(FindResource(L"https://nitlink.invalid/assets/nitlink-mono.svg")!=nullptr,"loading logo is a packaged resource");
     Expect(ParseSettingsMessage(LR"({"action":"beginAccountLink","value":"xbox"})").has_value(),"provider login schema");
     Expect(!ParseSettingsMessage(LR"({"action":"beginAccountLink","value":"https://evil.test"})"),"account login cannot redirect to arbitrary URLs");

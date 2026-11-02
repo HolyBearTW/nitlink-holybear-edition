@@ -314,7 +314,14 @@ bool WebViewSettings::Start(HWND parent) {
                                 return ctlHr;
                             }
                             m_controller = controller;
-                            HRESULT setupHr = controller->get_CoreWebView2(&m_webview);
+                            // The requested host can change while asynchronous
+                            // controller creation is pending (initial window mode).
+                            HRESULT setupHr = controller->put_ParentWindow(m_parent);
+                            if (FAILED(setupHr)) {
+                                Fail(L"toast.settingsStartFailed", setupHr);
+                                return setupHr;
+                            }
+                            setupHr = controller->get_CoreWebView2(&m_webview);
                             if (FAILED(setupHr)) {
                                 Fail(L"toast.settingsStartFailed", setupHr);
                                 return setupHr;
@@ -461,7 +468,8 @@ void WebViewSettings::ShowBrowserSurfaces() {
 
 RECT WebViewSettings::ComputeBounds() const {
     RECT rc{};
-    GetClientRect(m_parent, &rc);
+    if(m_contentBounds)rc=*m_contentBounds;
+    else GetClientRect(m_parent, &rc);
     if (m_dock == Dock::Full) return rc;
     // The strip width follows the monitor scale so the requested width reads the same
     // on a 4K display at 150% as on a 1080p display at 100%.
@@ -473,6 +481,13 @@ RECT WebViewSettings::ComputeBounds() const {
     if (m_dock == Dock::Right) rc.left  = rc.right - width;
     else                       rc.right = rc.left + width;
     return rc;
+}
+
+bool WebViewSettings::SetParentWindow(HWND parent) {
+    if(parent==m_parent)return true;
+    if(m_controller&&FAILED(m_controller->put_ParentWindow(parent)))return false;
+    m_parent=parent;
+    return true;
 }
 
 void WebViewSettings::SetDock(Dock dock, int widthDip) {
@@ -551,8 +566,8 @@ void WebViewSettings::ReceiveMessage(const std::wstring& json) {
         return;
     }
     if (!m_ready) return;
-    if (parsed && (parsed->action == L"setVolume" || parsed->action == L"setPiPOpacity" || parsed->action == L"setPanelWidth" || parsed->action == L"setPanelOpacity")) {
-        const size_t index = parsed->action == L"setVolume" ? 0 : parsed->action == L"setPiPOpacity" ? 1 : parsed->action == L"setPanelWidth" ? 2 : 3;
+    if (parsed && (parsed->action == L"setVolume" || parsed->action == L"setPiPOpacity" || parsed->action == L"setPanelWidth" || parsed->action == L"setPanelOpacity" || parsed->action == L"setPanelBlurStrength")) {
+        const size_t index = parsed->action == L"setVolume" ? 0 : parsed->action == L"setPiPOpacity" ? 1 : parsed->action == L"setPanelWidth" ? 2 : parsed->action == L"setPanelOpacity" ? 3 : 4;
         const bool replaced = m_pendingSliders.Store(index, json);
         if (replaced) ++m_sliderReplacements;
         DispatchPendingMessages();

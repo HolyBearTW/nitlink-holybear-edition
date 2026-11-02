@@ -18,6 +18,7 @@ public:
                   bool repeat = false);
     void ApplyBindings(const ShortcutBindings& bindings);
     void Poll(ShortcutInputContext context = ShortcutInputContext::Normal);
+    void SetSettingsWindow(HWND hwnd) { m_settingsWindow=hwnd; }
 
 private:
     struct Hotkey {
@@ -30,6 +31,7 @@ private:
     };
 
     HWND m_hwnd;
+    HWND m_settingsWindow=nullptr;
     std::vector<Hotkey> m_hotkeys;
 };
 

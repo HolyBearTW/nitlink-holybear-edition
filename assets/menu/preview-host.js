@@ -14,7 +14,7 @@
   const pushAccounts=()=>emit({accountLibrary:{preview:true,accounts:accountStates,games:accountGames.filter(game=>accountStates.find(account=>account.provider===game.provider)?.accountId)}});
   const state={locale:params.get('lang')||'zh-TW',languagePreference:params.get('lang')||'zh-TW',panelSide:params.get('layout')||'full',activeDevice:'AVerMedia Live Gamer ULTRA 2.1 · Host fixture',captureDevices:['AVerMedia Live Gamer ULTRA 2.1 · Host fixture','Elgato 4K Pro · Host fixture'],manualHdmiSource:'switch2',effectiveHdmiSource:'Nintendo Switch 2',manualHdmiSourceCustom:'',negotiatedWidth:1920,negotiatedHeight:1080,negotiatedFps:60,negotiatedFpsNumerator:60,negotiatedFpsDenominator:1,negotiatedFormat:'NV12',resolutionText:'1920×1080 / 60 FPS',linkText:'HDMI',latencyText:'8 ms',preventSleep:true,availableFormats:[{width:1920,height:1080,fps:60,fpsNumerator:60,fpsDenominator:1,format:'NV12'},{width:3840,height:2160,fps:60,fpsNumerator:60,fpsDenominator:1,format:'P010'}],captureFormatOverride:{width:0,height:0,fps:0,fpsNumerator:0,fpsDenominator:1,format:''},gameList:[{id:'spider-man-2',title:"Marvel's Spider-Man 2"},{id:'astro-bot',title:'Astro Bot'}]};
   state.discordSignal='1920×1080 · 60 FPS';
-  state.panelEffect='blur';state.panelOpacity=.65;
+  state.panelEffect='blur';state.panelOpacity=1;state.panelBlurStrength=0;
   const sourceNames={switch2:'Switch 2',switch:'Switch',ps5:'PS5',ps4:'PS4',xbox_series:'Xbox Series X|S',xbox_one:'Xbox One',pc:'PC'};
   const detectedSource=params.get('source')==='unknown'?'':'Nintendo Switch 2';
   state.manualHdmiSource=params.get('source')==='unknown'?'auto':Object.hasOwn(sourceNames,params.get('source'))?params.get('source'):'switch2';
@@ -335,27 +335,28 @@
     if(action==='restoreAutoCover'){if(current.key){const record=records[current.key];Object.assign(record,artwork(null),{manualCover:false,coverId:0,coverUrl:'',coverThumb:'',coverShape:'',image:'',sourceImage:'',artworkMode:'original',finalImageKey:'',sourceImageKey:''});await saveRecord(current.key);push();emit({gameNotice:'autoRestored'});}return;}
     if(action==='saveGameSettings'){emit({gameNotice:'qualitySaved'});return;}
     if(action==='setLanguage'){cancel();games.clear();state.locale=value==='system'?'zh-TW':value;state.languagePreference=value;push();void localizeAccounts();return;}
-    if(action==='cyclePanelSide'){layout({full:'right',right:'left',left:'full'}[state.panelSide]||'full');push();return;}
+    if(action==='cyclePanelSide'){layout({window:'right',right:'left',left:'full',full:'window'}[state.panelSide]||'window');push();return;}
     if(action==='setManualHdmiSource'){const previous=artworkPlatform();state.manualHdmiSource=value;state.effectiveHdmiSource=value==='auto'?detectedSource:value==='other'?state.manualHdmiSourceCustom||detectedSource:sourceNames[value]||value;if(previous!==artworkPlatform()){cancel();games.clear();coversById.clear();}push();return;}
     if(action==='setManualHdmiSourceCustom'){const previous=artworkPlatform();state.manualHdmiSourceCustom=value;state.effectiveHdmiSource=value||detectedSource;if(previous!==artworkPlatform()){cancel();games.clear();coversById.clear();}push();return;}
     if(action==='setPanelWidth'){state.panelWidth=value;layout(state.panelSide);push();return;}
     if(action==='setPanelOpacity'){state.panelOpacity=value;push();return;}
-    if(action==='setPanelEffect'){state.panelEffect=value;state.panelOpacity=value==='blur'?.65:1;push();return;}
+    if(action==='setPanelBlurStrength'){state.panelBlurStrength=value;push();return;}
+    if(action==='setPanelEffect'){state.panelEffect=value;push();return;}
     if(action==='setPreferredDevice'){state.activeDevice=value;push();return;}
     if(action==='setCaptureFormatOverride'){state.captureFormatOverride=value;push();return;}
     if(action==='javascriptException'){console.error('Preview bridge:',value);return;}
     if(action.startsWith('toggle')){const keys={toggleHDR:'hdrEnabled',toggleColorExpansion:'colorExpansion',toggleNIS:'nisEnabled',toggleVSync:'vsync',toggleLowLatency:'lowLatency',togglePreventSleep:'preventSleep',toggleMute:'audioMuted'};if(keys[action])state[keys[action]]=!state[keys[action]];}push();
   };
   const layout=value=>{
-    const side=String(value).toLowerCase();state.panelSide=side;document.documentElement.dataset.side=side;document.documentElement.style.background='#101319';
-    const width=side==='full'?'100%':`min(${state.panelWidth||500}px, 100vw)`;
+    const side=String(value).toLowerCase();state.panelSide=side;document.documentElement.dataset.side=side==='window'?'full':side;document.documentElement.style.background='#101319';
+    const width=side==='full'||side==='window'?'100%':`min(${state.panelWidth||500}px, 100vw)`;
     document.body.style.width=width;document.body.style.marginLeft=side==='right'?'auto':'0';
     const app=document.querySelector('.app');app.style.width=width;app.style.left=side==='right'?'auto':'0';app.style.right=side==='left'?'auto':'0';
     for(const dialog of document.querySelectorAll('.game-cover-dialog')){
       dialog.style.left=side==='right'?`max(0px, calc(100vw - ${state.panelWidth||500}px))`:'0px';
       dialog.style.right=side==='left'?`max(0px, calc(100vw - ${state.panelWidth||500}px))`:'0px';
     }
-    document.getElementById('game-preview-layout').value=side;
+    document.getElementById('game-preview-layout').value=side==='window'?'full':side;
   };
   window.chrome=window.chrome||{};window.chrome.webview={postMessage:request,addEventListener:(type,listener)=>{if(type==='message')listeners.add(listener);}};
   function initControls(){

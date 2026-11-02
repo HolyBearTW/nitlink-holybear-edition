@@ -1073,10 +1073,12 @@ void TestGameControlsAndPanelResize(WebViewSettings& host,HWND window,std::vecto
         BrowserKey(view,L"Home",L"Home",VK_HOME);
         Check(PumpUntil([&]{return Script(view,L"document.getElementById('panel-resize').getAttribute('aria-valuenow')")==L"\"500\"";}),"dock width cannot shrink below its default");
         const int start=dock==WebViewSettings::Dock::Left?496:4;const int finish=start+(dock==WebViewSettings::Dock::Left?40:-40);
+        Script(view,L"window.__resizeStarted=false;document.getElementById('panel-resize').addEventListener('pointerdown',()=>window.__resizeStarted=true,{once:true})");
         BrowserCommand(view,L"Input.dispatchMouseEvent",L"{\"type\":\"mousePressed\",\"x\":"+std::to_wstring(start)+L",\"y\":240,\"button\":\"left\",\"buttons\":1,\"clickCount\":1}");
+        Check(PumpUntil([&]{return Script(view,L"window.__resizeStarted")==L"true";}),"inner dock edge receives the drag start");
         BrowserCommand(view,L"Input.dispatchMouseEvent",L"{\"type\":\"mouseMoved\",\"x\":"+std::to_wstring(finish)+L",\"y\":240,\"button\":\"left\",\"buttons\":1}");
-        BrowserCommand(view,L"Input.dispatchMouseEvent",L"{\"type\":\"mouseReleased\",\"x\":"+std::to_wstring(finish)+L",\"y\":240,\"button\":\"left\",\"buttons\":0,\"clickCount\":1}");
         Check(PumpUntil([&]{return Script(view,L"Number(document.getElementById('panel-resize').getAttribute('aria-valuenow'))>=530")==L"true";}),"dragging either inner dock edge resizes the actual native controller");
+        BrowserCommand(view,L"Input.dispatchMouseEvent",L"{\"type\":\"mouseReleased\",\"x\":"+std::to_wstring(finish)+L",\"y\":240,\"button\":\"left\",\"buttons\":0,\"clickCount\":1}");
     }
     host.SetMessageHandler([&messages](const std::wstring& json){messages.push_back(json);});
     host.Show(false);

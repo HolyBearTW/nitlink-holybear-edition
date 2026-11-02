@@ -429,6 +429,10 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     }
 
     m_window = std::make_unique<Window>();
+    // The startup glass paints before capture initialization updates the title.
+    Window::ChromeLabels startupChrome;
+    startupChrome.fontFamily = Localization::Instance().UiFontFamily(L"Archivo");
+    m_window->SetChromeLabels(std::move(startupChrome));
     Window::Desc windowDesc{};
     windowDesc.title    = L"NitLink";
     windowDesc.width    = m_config->windowWidth;

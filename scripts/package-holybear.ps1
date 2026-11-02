@@ -37,7 +37,15 @@ Copy-Item -LiteralPath (Join-Path $HolyBearRoot 'licenses/HOLYBEAR-RELEASE-PUBLI
 # The independent GPLv3 installer is accompanied by its exact corresponding
 # source and build inputs, inside both the portable payload and setup.
 $setupSource = Join-Path $stage 'licenses/setup-ui-source.zip'
-& git -C $HolyBearRoot archive --format=zip "--output=$setupSource" HEAD
+$setupInputs = @('installer', 'VERSION', 'LICENSE', 'README-HOLYBEAR.txt',
+    'assets/nitlink.ico', 'assets/nitlink.svg', 'assets/installer',
+    'scripts/build-installer.ps1', 'scripts/build-winui-installer.ps1',
+    'scripts/holy-bear-common.ps1', 'scripts/get-nsis.ps1',
+    'scripts/validate-package.ps1', 'scripts/verify-installer.ps1',
+    # Get-HolyBearVersion verifies these application identity declarations.
+    'CMakeLists.txt', 'src/app.rc', 'src/app/holybear_version.h',
+    'src/overlay/overlay.cpp', 'nitlink-menu.html', 'assets/menu/menu.js')
+& git -C $HolyBearRoot archive --format=zip "--output=$setupSource" HEAD -- @setupInputs
 if ($LASTEXITCODE -ne 0) { throw 'Installer corresponding source archive failed.' }
 $notes = Get-Content -LiteralPath $info.Notes -Raw
 $repo = Get-HolyBearRepositoryName

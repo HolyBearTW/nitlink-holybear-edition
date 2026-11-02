@@ -73,6 +73,12 @@ jobs:
           $identity = ConvertFrom-StringData (Get-Content -LiteralPath (Join-Path $payload 'BUILD.txt') -Raw)
           if ($identity.ctest -cne "$($local.Tests)/$($local.Tests)") { throw 'Packaged CTest result differs from the signed attestation.' }
           & ./scripts/verify-installer.ps1 -Setup (Join-Path $assets $info.SetupName) -PackageDirectory $payload
+          # Reuse the UI embedded in the signed setup as the install-test
+          # reference. Downloaded releases do not have a local build's winui-ui.
+          . ./scripts/get-nsis.ps1
+          $ui = Join-Path $assets 'winui-ui'
+          & (Get-HolyBear7Zip) e (Join-Path $assets $info.SetupName) 'setup-ui/NitLinkSetupUi.exe' "-o$ui" -y -bso0 -bsp0
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $ui 'NitLinkSetupUi.exe'))) { throw 'Signed setup UI reference extraction failed.' }
           "LOCAL_ASSETS=$assets" >> $env:GITHUB_ENV
       - name: Test install, upgrade and uninstall only
         shell: pwsh

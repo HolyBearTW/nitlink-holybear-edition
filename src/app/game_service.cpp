@@ -212,6 +212,11 @@ std::string HtmlAttribute(const std::string& tag,const char* key){
 std::wstring ProductNameKey(std::wstring_view name){
     std::wstring out;for(auto c:BaseGameTitle(name))if((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||(c>=0x3040&&c<=0x9fff))out+=static_cast<wchar_t>(std::towlower(c));return out;
 }
+bool MatchesStoreEdition(const Cover& cover,std::wstring_view game){
+    const bool storeSwitch2=cover.productPlatform.find(L"Switch 2")!=std::wstring::npos||
+        BaseGameTitle(cover.productTitle)!=cover.productTitle;
+    return storeSwitch2==(BaseGameTitle(game)!=game);
+}
 Reply NintendoStoreCovers(std::wstring_view query,uint32_t page,const Cancelled& cancelled){
     Reply out;out.page=page;
     out.officialProvider=L"nintendo-hk-store";
@@ -886,7 +891,7 @@ void GameService::Run(std::stop_token stop) {
                             const auto displayKey=ProductNameKey(game.displayName),nameKey=ProductNameKey(game.name);
                             const auto found=std::find_if(catalog.covers.begin(),catalog.covers.end(),[&](const Cover& cover){
                                 const auto title=ProductNameKey(cover.productTitle);
-                                return !title.empty()&&(title==displayKey||title==nameKey);
+                                return MatchesStoreEdition(cover,game.name)&&!title.empty()&&(title==displayKey||title==nameKey);
                             });
                             if(found!=catalog.covers.end()&&std::none_of(officialSources.begin(),officialSources.end(),[&](const Cover& cover){return cover.url==found->url;}))
                                 officialSources.insert(officialSources.begin(),*found);
@@ -993,6 +998,9 @@ void GameService::Run(std::stop_token stop) {
                         if(request.locale==L"zh-TW"){game.displayName=official->displayName;game.displayNameSource=official->displayNameSource;}
                     }
                     for(const auto& account:request.library){
+                        // A saved cover-library ID does not turn the base
+                        // release into the account's Switch 2 Edition.
+                        if((BaseGameTitle(account.name)!=account.name)!=(BaseGameTitle(game.name)!=game.name))continue;
                         const auto sameTitle=[&](std::wstring_view title){const auto key=ProductNameKey(BaseGameTitle(title));return !key.empty()&&(key==ProductNameKey(BaseGameTitle(game.name))||key==ProductNameKey(BaseGameTitle(game.displayName)));};
                         if(account.id!=game.id&&!sameTitle(account.name)&&std::none_of(account.displayNames.begin(),account.displayNames.end(),[&](const auto& label){return sameTitle(label.second);}))continue;
                         if(const auto sources=request.libraryArtworks.find(account.key);sources!=request.libraryArtworks.end())for(const auto& cover:sources->second)
@@ -1027,7 +1035,9 @@ void GameService::Run(std::stop_token stop) {
                     for(const auto& game:request.library)if(game.key==request.key||(request.gameId&&game.id==request.gameId)){
                         names.push_back(game.name);for(const auto& [_,name]:game.displayNames)names.push_back(name);
                     }
-                    std::erase_if(reply.covers,[&](const Cover& cover){return std::none_of(names.begin(),names.end(),[&](const auto& name){return MatchesCoverTitle(cover.productTitle,name);});});
+                    const auto& editionTitle=primary?primary->name:request.catalogueQuery;
+                    std::erase_if(reply.covers,[&](const Cover& cover){return !MatchesStoreEdition(cover,editionTitle)||
+                        std::none_of(names.begin(),names.end(),[&](const auto& name){return MatchesCoverTitle(cover.productTitle,name);});});
                     if(reply.covers.empty()&&reply.status==L"ok")reply.status=L"empty";
                 };
                 Reply store;
@@ -1111,7 +1121,8 @@ void GameService::Run(std::stop_token stop) {
                         const auto localizedName=localized==localizedNames.end()?std::wstring{}:ProductNameKey(localized->second);
                         const auto found=std::find_if(queryResult.covers.begin(),queryResult.covers.end(),[&](const Cover& cover){
                             const auto title=ProductNameKey(cover.productTitle);
-                            return title==gameName||title==displayName||(!localizedName.empty()&&title==localizedName)||(uniqueExactQuery&&title==queryKey);
+                            return MatchesStoreEdition(cover,game.name)&&
+                                (title==gameName||title==displayName||(!localizedName.empty()&&title==localizedName)||(uniqueExactQuery&&title==queryKey));
                         });
                         if(found==queryResult.covers.end())continue;
                         if(std::none_of(game.artworkSources.begin(),game.artworkSources.end(),[&](const Cover& cover){return cover.url==found->url;})){

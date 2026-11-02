@@ -1886,6 +1886,7 @@ void Application::Run()
 
     MSG msg{};
     while (m_running) {
+        const bool noSignalWasLatched = m_noSignalPresentationLatched;
         ConsumeHolyBearUpdate();
         ConsumeGameResults();
         ConsumeAccountResults();
@@ -2518,6 +2519,7 @@ void Application::Run()
         const bool showNoSignalNow = ShouldShowNoSignal();
         const bool noSignalPresentation =
             m_noSignalPresentationLatched || showNoSignalNow;
+        if (noSignalPresentation != noSignalWasLatched) UpdateWindowTitle();
         const bool rendererHasFrame = m_renderer && m_renderer->HasCaptureFrame();
         const bool captureReady = CapturePresentationReady(
             m_captureFrameValidForSession, rendererHasFrame);
@@ -6148,7 +6150,7 @@ void Application::UpdateWindowTitle(bool refreshDiscord)
     const auto title = ComposeHdmiWindowTitle(
         GetEffectiveHdmiSourceLabel(), GetLiveHdmiSignalLabel(),
         m_lastHdmiDisplayRange==HdmiConfirmedRange::Hdr?GetConfirmedHdmiRangeLabel():L"",
-        GetHdmiSourceVrrState(), GetCurrentGameDisplayName());
+        GetHdmiSourceVrrState(), GetCurrentGameDisplayName(), m_noSignalPresentationLatched);
     if (title == m_lastHdmiDisplayTitle) return;
     m_lastHdmiDisplayTitle = title;
     m_window->SetTitle(title);

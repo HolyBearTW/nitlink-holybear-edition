@@ -33,13 +33,17 @@ inline std::wstring FormatHdmiSourceTiming(const HdmiSourceTiming& timing) {
 inline std::wstring ComposeHdmiWindowTitle(std::wstring_view identity,
     std::wstring_view signal, std::wstring_view confirmedRange,
     HdmiSourceVrrState sourceVrr = HdmiSourceVrrState::Unknown,
-    std::wstring_view gameTitle = {}) {
+    std::wstring_view gameTitle = {}, bool signalLost = false) {
     std::wstring title = L"NitLink";
     if (!gameTitle.empty()) title += L" - " + std::wstring(gameTitle);
     if (!identity.empty()) title += L" - " + std::wstring(identity);
-    if (!signal.empty()) title += L" - " + std::wstring(signal);
-    if (!confirmedRange.empty()) title += L" [" + std::wstring(confirmedRange) + L"]";
-    if (sourceVrr == HdmiSourceVrrState::Enabled) title += L" [VRR]";
+    // Retained source metadata is not a live signal after confirmed loss.
+    // Keep the cache for recovery and short resyncs; only hide its title fields.
+    if (!signalLost) {
+        if (!signal.empty()) title += L" - " + std::wstring(signal);
+        if (!confirmedRange.empty()) title += L" [" + std::wstring(confirmedRange) + L"]";
+        if (sourceVrr == HdmiSourceVrrState::Enabled) title += L" [VRR]";
+    }
     return title;
 }
 

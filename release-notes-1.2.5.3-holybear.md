@@ -18,6 +18,7 @@
 - 獨立設定視窗的自訂標題列只顯示 NitLink 字標，不再重複下方的「設定」標題；工作列標題與齒輪提示只顯示「設定」，不寫死可自訂的 F1 快捷鍵。快捷鍵頁主標題與 HUD 外觀副標題之間增加間距。
 - 面板位置新增預設的「獨立視窗」，使用 FULL 排布，支援拖曳、縮放、最小化、最大化與還原，沿用相同的玻璃及視窗動畫。F1 與齒輪開關同一個設定視窗，關閉設定時遊戲主視窗繼續運作；切換至靠左、靠右或 FULL 時，保留既有設定頁內容。已保存的面板位置仍會保留。
 - 無訊號時使用桌面玻璃背景與透明提示卡；訊號恢復後顯示正常遊戲畫面。已選擇的自訂無訊號圖片保留原有呈現方式。
+- 修正主機睡眠或關機、已確認訊號遺失後，視窗標題仍顯示最後一次 HDR 狀態的問題。訊號遺失時隱藏標題的 HDR、VRR、解析度與更新率，保留遊戲及主機名稱；有效畫面恢復後自動更新。短暫重新同步仍保留最後確認的資料，不改動 HDR 輸出與擷取設定。
 - 所有玻璃模糊效果僅在「玻璃模糊」模式生效。切回「經典樣式」會停用標題列、設定及無訊號畫面的玻璃模糊，並保留模糊程度供下次切回使用；經典樣式可調整整個面板的不透明度。
 - 獨立視窗及 FULL 的訊號資訊欄移除頂部框線，右側改為上下留白、兩端漸淡的細線，減少整塊框住的感覺。
 - 玻璃模式的靠左／靠右面板移除硬邊框，設定列改用縮排、漸淡的分隔線；窄版導覽列恢復 NitLink 小 Logo，保留五個分頁。
@@ -39,7 +40,7 @@
 ## 測試與驗證
 
 - JavaScript 語法及六種語系靜態檢查通過；五項封裝設定頁安全測試、遊戲搜尋對應及原生視窗狀態測試通過。視窗測試在隔離桌面確認主視窗與獨立設定視窗的玻璃層跟隨移動、失焦及最小化／還原，並確認兩者為頂層工作列視窗。
-- 本次驗收建置的完整無篩選 CTest 已通過 60／60，失敗與跳過均為 0。實際程式畫面仍待使用者驗收；自動化視窗測試不代表所有 Windows 桌面、顯示卡與 HDR 模式的像素結果相同。
+- 前一驗收建置的完整無篩選 CTest 已通過 60／60。此後的標題修正已通過相關測試 5／5、Smoke 15／15 及六語系檢查，失敗與跳過均為 0；不將這次的針對性驗證視為新版 Full 通過。最新程式的完整 CTest 與實際主機睡眠／喚醒驗收仍待完成；自動化視窗測試不代表所有 Windows 桌面、顯示卡與 HDR 模式的像素結果相同。
 - 獨立安裝器另通過安裝／更新判斷、六語系、系統語言解析、含空白與中文的路徑、桌面捷徑選項及引擎失敗回報檢查；以隔離目錄、登錄項及捷徑名稱完成實際安裝、更新與解除安裝，核對所有檔案雜湊及設定、帳號資料保留。Windows 10 與缺少執行環境的實際畫面仍須在對應系統確認。
 - 仍須人工確認連續桌面玻璃、連動模糊程度、獨立設定視窗、無訊號玻璃、左右／全版面板、經典樣式模式、字標與語系字型、齒輪與三種 HUD 圖示，以及開啟／最小化／最大化／還原動畫、視窗縮放、DPI、全螢幕、子母畫面與 HDR／SDR 顯示。
 - GC553Pro／Switch 2 的既有擷取修正已完成真實實機驗收；本次保留既有擷取行為，帳號與圖片功能仍須以驗收版確認實際服務回應。
@@ -65,4 +66,4 @@
 
 ## English Summary
 
-This version adds a desktop-blurred integrated title bar with Settings and three-mode HUD controls, plus a shared desktop-glass F1 background with linked blur strength, an independent settings window using the Full layout, a glass No Signal screen and a classic style option. It improves community artwork lookup, automatic matching, edition-specific covers, automatic retries, loading feedback, and clearing local games. An independent GPLv3 WinUI setup port from Harbor adds NitLink branding, six languages and an update screen for existing installations; Windows 10 and silent operations retain the NSIS interface. Installer source accompanies the payload. The full unfiltered CTest suite passed 60/60 with no failures or skipped tests, including packaged settings and native window lifecycle checks. Installer handoff and isolated install/upgrade/uninstall checks also passed. User visual acceptance remains pending.
+This version adds a desktop-blurred integrated title bar with Settings and three-mode HUD controls, plus a shared desktop-glass F1 background with linked blur strength, an independent settings window using the Full layout, a glass No Signal screen and a classic style option. It improves community artwork lookup, automatic matching, edition-specific covers, automatic retries, loading feedback, and clearing local games. An independent GPLv3 WinUI setup port from Harbor adds NitLink branding, six languages and an update screen for existing installations; Windows 10 and silent operations retain the NSIS interface. Installer source accompanies the payload. Confirmed input loss now hides cached signal details in the title until real video returns, while preserving metadata through short resyncs. An earlier acceptance build passed the full unfiltered CTest suite 60/60. The subsequent title changes passed 5/5 affected tests, 15/15 Smoke tests and six-locale validation; Full validation of the latest source and user visual acceptance remain pending. Installer handoff and isolated install/upgrade/uninstall checks also passed.

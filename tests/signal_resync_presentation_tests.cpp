@@ -174,9 +174,10 @@ void MetadataTests() {
     auto sourceHdr = DecodeGc553ProHdrResponse(hdr.data(), hdr.size()).state;
     auto sourceVrr = DecodeGc553ProSourceVrr(DecodeGc553ProVtemResponse(on.data(), on.size()));
     Check(sourceHdr == H::Hdr10Pq && sourceVrr == V::Enabled, "initial confirmed HDR and VRR");
+    bool signalLost = false;
     const auto label = [&] {
         return ComposeHdmiWindowTitle(L"Switch 2", L"1920x1080 @ 60Hz",
-                                      sourceHdr == H::Hdr10Pq ? L"HDR" : L"SDR", sourceVrr);
+                                      sourceHdr == H::Hdr10Pq ? L"HDR" : L"SDR", sourceVrr, {}, signalLost);
     };
     const auto initialTitle = label();
     Gc553ProSourceStateDebouncer hdrMonitor(sourceHdr);
@@ -204,6 +205,18 @@ void MetadataTests() {
           "single metadata failure with valid capture cannot trigger hint");
     Check(!DecodeGc553ProTimingResponse(nullptr, 0).available &&
           !ShouldShowSignalResync(true, true, false, 16), "unavailable timing alone cannot trigger hint");
+    signalLost = AtGap(6000, true, true) == PresentationState::NoSignal;
+    Check(signalLost && label() == L"NitLink - Switch 2",
+          "confirmed loss hides retained timing/HDR/VRR from the title");
+    Check(ComposeHdmiWindowTitle(L"Switch 2", L"1920x1080 @ 60Hz", L"HDR", sourceVrr,
+                                L"薩爾達傳說 曠野之息", signalLost) ==
+          L"NitLink - 薩爾達傳說 曠野之息 - Switch 2",
+          "sleep/shutdown retains the selected game and source identity");
+    Check(sourceHdr == H::Hdr10Pq && sourceVrr == V::Enabled,
+          "title visibility never clears confirmed source metadata");
+    signalLost = AtGap(0) == PresentationState::NoSignal;
+    Check(!signalLost && label() == initialTitle,
+          "accepted real recovery restores the confirmed signal fields");
     hdrMonitor.Observe(DecodeGc553ProHdrResponse(sdr.data(), sdr.size()).state, 2000);
     vrrMonitor.Observe(DecodeGc553ProSourceVrr(DecodeGc553ProVtemResponse(off.data(), off.size())), 2000);
     Check(!hdrMonitor.PublishIfSettled(2749, &sourceHdr) && !vrrMonitor.PublishIfSettled(2749, &sourceVrr),

@@ -5,6 +5,8 @@ $info = Get-HolyBearVersion
 $stage = (Resolve-Path -LiteralPath $PackageDirectory).ProviderPath
 $output = (Resolve-Path -LiteralPath $OutputDirectory).ProviderPath
 & "$PSScriptRoot/validate-package.ps1" -Path $stage -HolyBear
+$winui = Join-Path $output 'winui-ui'
+& "$PSScriptRoot/build-winui-installer.ps1" -OutputDirectory $winui
 $compiler = Get-HolyBearNSIS
 $generated = Join-Path $output 'installer-source'
 New-Item -ItemType Directory -Path $generated | Out-Null
@@ -49,9 +51,10 @@ $uninstallInclude = Join-Path $generated 'uninstall-files.nsh'
 Set-Content -LiteralPath $installInclude -Value $installLines -Encoding utf8
 Set-Content -LiteralPath $uninstallInclude -Value $uninstallLines -Encoding utf8
 $setup = Join-Path $output $info.SetupName
+$uiExecutable = Join-Path $winui 'NitLinkSetupUi.exe'
 if (Test-Path -LiteralPath $setup) { throw 'Installer already exists; refusing to overwrite.' }
-& $compiler /V3 /WX /INPUTCHARSET UTF8 "/DVERSION=$($info.Version)" "/DNUMERIC_VERSION=$($info.Numeric)" "/DWINDOWS_VERSION=$($info.WindowsVersion)" "/DPACKAGE_KB=$([int][Math]::Ceiling($size / 1KB))" "/DPACKAGE_DIR=$stage" "/DLICENSE_RTF=$licenseRtf" "/DOUTPUT_FILE=$setup" "/DINSTALL_FILES=$installInclude" "/DUNINSTALL_FILES=$uninstallInclude" (Join-Path $HolyBearRoot 'installer/holy-bear.nsi')
+& $compiler /V3 /WX /INPUTCHARSET UTF8 "/DVERSION=$($info.Version)" "/DNUMERIC_VERSION=$($info.Numeric)" "/DWINDOWS_VERSION=$($info.WindowsVersion)" "/DPACKAGE_KB=$([int][Math]::Ceiling($size / 1KB))" "/DPACKAGE_DIR=$stage" "/DWINUI_SETUP=$uiExecutable" "/DLICENSE_RTF=$licenseRtf" "/DOUTPUT_FILE=$setup" "/DINSTALL_FILES=$installInclude" "/DUNINSTALL_FILES=$uninstallInclude" (Join-Path $HolyBearRoot 'installer/holy-bear.nsi')
 if ($LASTEXITCODE -ne 0) { throw 'NSIS Setup build failed.' }
-& "$PSScriptRoot/verify-installer.ps1" -Setup $setup -PackageDirectory $stage
+& "$PSScriptRoot/verify-installer.ps1" -Setup $setup -PackageDirectory $stage -WinUIExecutable (Join-Path $winui 'NitLinkSetupUi.exe')
 Write-Output "Branded multilingual installer verified: $($info.SetupName)"
 $global:LASTEXITCODE = 0

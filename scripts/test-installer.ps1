@@ -27,6 +27,8 @@ foreach ($language in @(1033, 1028, 2052)) {
             throw "Installed payload mismatch: $relative"
         }
     }
+    if ((Get-FileHash -LiteralPath (Join-Path $assetsRoot 'winui-ui/NitLinkSetupUi.exe')).Hash -ne
+        (Get-FileHash -LiteralPath (Join-Path $install 'setup-ui/NitLinkSetupUi.exe')).Hash) { throw 'Installed WinUI setup mismatch.' }
     $product = $registry.OpenSubKey($regPath)
     $arp = $registry.OpenSubKey($arpPath)
     if (-not $product -or -not $arp -or $product.GetValue('InstallDir') -ne $install -or
@@ -55,6 +57,7 @@ if ($process.ExitCode -ne 0) { throw 'Uninstaller failed.' }
 foreach ($file in Get-ChildItem -LiteralPath $payload -Recurse -File) {
     if (Test-Path -LiteralPath (Join-Path $install $file.FullName.Substring($payload.Length + 1))) { throw 'Uninstaller left a release payload file.' }
 }
+if (Test-Path -LiteralPath (Join-Path $install 'setup-ui/NitLinkSetupUi.exe')) { throw 'Uninstall left the WinUI setup behind.' }
 if ($registry.OpenSubKey($arpPath) -or $registry.OpenSubKey($regPath) -or (Test-Path -LiteralPath $shortcut) -or
     -not (Test-Path -LiteralPath $settings) -or (Get-FileHash -LiteralPath $settings).Hash -ne $sentinelHash) {
     throw 'Uninstall metadata or retained settings are incorrect.'

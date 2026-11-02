@@ -34,6 +34,11 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'licenses') | Out-Null
 Copy-Item -LiteralPath (Join-Path $HolyBearRoot 'licenses/MSVC-RUNTIME.txt') -Destination (Join-Path $stage 'licenses')
 Copy-Item -LiteralPath (Join-Path $HolyBearRoot 'licenses/NSIS.txt') -Destination (Join-Path $stage 'licenses')
 Copy-Item -LiteralPath (Join-Path $HolyBearRoot 'licenses/HOLYBEAR-RELEASE-PUBLIC-KEY.asc') -Destination (Join-Path $stage 'licenses')
+# The independent GPLv3 installer is accompanied by its exact corresponding
+# source and build inputs, inside both the portable payload and setup.
+$setupSource = Join-Path $stage 'licenses/setup-ui-source.zip'
+& git -C $HolyBearRoot archive --format=zip "--output=$setupSource" HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Installer corresponding source archive failed.' }
 $notes = Get-Content -LiteralPath $info.Notes -Raw
 $repo = Get-HolyBearRepositoryName
 $actionsUrl = if ($env:GITHUB_ACTIONS -eq 'true') { "https://github.com/$repo/actions/runs/$env:GITHUB_RUN_ID" } else { '' }

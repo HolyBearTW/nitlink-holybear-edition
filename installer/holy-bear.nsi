@@ -6,10 +6,16 @@ Unicode true
 !include "WinVer.nsh"
 !include "FileFunc.nsh"
 
+!ifndef PRODUCT
 !define PRODUCT "NitLink HolyBear Edition"
+!endif
 !define TITLE "NitLink ${NUMERIC_VERSION} HolyBear Edition"
+!ifndef REGKEY
 !define REGKEY "Software\HolyBearTW\NitLink HolyBear Edition"
+!endif
+!ifndef UNINSTALLKEY
 !define UNINSTALLKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\NitLink-HolyBear-Edition"
+!endif
 Name "${TITLE}"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$LOCALAPPDATA\Programs\${PRODUCT}"
@@ -120,7 +126,6 @@ Function .onInit
   ${OrIf} $1 == 2052
     StrCpy $LANGUAGE $1
   ${EndIf}
-  !insertmacro MUI_LANGDLL_DISPLAY
   ${IfNot} ${RunningX64}
     MessageBox MB_OK|MB_ICONSTOP "$(NeedX64)"
     Abort
@@ -134,6 +139,22 @@ Function .onInit
     MessageBox MB_OK|MB_ICONSTOP "$(NeedWindows)"
     Abort
   ${EndIf}
+  ; Windows 11 uses the independent Harbor-derived WinUI interface. It calls
+  ; this same executable silently for the existing install/upgrade operations.
+  ; Windows 10 and missing-runtime failures retain the native NSIS pages.
+  ${If} $0 >= 22000
+    IfSilent classic_install
+    InitPluginsDir
+    File /oname=$PLUGINSDIR\NitLinkSetupUi.exe "${WINUI_SETUP}"
+    ClearErrors
+    ExecWait '"$PLUGINSDIR\NitLinkSetupUi.exe" --engine "$EXEPATH" --directory "$INSTDIR" --language "$LANGUAGE"' $1
+    IfErrors classic_install
+    ${If} $1 == 0
+      Quit
+    ${EndIf}
+  ${EndIf}
+  classic_install:
+  !insertmacro MUI_LANGDLL_DISPLAY
 FunctionEnd
 
 Function LaunchNitLink
@@ -144,7 +165,14 @@ FunctionEnd
 Section "$(CoreName)" Core
   SectionIn RO
   SetOutPath "$INSTDIR"
+  ClearErrors
   !include "${INSTALL_FILES}"
+  ${If} ${Errors}
+    SetErrorLevel 1
+    Abort
+  ${EndIf}
+  SetOutPath "$INSTDIR\setup-ui"
+  File /oname=NitLinkSetupUi.exe "${WINUI_SETUP}"
   SetOutPath "$INSTDIR"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "${REGKEY}" "InstallDir" "$INSTDIR"
@@ -167,6 +195,17 @@ Section "$(CoreName)" Core
   Delete "$SMPROGRAMS\${PRODUCT}\卸载 HolyBear Edition.lnk"
   CreateShortcut "$SMPROGRAMS\${PRODUCT}\${PRODUCT}.lnk" "$INSTDIR\NitLink.exe"
   CreateShortcut "$SMPROGRAMS\${PRODUCT}\$(UninstallShortcut).lnk" "$INSTDIR\Uninstall.exe"
+  ; WinUI supplies the existing desktop shortcut state explicitly.
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/DESKTOP=" $1
+  IfErrors desktop_choice_done
+  ${If} $1 == 1
+    CreateShortcut "$DESKTOP\${PRODUCT}.lnk" "$INSTDIR\NitLink.exe"
+  ${ElseIf} $1 == 0
+    Delete "$DESKTOP\${PRODUCT}.lnk"
+  ${EndIf}
+  desktop_choice_done:
 SectionEnd
 
 Section /o "$(DesktopName)" Desktop
@@ -185,12 +224,27 @@ Function un.onInit
   ${If} $LANGUAGE == ""
     !insertmacro DetectInstallerLanguage
   ${EndIf}
+  IfSilent classic_uninstall
+  ReadRegStr $0 HKLM "Software\Microsoft\Windows NT\CurrentVersion" "CurrentBuildNumber"
+  ${If} $0 >= 22000
+    InitPluginsDir
+    CopyFiles /SILENT "$INSTDIR\setup-ui\NitLinkSetupUi.exe" "$PLUGINSDIR\NitLinkSetupUi.exe"
+    ClearErrors
+    ExecWait '"$PLUGINSDIR\NitLinkSetupUi.exe" /uninstall --engine "$EXEPATH" --directory "$INSTDIR" --language "$LANGUAGE"' $1
+    IfErrors classic_uninstall
+    ${If} $1 == 0
+      Quit
+    ${EndIf}
+  ${EndIf}
+  classic_uninstall:
 FunctionEnd
 
 Section "Uninstall"
   ; Only explicit release files are removed. Generated configuration, screenshots,
   ; VRR_CAP.txt and other user files are always retained, including silent uninstall.
   !include "${UNINSTALL_FILES}"
+  Delete "$INSTDIR\setup-ui\NitLinkSetupUi.exe"
+  RMDir "$INSTDIR\setup-ui"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$DESKTOP\${PRODUCT}.lnk"
   Delete "$SMPROGRAMS\${PRODUCT}\${PRODUCT}.lnk"

@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Setup, [Parameter(Mandatory)][string]$PackageDirectory)
+param([Parameter(Mandatory)][string]$Setup, [Parameter(Mandatory)][string]$PackageDirectory, [string]$WinUIExecutable)
 . "$PSScriptRoot/holy-bear-common.ps1"
 . "$PSScriptRoot/get-nsis.ps1"
 $info = Get-HolyBearVersion
@@ -19,5 +19,12 @@ foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File) {
     }
 }
 if (@(Get-ChildItem -LiteralPath $fresh -Recurse -File -Filter nitlink.json).Count) { throw 'Installer contains user configuration.' }
+if ($WinUIExecutable) {
+    $expected = (Get-FileHash -LiteralPath $WinUIExecutable).Hash
+    $interfaces = @(Get-ChildItem -LiteralPath $fresh -Recurse -File -Filter NitLinkSetupUi.exe)
+    if (-not $interfaces.Count -or @($interfaces | Where-Object { (Get-FileHash -LiteralPath $_.FullName).Hash -ne $expected }).Count) {
+        throw 'Installer WinUI payload differs from the built interface.'
+    }
+}
 Write-Output 'Setup payload matches every validated portable file; no user configuration.'
 $global:LASTEXITCODE = 0

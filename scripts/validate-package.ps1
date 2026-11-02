@@ -22,7 +22,7 @@ $runtimeDlls = @('vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll', 'msvc
 $runtimeDlls += @('msvcp140_atomic_wait.dll', 'msvcp140_codecvt_ids.dll', 'vcruntime140_threads.dll', 'concrt140.dll', 'vccorlib140.dll')
 if ($HolyBear) {
     $required += @('locales/zh-CN.js', 'README.txt', 'RELEASE-NOTES.md', 'BUILD.txt',
-        'licenses/NSIS.txt', 'licenses/HOLYBEAR-RELEASE-PUBLIC-KEY.asc',
+        'licenses/NSIS.txt', 'licenses/HOLYBEAR-RELEASE-PUBLIC-KEY.asc', 'licenses/setup-ui-source.zip',
         'docs/HOLYBEAR-RELEASE-SIGNING.md', 'docs/HOLYBEAR-UPDATES.md',
         'HOLYBEAR-SOURCES.json', 'licenses/MSVC-RUNTIME.txt', 'docs/4ks-hdr-tonemap.md',
         'docs/hdmi-source-metadata.md', 'docs/cn115/SOURCE.txt', 'docs/cn115/FEATURE_COMMITS.tsv',

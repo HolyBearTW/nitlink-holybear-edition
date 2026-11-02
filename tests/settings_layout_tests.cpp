@@ -1066,7 +1066,7 @@ void TestGameControlsAndPanelResize(WebViewSettings& host,HWND window,std::vecto
         uint32_t searchRequest=0;
         Check(PumpUntil([&]{for(auto it=messages.rbegin();it!=messages.rend();++it){const auto message=NitLink::ParseSettingsMessage(*it);if(message&&message->action==L"searchGames"){searchRequest=message->request;return true;}}return false;}),"demo query reaches the native bridge");
         host.PostMessage(L"{\"gameEvent\":{\"kind\":\"search\",\"request\":"+std::to_wstring(searchRequest)+L",\"locale\":\"zh-TW\",\"status\":\"upstreamUnavailable\",\"games\":[]}}");
-        Check(PumpUntil([&]{return Script(view,LR"JS(document.querySelectorAll('.game-result').length===2&&document.getElementById('game-search-status').dataset.error==='false'&&document.getElementById('game-search-empty').hidden)JS")==L"true";}),"valid linked-platform results remain usable when the public catalogue fails without duplicate errors");
+        Check(PumpUntil([&]{return Script(view,LR"JS(document.querySelectorAll('.game-result').length===2&&document.getElementById('game-search-status').dataset.error==='true'&&document.getElementById('game-search-empty').hidden)JS")==L"true";}),"linked-platform fallback cards stay usable while the public catalogue error is shown once");
         Script(view,L"document.getElementById('panel-resize').focus()");
         BrowserKey(view,dock==WebViewSettings::Dock::Left?L"ArrowRight":L"ArrowLeft",dock==WebViewSettings::Dock::Left?L"ArrowRight":L"ArrowLeft",dock==WebViewSettings::Dock::Left?VK_RIGHT:VK_LEFT);
         Check(PumpUntil([&]{return Script(view,L"document.getElementById('panel-resize').getAttribute('aria-valuenow')")==L"\"516\"";}),"dock width keyboard control reaches the native host");

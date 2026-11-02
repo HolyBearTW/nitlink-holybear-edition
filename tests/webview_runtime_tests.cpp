@@ -433,6 +433,24 @@ void AccountCommunityLookupTest(WebViewSettings& host, ICoreWebView2* view,
             return !status.hidden&&status.dataset.busy==='true'&&status.textContent===window.NitLinkLocales['zh-TW']['game.status.resolving']&&
                 document.getElementById('game-gallery').getAttribute('aria-busy')==='true'&&document.getElementById('game-cover-empty').hidden;
         })())JS")==L"true","switching to community/all immediately shows lookup feedback before any search response arrives");
+        if(i==0){
+            NitLink::Games::Result failure;failure.operation=NitLink::Games::Operation::Search;
+            failure.request=request;failure.locale=L"zh-TW";failure.reply.status=L"workerError";
+            host.PostMessage(NitLink::SerializeGameResult(failure));
+            Check(PumpUntil([&]{return Script(view,LR"JS((()=>{
+                const message=window.NitLinkLocales['zh-TW']['game.status.workerError'];
+                return document.getElementById('game-cover-empty').textContent===message&&
+                    document.getElementById('game-search-status').textContent.startsWith(message);
+            })())JS")==L"true";}),"failed catalogue lookup stays a service error when account-only fallback cards exist");
+            const auto retryStart=messages.size();
+            Script(view,L"document.querySelector('[data-cover-provider=community]').click()");
+            Check(PumpUntil([&]{
+                for(size_t n=retryStart;n<messages.size();++n){
+                    const auto message=NitLink::ParseSettingsMessage(messages[n]);
+                    if(message&&message->action==L"searchGames"&&message->request!=request){request=message->request;return true;}
+                }return false;
+            }),"community lookup can be retried after a transient upstream failure");
+        }
         NitLink::Games::Result search;search.operation=NitLink::Games::Operation::Search;
         search.request=request;search.locale=L"zh-TW";search.reply.status=L"ok";
         search.reply.games={{799900u,0,L"Unrelated World",L"不相關的遊戲",L"fixture"},

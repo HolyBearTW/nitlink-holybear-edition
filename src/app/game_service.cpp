@@ -12,6 +12,7 @@
 #include <cmath>
 #include <set>
 #include <future>
+#include <thread>
 #include <fstream>
 #include <filesystem>
 #include <bcrypt.h>
@@ -442,6 +443,21 @@ Reply ParseReply(const HttpReply& http, bool covers) {
     } catch (...) { out = {}; }
     return out;
 }
+Reply FetchWorkerReply(const std::wstring& path, bool covers, const Cancelled& cancelled) {
+    Reply reply;
+    for (int attempt = 0; attempt < 2 && !cancelled(); ++attempt) {
+        const auto http = Fetch(WorkerHost, path, 256 * 1024, false, cancelled);
+        reply = ParseReply(http, covers);
+        const bool transient = reply.status == L"timeout" || reply.status == L"offline" ||
+            reply.status == L"rateLimited" ||
+            (reply.status == L"workerError" && (http.status == 500 || http.status == 502 ||
+                http.status == 503 || http.status == 504)) ||
+            (!covers && reply.status == L"partial" && reply.games.empty());
+        if (!transient || attempt == 1 || cancelled()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    }
+    return reply;
+}
 class WorkerProvider final : public Provider {
     struct Cached { Reply reply; Clock::time_point until; };
     std::map<std::wstring, Cached> cache;
@@ -517,7 +533,7 @@ class WorkerProvider final : public Provider {
     Reply Get(const std::wstring& path, bool covers, const Cancelled& cancelled,std::wstring_view locale={}) {
         const auto it = cache.find(path);
         if (it != cache.end() && Clock::now() < it->second.until) return it->second.reply;
-        auto reply = ParseReply(Fetch(WorkerHost, path, 256 * 1024, false, cancelled), covers);
+        auto reply = FetchWorkerReply(path, covers, cancelled);
         if(!covers)LocalizeChineseTitles(reply,locale,cancelled);
         if (!cancelled() && (reply.status == L"ok" || reply.status == L"empty")) {
             if (cache.size() >= 32) cache.erase(cache.begin());
@@ -549,7 +565,7 @@ public:
             primary.queriedTerms = {std::wstring(query)}; primary.suggestions = suggestions;
             return primary;
         }
-        struct Pending { std::wstring term, path; Reply reply; std::future<HttpReply> network; };
+        struct Pending { std::wstring term, path; Reply reply; std::future<Reply> network; };
         std::vector<Pending> pending;
         // At most six HTTPS requests, all on background threads. JSON parsing
         // and provider-cache mutation stay on the existing COM worker thread.
@@ -560,7 +576,7 @@ public:
             if (item.term == query) item.reply = primary;
             else if (found != cache.end() && Clock::now() < found->second.until) item.reply = found->second.reply;
             else item.network = std::async(std::launch::async, [path = item.path, cancelled] {
-                return Fetch(WorkerHost, path, 256 * 1024, false, cancelled);
+                return FetchWorkerReply(path, false, cancelled);
             });
             pending.push_back(std::move(item));
         }
@@ -571,7 +587,7 @@ public:
         std::set<std::wstring> resolved;
         for (auto& item : pending) {
             if (item.network.valid()) {
-                item.reply = ParseReply(item.network.get(), false);
+                item.reply = item.network.get();
                 LocalizeChineseTitles(item.reply,locale,cancelled);
                 if (!cancelled() && (item.reply.status == L"ok" || item.reply.status == L"empty")) {
                     if (cache.size() >= 32) cache.erase(cache.begin());

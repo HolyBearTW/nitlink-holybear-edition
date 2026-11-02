@@ -1420,7 +1420,7 @@
         const requested = coverRequest;
         coverTimer = setTimeout(() => {
           if (requested === coverRequest) { coverStatus = 'timeout'; settleImages(covers, coverCards, 'failed'); updateStatus(); }
-        }, 30000);
+        }, 55000);
       };
       const search = () => {
         stopCovers();
@@ -1433,7 +1433,7 @@
         post('searchGames', {query: text, request: requested});
         searchTimer = setTimeout(() => {
           if (requested === searchRequest) { searchStatus = 'timeout';if(coverStatus==='resolving')coverStatus='timeout';updateStatus(); }
-        }, 30000); // Primary (12s) plus bounded fallback searches (12s), including bridge delivery.
+        }, 55000); // Includes one retry for the primary and bounded fallback requests.
       };
       query.addEventListener('input', () => {
         clearTimeout(debounce); clearTimeout(searchTimer);
@@ -1620,7 +1620,7 @@
           // Stable relevance groups include provider supplements. Preserve the
           // Worker's order within a group; no popularity scores are invented.
           results = [...event.games||[]].sort((a,b)=>Number(window.NitLinkGameTitles.isDemo(a))-Number(window.NitLinkGameTitles.isDemo(b))||relevance(b)-relevance(a));
-          if(!results.length){results=window.NitLinkAccountLibrary?.searchGames(query.value)||[];if(results.length)searchStatus='ok';}
+          if(!results.length){results=window.NitLinkAccountLibrary?.searchGames(query.value)||[];if(results.length&&event.status==='empty')searchStatus='ok';}
           results.forEach(game => { game.dataMode=game.dataMode||event.dataMode||'real';game.titleLocale=currentLocale; });
           window.NitLinkAccountLibrary?.catalogue(results);
           suggestions = event.suggestions || []; queriedTerms = event.queriedTerms || [];
@@ -1630,7 +1630,7 @@
             button.addEventListener('click', () => { query.value = term; search(); }); el('game-suggestions').appendChild(button);
           });
           renderResults(); renderGameUI(); updateStatus();
-          window.NitLinkAccountLibrary?.searchResults(results,searchStatus);
+          window.NitLinkAccountLibrary?.searchResults(results,event.status);
           el('game-search-status').title = Object.entries(event.lookups || {}).map(([source, status]) => `${source}: ${status}`).join(' · ');
         } else if (event.kind === 'covers' && event.request === coverRequest && event.gameId === current.id && event.shape === shape) {
           clearTimeout(coverTimer); coverStatus = event.status; covers = [...event.artworkSources||[],...event.covers||[]];

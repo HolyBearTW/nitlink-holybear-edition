@@ -283,7 +283,7 @@ window.NitLinkGameTitles = (() => {
     },
     searchResults(games,status='ok') {
       if(!linkTarget)return;
-      if(games.length&&games.every(game=>game.accountKey)){linkTarget='';render();document.dispatchEvent(new CustomEvent('accountcoverschanged',{detail:{lookupStatus:['ok','partial'].includes(status)?'empty':status}}));return;}
+      if(games.length&&games.every(game=>game.accountKey)){linkTarget='';render();document.dispatchEvent(new CustomEvent('accountcoverschanged',{detail:{lookupStatus:['ok','empty'].includes(status)?'empty':status}}));return;}
       const normalize=value=>titles.key(titles.coverQuery(value));
       const selected=model.games.find(game=>game.key===current.key),saved=local.games.find(game=>game.key===current.key);
       const targets=[current.name,selected?.name,...Object.values(selected?.displayNames||{}),...Object.values(saved?.displayNames||{})].map(normalize).filter(Boolean);

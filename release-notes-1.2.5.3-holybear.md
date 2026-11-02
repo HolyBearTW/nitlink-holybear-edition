@@ -27,6 +27,7 @@
 - 主視窗與獨立設定視窗各自保留頂層工作列視窗，玻璃層緊貼對應視窗後方；移動、失焦及最小化／還原時同步維持玻璃顯示，獨立設定視窗可在 NitLink 工作列群組切換。齒輪再次按下會關閉已顯示的設定視窗；隱藏或最小化後可重新開啟。
 - 標題列及控制按鈕統一由 NitLink 繪製，移除另一套原生標題列，避免啟動或還原時重複出現；最小化、還原、最大化與關閉仍呼叫系統視窗操作。
 - 標題列使用透明 NitLink 字標，來源與遊戲資訊不再重複顯示 NitLink 名稱；標題資訊依 F1 的有效語言選用對應字型，包含「系統預設」解析後的語言。繁中使用微軟正黑體，字級為 15px，標題改用粗體；其他語言同樣使用各自字型的粗體。Archivo 字型與字標內嵌於執行檔。
+- 啟動時先套用目前語言的字型，再顯示玻璃提示，修正繁中啟動提示先出現新細明體、隨後才切換微軟正黑體的閃爍。
 - F1 與遊戲畫面使用同一個外層視窗的不同呈現區域，玻璃區域不再被不透明遊戲底層遮住。標題列保留獨立高度，不覆蓋遊戲；設定頁切換視窗時不重新載入。
 - 視窗動畫採 Harbor 的玻璃／內容分層方式與曲線：玻璃從 0.94 倍彈入，縮放 360ms、淡入 220ms，內容只淡入、不隨玻璃縮放；最小化與關閉時，玻璃縮小並與內容一起在 120ms 內淡出。最大化／還原先套用最終內容排版，再以 180ms 滑動圓角裁切邊界與玻璃，避免逐格重新排版。跟隨 Windows 系統動畫開關。
 - 玻璃層獨立繪製桌面模糊、飽和度、染色、邊緣高光及陰影。外框高光改畫在內容視窗外緣，使左、右邊線一致。最小化時隱藏玻璃；全螢幕及子母畫面沒有標題列時，僅在顯示玻璃設定或玻璃無訊號提示時保留玻璃。
@@ -41,22 +42,22 @@
 ## 測試與驗證
 
 - JavaScript 語法及六種語系靜態檢查通過；五項封裝設定頁安全測試、遊戲搜尋對應及原生視窗狀態測試通過。視窗測試在隔離桌面確認主視窗與獨立設定視窗的玻璃層跟隨移動、失焦及最小化／還原，並確認兩者為頂層工作列視窗。
-- 最新驗收程式的完整無篩選 CTest 已通過 60／60，失敗與跳過均為 0；包含標題訊號修正的回歸測試，另已通過相關測試 5／5、Smoke 15／15 及六語系檢查。實際主機睡眠／喚醒與畫面仍待使用者驗收；自動化視窗測試不代表所有 Windows 桌面、顯示卡與 HDR 模式的像素結果相同。
+- 驗收基準程式的完整無篩選 CTest 已通過 60／60，失敗與跳過均為 0；包含標題訊號修正的回歸測試，另已通過相關測試 5／5、Smoke 15／15 及六語系檢查。使用者已完成版本驗收；後續僅調整啟動字型套用順序，另完成增量編譯及首次顯示順序檢查，依使用者指示沿用未受影響的測試結果。自動化視窗測試不代表所有 Windows 桌面、顯示卡與 HDR 模式的像素結果相同。
 - 獨立安裝器另通過安裝／更新判斷、六語系、系統語言解析、含空白與中文的路徑、桌面捷徑選項及引擎失敗回報檢查；以隔離目錄、登錄項及捷徑名稱完成實際安裝、更新與解除安裝，核對所有檔案雜湊及設定、帳號資料保留。Windows 10 與缺少執行環境的實際畫面仍須在對應系統確認。
 - 玻璃安裝器的安裝、更新、解除安裝畫面各通過 178 項隔離桌面檢查，合計 534 項；包含四輪移動、失焦、最小化／還原、隱藏／顯示，以及實際授權玻璃視窗的開啟、移動、關閉與安裝器恢復操作。檢查實際視窗可見性、前後順序、位置、材質與內容範圍；不將這些結構檢查宣稱為所有 Windows 桌面的像素保證。
-- 仍須人工確認連續桌面玻璃、連動模糊程度、獨立設定視窗、無訊號玻璃、左右／全版面板、經典樣式模式、字標與語系字型、齒輪與三種 HUD 圖示，以及開啟／最小化／最大化／還原動畫、視窗縮放、DPI、全螢幕、子母畫面與 HDR／SDR 顯示。
-- GC553Pro／Switch 2 的既有擷取修正已完成真實實機驗收；本次保留既有擷取行為，帳號與圖片功能仍須以驗收版確認實際服務回應。
+- 介面及安裝器已完成使用者驗收；系統透明效果、動畫及字型仍依 Windows 設定呈現。
+- GC553Pro／Switch 2 的既有擷取修正已完成真實實機驗收；本次保留既有擷取行為。帳號及圖片候選仍取決於平台與社群服務實際回應。
 - 自動模式無法取得更新率時，維持既有的 30 Hz fallback。
 
 ## 已知限制
 
 - 桌面模糊效果需要支援系統背景材質的 Windows 11；不支援的系統會使用深色標題列。Windows 關閉透明效果時，系統材質可能顯示為實色。
 - WinUI 安裝介面需要 Windows 11、.NET 10 及 Windows App Runtime。缺少執行環境時會顯示對應提示；無法啟動時改用原有安裝介面，NitLink 主程式不新增 .NET 相依性。
-- 動畫使用 Harbor 相同的分層方式、時間與 Bézier 曲線，以 NitLink 原生 Windows Composition 介面實作；保留遊戲的 HWND swap chain，沒有加入 WinUI 執行階段。實際動畫、連動桌面玻璃、獨立設定視窗及無訊號玻璃仍待此驗收包人工確認。
+- 主程式動畫使用 Harbor 相同的分層方式、時間與 Bézier 曲線，以 NitLink 原生 Windows Composition 介面實作；保留遊戲的 HWND swap chain，主程式沒有加入 WinUI 執行階段。
 - Nintendo Play Activity 的遊戲圖示與台灣搜尋的橫式主圖不保證提供直式包裝圖；官方商品頁有直式圖，也不代表這兩個介面會回傳它。
 - 社群資料庫未收錄、平台未提供圖片或服務暫時無法回應時，仍可能沒有可用候選；沒有完整名稱相符結果的遊戲需由使用者選擇搜尋結果。
 - 清除連動平台的目前遊戲只取消選取，保留帳號遊戲庫與遊玩紀錄。
-- 本機驗收包不會建立正式標籤或發布 GitHub Release；打包排除私人設定、帳號憑證、日誌與登入資料。
+- 發布套件排除私人設定、帳號憑證、日誌與登入資料。
 
 ## 來源、授權與致謝
 
@@ -68,4 +69,4 @@
 
 ## English Summary
 
-This version adds a desktop-blurred integrated title bar with Settings and three-mode HUD controls, plus a shared desktop-glass F1 background with linked blur strength, an independent settings window using the Full layout, a glass No Signal screen and a classic style option. It improves community artwork lookup, automatic matching, edition-specific covers, automatic retries, loading feedback, and clearing local games. The independent GPLv3 WinUI setup uses Harbor's custom glass host for setup and license windows, with NitLink branding and six languages; Windows 10 and silent operations retain the NSIS interface. Installer source accompanies the payload. Confirmed input loss hides cached signal details in the title until real video returns, while preserving metadata through short resyncs; localized titles use bold text. The latest native acceptance build passed the full unfiltered CTest suite 60/60, and setup glass lifecycle checks passed 534 assertions on isolated desktops. Engine handoff and isolated install/upgrade/uninstall checks also passed. User visual and sleep/wake acceptance remain pending.
+This version adds a desktop-blurred integrated title bar with Settings and three-mode HUD controls, plus a shared desktop-glass F1 background with linked blur strength, an independent settings window using the Full layout, a glass No Signal screen and a classic style option. It improves community artwork lookup, automatic matching, edition-specific covers, automatic retries, loading feedback, and clearing local games. The independent GPLv3 WinUI setup uses Harbor's custom glass host for setup and license windows, with NitLink branding and six languages; Windows 10 and silent operations retain the NSIS interface. Installer source accompanies the payload. Confirmed input loss hides cached signal details in the title until real video returns, while preserving metadata through short resyncs; localized titles use bold text. The startup glass now receives its localized font before its first frame. The acceptance baseline passed the full unfiltered CTest suite 60/60, and setup glass lifecycle checks passed 534 assertions on isolated desktops. Engine handoff and isolated install/upgrade/uninstall checks also passed. User acceptance is complete. The subsequent startup-font ordering fix passed an incremental build and first-show ordering checks; unaffected test evidence is reused at the user's request.

@@ -126,7 +126,7 @@ struct WindowComposition::Impl {
         unsigned width=0,height=0;
     } caption,status;
     std::array<SpriteVisual,2> shadows{nullptr,nullptr};
-    CompositionRoundedRectangleGeometry maskGeometry{nullptr},clipGeometry{nullptr},outerGeometry{nullptr},innerGeometry{nullptr};
+    CompositionRoundedRectangleGeometry maskGeometry{nullptr},clipGeometry{nullptr},outerGeometry{nullptr};
     ShapeVisual mask{nullptr},edges{nullptr};
     CompositionVisualSurface maskSurface{nullptr};
     winrt::Windows::UI::ViewManagement::UISettings settings{nullptr};
@@ -232,15 +232,15 @@ bool WindowComposition::Initialize(HWND content)
         }
         p.luminosity.Brush(p.compositor.CreateColorBrush(GlassColor(.38f,10,10,12)));
         p.tint.Brush(p.compositor.CreateColorBrush(GlassColor(.42f,28,28,32)));
-        p.edges=p.compositor.CreateShapeVisual();p.edges.Offset(inset);
-        p.outerGeometry=p.compositor.CreateRoundedRectangleGeometry();p.outerGeometry.Offset({-.5f,-.5f});
-        auto outer=p.compositor.CreateSpriteShape(p.outerGeometry);outer.StrokeThickness(1);outer.StrokeBrush(p.compositor.CreateColorBrush(GlassColor(0,0,0,0)));
-        p.innerGeometry=p.compositor.CreateRoundedRectangleGeometry();p.innerGeometry.Offset({.5f,.5f});
+        // Keep the full stroke inside its own visual while centering it just
+        // outside the content window. A negative local X clipped the left edge.
+        p.edges=p.compositor.CreateShapeVisual();p.edges.Offset({47,47,0});
+        p.outerGeometry=p.compositor.CreateRoundedRectangleGeometry();p.outerGeometry.Offset({.5f,.5f});
         auto gradient=p.compositor.CreateLinearGradientBrush();gradient.StartPoint({0,0});gradient.EndPoint({0,1});
         constexpr float stops[4]={0,.3f,.7f,1},strengths[4]={1,.6f,.45f,.65f};
         for(unsigned i=0;i<4;++i)gradient.ColorStops().Append(p.compositor.CreateColorGradientStop(stops[i],GlassColor(.154f*strengths[i],255,255,255)));
-        auto inner=p.compositor.CreateSpriteShape(p.innerGeometry);inner.StrokeThickness(1);inner.StrokeBrush(gradient);
-        p.edges.Shapes().Append(outer);p.edges.Shapes().Append(inner);p.glassRoot.Children().InsertAtTop(p.edges);
+        auto outer=p.compositor.CreateSpriteShape(p.outerGeometry);outer.StrokeThickness(1);outer.StrokeBrush(gradient);
+        p.edges.Shapes().Append(outer);p.glassRoot.Children().InsertAtTop(p.edges);
         p.glassRoot.Opacity(0);p.glassRoot.Scale({WindowMotion::EnterScale,WindowMotion::EnterScale,1});
         RefreshTheme();p.controller.Commit();return true;
     }catch(const hresult_error& error){
@@ -305,8 +305,7 @@ void WindowComposition::PlaceGlass(RECT bounds,float dpi)
         p.maskGeometry.Size(size);p.maskGeometry.CornerRadius({20,20});p.clipGeometry.Size(size);p.clipGeometry.CornerRadius({20,20});
         p.mask.Size(size);p.maskSurface.SourceSize(size);
         for(const auto& layer:{p.shadows[0],p.shadows[1],p.material,p.luminosity,p.tint})layer.Size(size);
-        p.edges.Size({size.x+2,size.y+2});p.outerGeometry.Size({size.x+1,size.y+1});p.outerGeometry.CornerRadius({20.5f,20.5f});
-        p.innerGeometry.Size({size.x-1,size.y-1});p.innerGeometry.CornerRadius({19.5f,19.5f});
+        p.edges.Size({size.x+3,size.y+3});p.outerGeometry.Size({size.x+1,size.y+1});p.outerGeometry.CornerRadius({20.5f,20.5f});
         p.glassRoot.CenterPoint({48+size.x/2,48+size.y/2,0});
     }
     p.glassRoot.TransformMatrix({dpi,0,0,0,0,dpi,0,0,0,0,1,0,0,0,0,1});

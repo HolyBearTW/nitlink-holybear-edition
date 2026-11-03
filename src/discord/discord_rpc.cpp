@@ -103,7 +103,7 @@ std::string DiscordRPC::EscapeJson(const std::string& s)
     return out;
 }
 
-bool DiscordRPC::Connect(const std::string& applicationId)
+bool DiscordRPC::Connect(const std::string& applicationId, bool background)
 {
     Disconnect();
     if (!m_stopEvent || !ResetEvent(m_stopEvent) || applicationId.empty() || applicationId.size() > 32 ||
@@ -112,7 +112,7 @@ bool DiscordRPC::Connect(const std::string& applicationId)
 
     m_applicationId = applicationId;
 
-    if (!OpenConnection()) return false;
+    if (!background && !OpenConnection()) return false;
     m_running = true;
     m_worker = std::thread(&DiscordRPC::WorkerLoop, this);
     return true;

@@ -30,6 +30,7 @@
 #include <atomic>
 #include <mutex>
 #include <chrono>
+#include <future>
 
 namespace NitLink {
 struct SettingsMessage;
@@ -276,6 +277,7 @@ private:
     std::unique_ptr<AudioRouter>      m_audioRouter;
     std::unique_ptr<Overlay>          m_overlay;
     std::unique_ptr<NisUpscaler>       m_nisUpscaler;
+    std::future<std::unique_ptr<NisUpscaler>> m_nisStartup;
     std::unique_ptr<FrameDiffer>       m_frameDiffer;
     std::unique_ptr<WebViewSettings>   m_webviewSettings;
     std::wstring m_failedNoSignalPath;

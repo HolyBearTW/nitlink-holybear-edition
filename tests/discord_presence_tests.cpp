@@ -38,7 +38,7 @@ std::string Utf8(std::wstring_view value) {
 
 struct Pipe {
     HANDLE server = INVALID_HANDLE_VALUE, client = INVALID_HANDLE_VALUE;
-    Pipe() {
+    explicit Pipe(bool sendReady = true) {
         static unsigned sequence = 0;
         const auto name = L"\\\\.\\pipe\\NitLink-presence-test-" +
             std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(++sequence);
@@ -50,6 +50,7 @@ struct Pipe {
         Check(client != INVALID_HANDLE_VALUE, "open isolated presence pipe");
         Check(ConnectNamedPipe(server, nullptr) || GetLastError() == ERROR_PIPE_CONNECTED,
             "connect isolated presence pipe");
+        if (!sendReady) return;
         const char ready[] = "{}";
         const uint32_t header[] = {1, 2};
         DWORD written = 0;
@@ -199,6 +200,33 @@ void TestAccountPlaytimeWire() {
     }
 }
 
+void TestBackgroundStartup() {
+    Pipe pipe(false);
+    DiscordRPC rpc;
+    DiscordRPCTestAccess::SetOpener(rpc,[&]{return std::exchange(pipe.client,INVALID_HANDLE_VALUE);});
+    Check(rpc.Connect("12345",true) && !rpc.IsConnected(), "background startup returns before Discord's handshake reply");
+    const auto started=std::chrono::system_clock::time_point{std::chrono::seconds(1700000000)};
+    rpc.SetActivity(L"Tears of the Kingdom",L"遊玩總時數：137 小時 20 分鐘",started);
+    pipe.Receive(0);
+    Check(!rpc.IsConnected(),"Discord is not reported connected while its handshake is pending");
+    const uint32_t header[]={1,2}; DWORD written=0;
+    Check(WriteFile(pipe.server,header,sizeof(header),&written,nullptr) && written==sizeof(header),"write delayed handshake header");
+    Check(WriteFile(pipe.server,"{}",2,&written,nullptr) && written==2,"write delayed handshake body");
+    const auto payload=pipe.Receive(1);
+    Check(rpc.IsConnected(),"the background handshake establishes the real connection");
+    CheckField(payload,"details",L"Tears of the Kingdom");
+    CheckField(payload,"state",L"遊玩總時數：137 小時 20 分鐘");
+    Check(payload.find("\"start\":1700000000")!=std::string::npos,"queued presence retains its original session timestamp");
+    rpc.Disconnect();
+    Pipe pending(false);
+    DiscordRPCTestAccess::SetOpener(rpc,[&]{return std::exchange(pending.client,INVALID_HANDLE_VALUE);});
+    Check(rpc.Connect("12345",true),"background login can start again");
+    pending.Receive(0);
+    const auto before=GetTickCount64();
+    rpc.Disconnect();
+    Check(GetTickCount64()-before<1000 && !rpc.IsConnected(),"shutdown cancels a pending background handshake promptly");
+}
+
 void TestInvalidAndShortFields() {
     for (const auto prefix : {L"Source: ", L"來源：", L"来源："}) {
         Check(ComposeHdmiPresenceDetails(L"\xd800", prefix).empty() &&
@@ -220,6 +248,7 @@ int main() {
         TestInvalidAndShortFields();
         TestLocalizedWirePresence();
         TestAccountPlaytimeWire();
+        TestBackgroundStartup();
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "FAIL Discord presence: " << error.what() << '\n';

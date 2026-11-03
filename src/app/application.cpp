@@ -1157,16 +1157,15 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         }
     }
 
-    // NIS upscaler: compile compute shader, upload coefficient tables.
-    // Init is best-effort: if it fails (e.g. user doesn't have compute shader
-    // support), the rest of the app works fine, just no image upscaling.
-    m_nisUpscaler = std::make_unique<NisUpscaler>();
-    if (!m_nisUpscaler->Initialize(m_renderer->GetDevice())) {
-        AppLog(L"Initialize: NisUpscaler::Initialize FAILED (continuing without NIS)");
-        m_nisUpscaler.reset();
-    } else {
-        AppLog(L"Initialize: NIS upscaler ready");
-    }
+    // NIS creates device resources only; rendering/context access stays on this thread.
+    // Compile in the background so optional upscaling cannot stall the startup UI.
+    m_nisStartup = std::async(std::launch::async,
+        [device = ComPtr<ID3D11Device>(m_renderer->GetDevice())]() {
+            auto upscaler = std::make_unique<NisUpscaler>();
+            if (!upscaler->Initialize(device.Get())) upscaler.reset();
+            return upscaler;
+        });
+    AppLog(L"Initialize: NIS shader compilation running in background");
 
     // Frame differ: detects "is this captured frame new content vs a duplicate?"
     // Estimates visible content-change FPS, not the game's true FPS. Best-effort init.
@@ -1619,14 +1618,11 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         AppLog(L"Initialize: WebView2 settings starting");
     }
 
-    // Discord Rich Presence. Connection is optional: if Discord isn't
-    // running on the user's machine, Connect() returns false and RPC updates
-    // are simply skipped. Application keeps working normally. The app ID is
-    // hardcoded to the NitLink application registered at
-    // discord.com/developers/applications.
+    // Discord's worker connects/retries independently. Queue the initial
+    // activity without making startup wait for the IPC handshake.
     m_discord = std::make_unique<DiscordRPC>();
-    if (m_discord->Connect("1505211372286246944")) {
-        AppLog(L"Initialize: Discord RPC connected");
+    if (m_discord->Connect("1505211372286246944", true)) {
+        AppLog(L"Initialize: Discord RPC connection starting in background");
         UpdateDiscordForCurrentGame();
     } else {
         AppLog(L"Initialize: Discord RPC unavailable (Discord not running or RPC disabled)");
@@ -1895,6 +1891,11 @@ void Application::Run()
 
     MSG msg{};
     while (m_running) {
+        if (m_nisStartup.valid() && m_nisStartup.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            m_nisUpscaler = m_nisStartup.get();
+            AppLog(m_nisUpscaler ? L"Initialize: NIS upscaler ready (background)"
+                                : L"Initialize: NisUpscaler::Initialize FAILED (continuing without NIS)");
+        }
         const bool noSignalWasLatched = m_noSignalPresentationLatched;
         ConsumeHolyBearUpdate();
         ConsumeGameResults();
@@ -3357,6 +3358,7 @@ void Application::Shutdown()
     // Tear down GPU resources before the window goes away
     if (m_webviewSettings) { m_webviewSettings->Shutdown(); m_webviewSettings.reset(); }
     if (m_overlay)       { m_overlay->Shutdown();       m_overlay.reset(); }
+    if (m_nisStartup.valid()) (void)m_nisStartup.get();
     if (m_nisUpscaler)   { m_nisUpscaler->Shutdown();   m_nisUpscaler.reset(); }
     if (m_frameDiffer)   { m_frameDiffer->Shutdown();   m_frameDiffer.reset(); }
     if (m_renderer) m_renderer.reset();
@@ -4817,6 +4819,7 @@ bool Application::RecoverFromDeviceLost()
     m_frameDiffer.reset();
     m_currentContentAvailable = false;
     m_contentClassificationsSinceSample = 0;
+    if (m_nisStartup.valid()) (void)m_nisStartup.get();
     m_nisUpscaler.reset();
     // Keep the Overlay object itself so its device-independent decoded No
     // Signal pixels survive the graphics-device rebuild. Shutdown releases all

@@ -30,7 +30,8 @@ public:
     ~DiscordRPC();
 
     // applicationId: from Discord Developer Portal. If empty, RPC is disabled.
-    bool Connect(const std::string& applicationId);
+    // Background mode returns when the worker starts; IsConnected reports the handshake.
+    bool Connect(const std::string& applicationId, bool background = false);
     void Disconnect();
     bool IsConnected() const { return m_connected; }
     // IPC acceptance is reported separately from actual client rendering.

@@ -1021,6 +1021,16 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     case WM_NCACTIVATE:
         if(self&&self->m_composition)return TRUE;
         break;
+    case WM_MOUSEACTIVATE:
+        if(self&&self->m_settingsVisible&&HIWORD(lParam)==WM_LBUTTONDOWN){
+            const DWORD position=GetMessagePos();
+            POINT point{static_cast<short>(LOWORD(position)),static_cast<short>(HIWORD(position))};
+            ScreenToClient(hwnd,&point);
+            // Keep the settings in front while the gear closes it. Activating
+            // this host first would cover the window before its fade begins.
+            if(self->CaptionButtonAt(point)==1)return MA_NOACTIVATE;
+        }
+        break;
     case WM_NCHITTEST:
         if(self&&self->CaptionHeight()){
             POINT point{static_cast<short>(LOWORD(lParam)),static_cast<short>(HIWORD(lParam))};ScreenToClient(hwnd,&point);

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using NitLink::Config;
 using NitLink::Window;
@@ -178,7 +179,47 @@ static void CheckGlassWindows()
                     "Restoring the window restores its glass immediately");
             }
         }else std::cout << "SKIP Glass compositor unavailable on isolated desktop\n";
-        SendMessageW(settings.GetHWND(),WM_CLOSE,0,0);
+        RECT client{};GetClientRect(main.GetHWND(),&client);
+        const int captionY=main.GetContentBounds().top/2;
+        std::vector<POINT> captionButtons;
+        int buttonStart=-1;
+        for(int x=0;x<=client.right;++x){
+            POINT point{x,captionY};ClientToScreen(main.GetHWND(),&point);
+            const bool button=x<client.right&&SendMessageW(main.GetHWND(),WM_NCHITTEST,0,MAKELPARAM(point.x,point.y))==HTCLIENT;
+            if(button&&buttonStart<0)buttonStart=x;
+            if(!button&&buttonStart>=0){captionButtons.push_back({(buttonStart+x-1)/2,captionY});buttonStart=-1;}
+        }
+        Require(captionButtons.size()==5,"Native hit testing exposes all five caption buttons");
+        const POINT gear=captionButtons[1];
+        for(const bool open:{false,true}){
+            main.SetChromeState(0,false,open);
+            for(size_t button=0;button<captionButtons.size();++button){
+                const POINT center=captionButtons[button];
+                const DWORD position=GetMessagePos();
+                SetWindowPos(main.GetHWND(),nullptr,static_cast<short>(LOWORD(position))-center.x,
+                    static_cast<short>(HIWORD(position))-center.y,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+                const auto result=SendMessageW(main.GetHWND(),WM_MOUSEACTIVATE,
+                    reinterpret_cast<WPARAM>(main.GetHWND()),MAKELPARAM(HTCLIENT,WM_LBUTTONDOWN));
+                Require(result==(open&&button==1?MA_NOACTIVATE:MA_ACTIVATE),
+                    "Only the closing gear keeps activation; opening and other caption buttons activate normally");
+            }
+        }
+        settings.Show(SW_SHOWNOACTIVATE);
+        unsigned toggles=0,closes=0;
+        settings.SetCloseCallback([&](){++closes;main.SetChromeState(0,false,false);});
+        Window::InputCallbacks callbacks;
+        callbacks.onSettings=[&](){++toggles;SendMessageW(settings.GetHWND(),WM_SYSCOMMAND,SC_CLOSE,0);};
+        main.SetInputCallbacks(std::move(callbacks));
+        SendMessageW(main.GetHWND(),WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(gear.x,gear.y));
+        SendMessageW(main.GetHWND(),WM_LBUTTONUP,0,MAKELPARAM(gear.x,gear.y));
+        const auto deadline=GetTickCount64()+2000;
+        while(IsWindowVisible(settings.GetHWND())&&GetTickCount64()<deadline){
+            MSG message{};
+            while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}
+            MsgWaitForMultipleObjects(0,nullptr,FALSE,10,QS_ALLINPUT);
+        }
+        Require(toggles==1&&closes==1&&!IsWindowVisible(settings.GetHWND()),
+            "A gear click is delivered once and finishes the settings close fade once");
         SendMessageW(main.GetHWND(),WM_CLOSE,0,0);
     }
     Require(UnregisterClassW(L"NitLinkWindowClass",instance)!=FALSE,

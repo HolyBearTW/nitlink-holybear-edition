@@ -1,5 +1,10 @@
 # Acknowledgments
 
+## Project authors
+
+- @nitlink-dev — original author and maintainer of [NitLink](https://github.com/nitlink-dev/nitlink), the foundation of HolyBear Edition.
+- Tavric (@tavricccc) — author of [Harbor](https://github.com/tavricccc/harbor). Its setup interface, glass layers and motion code are adapted in the independent GPLv3 NitLink setup UI; original notices and corresponding source are preserved.
+
 HolyBear Edition includes CN_115's low-latency audio and Simplified Chinese
 work from [CN115/nitlink-lowlatency v0.1.2](https://github.com/CN115/nitlink-lowlatency/tree/v0.1.2),
 under the original MIT license. Exact source commits and original authors are
@@ -79,11 +84,8 @@ project authorship or maintainership.
 
 ## About contributor cards
 
-- @tavricccc — [HarborSetup](https://github.com/tavricccc/harbor/tree/2c243bbbaa1bba4f412b6082964ba03eca64b84a/src/HarborSetup), adapted as the independent GPLv3 NitLink setup UI with its original notices and corresponding source.
-
-- Contributor profile images are sourced from the public GitHub avatars of
-  [HolyBearTW](https://github.com/HolyBearTW), [CN115](https://github.com/CN115)
-  and [n810K](https://github.com/n810K). The images remain attributed to their
-  respective contributors.
+- Contributor cards fetch the public GitHub avatars of @nitlink-dev,
+  @HolyBearTW, @CN115, @n810K, @Noka123, @i0rph and @tavricccc when opened.
+  The images remain attributed to their respective contributors.
 - The GitHub Mark icon is from [Primer Octicons](https://github.com/primer/octicons),
   copyright GitHub Inc., under the MIT license reproduced in `LICENSES.md`.

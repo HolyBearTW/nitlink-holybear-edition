@@ -170,8 +170,8 @@ HRESULT WebViewSettings::ConfigureSecurity(ICoreWebView2Environment* environment
                 return args->put_Handled(TRUE);
             }).Get(), &token));
 
-    // Every request receives a local response, including denied URLs. No virtual
-    // folder mapping exposes the rest of the installation to the renderer.
+    // Only the fixed contributor avatar images may use the network. Other
+    // requests receive local responses; no virtual folder exposes the install.
     RETURN_IF_FAILED(m_webview->add_WebResourceRequested(
         Callback<ICoreWebView2WebResourceRequestedEventHandler>(
             [this, lifetime, env = ComPtr<ICoreWebView2Environment>(environment)](
@@ -185,7 +185,11 @@ HRESULT WebViewSettings::ConfigureSecurity(ICoreWebView2Environment* environment
                     SUCCEEDED(request->get_Uri(&uri)) && uri &&
                     SUCCEEDED(request->get_Method(&method)) && method &&
                     std::wstring_view(method.get()) == L"GET" &&
-                    SUCCEEDED(args->get_ResourceContext(&context))) resource = FindResource(uri.get());
+                    SUCCEEDED(args->get_ResourceContext(&context))) {
+                    if(context==COREWEBVIEW2_WEB_RESOURCE_CONTEXT_IMAGE&&IsTrustedDocument()&&
+                        IsContributorAvatarUri(uri.get()))return S_OK;
+                    resource = FindResource(uri.get());
+                }
                 if (resource) {
                     const auto expected = resource->kind == ResourceKind::Document ? COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT :
                         resource->kind == ResourceKind::Script ? COREWEBVIEW2_WEB_RESOURCE_CONTEXT_SCRIPT :

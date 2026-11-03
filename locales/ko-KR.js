@@ -632,6 +632,12 @@ Object.assign(window.NitLinkLocales['ko-KR'], {
   'about.cn115Handle': '(@CN115)',
   'about.n810kHandle': '(@n810K)',
   'about.noka123Contribution': '독일어 인터페이스 번역',
+  'about.nitlinkDevContribution': 'NitLink 원작자 및 유지 관리자. 캡처와 렌더링 등 핵심 기능 개발.',
+  'about.holyBearContribution': 'HolyBear Edition 통합 및 유지 관리, 중국어 번체 번역, GC553Pro 지원과 실제 장치 검증.',
+  'about.cn115Contribution': '저지연 오디오 구현 및 중국어 간체 번역.',
+  'about.n810kContribution': '장치 변경·재연결 후 오디오 자동 복구와 채널 수·샘플 레이트 불일치로 인한 오디오 문제 수정.',
+  'about.i0rphContribution': '한국어 UI 번역.',
+  'about.tavriccccContribution': '설치 화면, 유리 효과와 창 애니메이션에 사용한 Harbor 소스 코드.',
   'about.profileOpen': '열기',
   'about.profileDescription': 'GitHub 프로필과 공개 저장소 보기'
 });

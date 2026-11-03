@@ -6,7 +6,7 @@
   <meta name="nitlink-version" content="1.2.5.3-holybear">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title data-i18n="page.settings">NitLink · Settings</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' https://avatars.githubusercontent.com; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
   <script src="locales/en-US.js?v=20261102-sharedglass1253-3"></script>
   <script src="locales/zh-TW.js?v=20261102-sharedglass1253-3"></script>
   <script src="locales/zh-CN.js?v=20261102-sharedglass1253-3"></script>
@@ -1280,11 +1280,13 @@
           <details class="about-details" id="about-contributors" open>
             <summary id="about-contributors-summary" aria-controls="about-contributors-body" aria-expanded="true" data-i18n="about.contributors"></summary>
             <div class="about-details-body about-contributors" id="about-contributors-body">
+              <div class="about-contributor"><a href="https://github.com/nitlink-dev" target="_blank" rel="noopener noreferrer" data-contributor="nitlink-dev" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">nitlink-dev</span></a> <span>(@nitlink-dev)</span></div>
               <div class="about-contributor"><a href="https://github.com/HolyBearTW" target="_blank" rel="noopener noreferrer" data-contributor="HolyBearTW" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name" data-i18n="about.holyBearName"></span></a> <span data-i18n="about.holyBearHandle"></span></div>
               <div class="about-contributor"><a href="https://github.com/CN115" target="_blank" rel="noopener noreferrer" data-contributor="CN115" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">CN_115</span></a> <span data-i18n="about.cn115Handle"></span></div>
               <div class="about-contributor"><a href="https://github.com/n810K" target="_blank" rel="noopener noreferrer" data-contributor="n810K" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">Nathan K.</span></a> <span data-i18n="about.n810kHandle"></span></div>
               <div class="about-contributor"><a href="https://github.com/Noka123" target="_blank" rel="noopener noreferrer" data-contributor="Noka123" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">Noka123</span></a> <span>(@Noka123)</span></div>
               <div class="about-contributor"><a href="https://github.com/i0rph" target="_blank" rel="noopener noreferrer" data-contributor="i0rph" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">i0rph</span></a> <span>(@i0rph)</span></div>
+              <div class="about-contributor"><a href="https://github.com/tavricccc" target="_blank" rel="noopener noreferrer" data-contributor="tavricccc" aria-haspopup="dialog" aria-controls="contributor-preview" aria-expanded="false"><svg class="about-contributor-logo" viewBox="0 0 16 16" aria-hidden="true"><use href="#contributor-github-mark"/></svg><span class="about-contributor-name">Tavric</span></a> <span>(@tavricccc)</span></div>
             </div>
           </details>
           <nav class="about-links" data-i18n-aria-label="about.quickLinks">
@@ -1312,7 +1314,7 @@
       </a>
     </div>
     <div class="contributor-preview-body">
-      <div class="contributor-preview-avatar"><img id="contributor-preview-avatar" alt="" width="80" height="80"><span id="contributor-preview-fallback" aria-hidden="true" hidden></span></div>
+      <div class="contributor-preview-avatar"><img id="contributor-preview-avatar" alt="" width="80" height="80" referrerpolicy="no-referrer"><span id="contributor-preview-fallback" aria-hidden="true" hidden></span></div>
       <div class="contributor-preview-text">
         <h3 id="contributor-preview-title"></h3>
         <p id="contributor-preview-handle"></p>

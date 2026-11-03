@@ -277,19 +277,22 @@
       e.target.setAttribute('aria-expanded', String(e.target.checked));
     });
 
-    // Contributor cards use only packaged images and fixed profile links.
+    // Contributor cards load public GitHub avatars only when opened.
     (() => {
       const card = document.getElementById('contributor-preview');
       if (!card) return;
       const profiles = {
-        HolyBearTW: 'assets/menu/contributors/holybear.png',
-        CN115: 'assets/menu/contributors/cn115.jpg',
-        n810K: 'assets/menu/contributors/n810k.png',
-        Noka123: null,
-        i0rph: null
+        'nitlink-dev': { avatar: 'https://avatars.githubusercontent.com/u/285324765?s=160&v=4', contribution: 'about.nitlinkDevContribution' },
+        HolyBearTW: { avatar: 'https://avatars.githubusercontent.com/u/50009618?s=160&v=4', contribution: 'about.holyBearContribution' },
+        CN115: { avatar: 'https://avatars.githubusercontent.com/u/68493388?s=160&v=4', contribution: 'about.cn115Contribution' },
+        n810K: { avatar: 'https://avatars.githubusercontent.com/u/7424933?s=160&v=4', contribution: 'about.n810kContribution' },
+        Noka123: { avatar: 'https://avatars.githubusercontent.com/u/82983692?s=160&v=4', contribution: 'about.noka123Contribution' },
+        i0rph: { avatar: 'https://avatars.githubusercontent.com/u/50132390?s=160&v=4', contribution: 'about.i0rphContribution' },
+        tavricccc: { avatar: 'https://avatars.githubusercontent.com/u/177928699?s=160&v=4', contribution: 'about.tavriccccContribution' }
       };
       const title = document.getElementById('contributor-preview-title');
       const handle = document.getElementById('contributor-preview-handle');
+      const description = card.querySelector('.contributor-preview-description');
       const avatar = document.getElementById('contributor-preview-avatar');
       const fallback = document.getElementById('contributor-preview-fallback');
       const open = document.getElementById('contributor-preview-open');
@@ -341,17 +344,18 @@
         anchor.setAttribute('aria-expanded', 'true');
         title.textContent = link.textContent.trim();
         handle.textContent = `@${username}`;
+        description.dataset.i18n = profiles[username].contribution;
+        description.textContent = t(description.dataset.i18n);
         open.href = link.href;
         fallback.textContent = username.slice(0, 2).toUpperCase();
-        const avatarPath = profiles[username];
-        fallback.hidden = !!avatarPath;
-        avatar.hidden = !avatarPath;
-        if (avatarPath) avatar.src = avatarPath;
-        else avatar.removeAttribute('src');
+        avatar.src = profiles[username].avatar;
+        avatar.hidden = !avatar.complete || avatar.naturalWidth === 0;
+        fallback.hidden = !avatar.hidden;
         card.hidden = false;
         position();
       };
       avatar.addEventListener('error', () => { avatar.hidden = true; fallback.hidden = false; });
+      avatar.addEventListener('load', () => { avatar.hidden = false; fallback.hidden = true; });
       document.querySelectorAll('#about-contributors-body a[data-contributor]').forEach(link => {
         link.addEventListener('mouseenter', () => {
           hoveredLink = link;

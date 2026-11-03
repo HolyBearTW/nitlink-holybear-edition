@@ -384,6 +384,16 @@ int main() {
         Expect(!CanReceiveMessage(MenuUri, bad), "untrusted current document");
     }
     for (const auto& resource : Resources) Expect(FindResource(resource.uri) == &resource, "packaged resource");
+    for (const auto uri : ContributorAvatarUris) {
+        Expect(IsContributorAvatarUri(uri), "listed contributor GitHub avatar may use the image network path");
+        Expect(!FindResource(uri), "GitHub avatars are fetched online rather than mapped to a packaged image");
+    }
+    for (const auto uri : {L"https://avatars.githubusercontent.com/u/0?s=160&v=4",
+         L"http://avatars.githubusercontent.com/u/50009618?s=160&v=4",
+         L"https://avatars.githubusercontent.com.evil/u/50009618?s=160&v=4",
+         L"https://avatars.githubusercontent.com/u/50009618?s=160&v=4&extra=1",
+         L"https://avatars.githubusercontent.com/u/50009618?s=160&v=4#other"})
+        Expect(!IsContributorAvatarUri(uri), "unlisted avatar URL rejected");
     Expect(FindResource(L"https://nitlink.invalid/locales/de-DE.js") != nullptr,"German locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ko-KR.js") != nullptr,"Korean locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ja-JP.js") != nullptr,"Japanese locale resource is allowlisted");
@@ -419,6 +429,8 @@ int main() {
     Expect(CanOpenExternal(MenuUri, L"https://github.com/CN115", true), "contributor profile link");
     Expect(CanOpenExternal(MenuUri, L"https://github.com/Noka123", true), "German contributor profile link");
     Expect(CanOpenExternal(MenuUri, L"https://github.com/i0rph", true), "Korean contributor profile link");
+    Expect(CanOpenExternal(MenuUri, L"https://github.com/nitlink-dev", true), "upstream author profile link");
+    Expect(CanOpenExternal(MenuUri, L"https://github.com/tavricccc", true), "Harbor author profile link");
     Expect(CanOpenExternal(MenuUri, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear", true), "validated HolyBear release link");
     Expect(!CanOpenExternal(MenuUri, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear", false), "no automatic release popup");
     Expect(!CanOpenExternal(MenuUri, L"https://github.com/HolyBearTW/nitlink/releases/tag/v1.2.5.1-holybear", true), "old repository release link rejected after canonical rename");

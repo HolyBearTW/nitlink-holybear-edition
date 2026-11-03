@@ -9,7 +9,7 @@ namespace NitLink::WebViewPolicy {
 inline constexpr wchar_t MenuUri[] = L"https://nitlink.invalid/nitlink-menu.html";
 inline constexpr wchar_t ContentSecurityPolicy[] =
     L"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; "
-    L"img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; "
+    L"img-src 'self' https://avatars.githubusercontent.com; font-src 'self'; connect-src 'none'; frame-src 'none'; "
     L"worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; "
     L"frame-ancestors 'none'";
 
@@ -52,6 +52,19 @@ inline constexpr Resource Resources[] = {
 // The menu has no query or fragment navigation. Exact serialized URLs reject
 // sibling documents, alternate authorities, encodings and network file paths.
 inline bool IsTrustedDocument(std::wstring_view uri) { return uri == MenuUri; }
+inline constexpr std::wstring_view ContributorAvatarUris[] = {
+    L"https://avatars.githubusercontent.com/u/285324765?s=160&v=4",
+    L"https://avatars.githubusercontent.com/u/50009618?s=160&v=4",
+    L"https://avatars.githubusercontent.com/u/68493388?s=160&v=4",
+    L"https://avatars.githubusercontent.com/u/7424933?s=160&v=4",
+    L"https://avatars.githubusercontent.com/u/82983692?s=160&v=4",
+    L"https://avatars.githubusercontent.com/u/50132390?s=160&v=4",
+    L"https://avatars.githubusercontent.com/u/177928699?s=160&v=4"
+};
+inline bool IsContributorAvatarUri(std::wstring_view uri) {
+    for(const auto avatar : ContributorAvatarUris)if(uri==avatar)return true;
+    return false;
+}
 inline bool CanReceiveMessage(std::wstring_view source, std::wstring_view current) {
     return IsTrustedDocument(source) && IsTrustedDocument(current);
 }
@@ -71,6 +84,7 @@ inline bool CanOpenExternal(std::wstring_view current, std::wstring_view target,
          target == L"https://github.com/HolyBearTW" || target == L"https://github.com/CN115" ||
          target == L"https://github.com/n810K" || target == L"https://github.com/Noka123" ||
          target == L"https://github.com/i0rph" ||
+         target == L"https://github.com/nitlink-dev" || target == L"https://github.com/tavricccc" ||
          target == L"https://github.com/nitlink-dev/nitlink" ||
          target == L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE" ||
          target == L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md" ||

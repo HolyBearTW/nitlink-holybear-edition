@@ -5,8 +5,10 @@
 #include "input/shortcut_bindings.h"
 
 #include <map>
+#include <optional>
 #include <string>
 #include <cstdint>
+#include <utility>
 
 namespace NitLink {
 
@@ -70,6 +72,7 @@ struct Config {
     // Window
     uint32_t windowWidth  = 1920;
     uint32_t windowHeight = 1080;
+    std::optional<std::pair<int32_t, int32_t>> windowPosition;
     bool preventSleep = true;
     
     // PiP mode

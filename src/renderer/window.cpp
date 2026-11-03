@@ -102,13 +102,27 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
     DWORD style = WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN;
     const UINT dpi=GetDpiForSystem();
     rc.bottom+=MulDiv(36,static_cast<int>(dpi),96);
+    LONG x = CW_USEDEFAULT, y = CW_USEDEFAULT;
+    if (desc.position) {
+        x = desc.position->first;
+        y = desc.position->second;
+        const RECT saved{x, y, x + rc.right, y + rc.bottom};
+        // Preserve visible placements, including windows spanning monitors.
+        if (!MonitorFromRect(&saved, MONITOR_DEFAULTTONULL)) {
+            MONITORINFO monitor{sizeof(monitor)};
+            if (GetMonitorInfoW(MonitorFromRect(&saved, MONITOR_DEFAULTTONEAREST), &monitor)) {
+                x = std::clamp(x, monitor.rcWork.left, std::max(monitor.rcWork.left, monitor.rcWork.right - rc.right));
+                y = std::clamp(y, monitor.rcWork.top, std::max(monitor.rcWork.top, monitor.rcWork.bottom - rc.bottom));
+            }
+        }
+    }
 
     m_hwnd = CreateWindowExW(
         WS_EX_NOREDIRECTIONBITMAP | WS_EX_APPWINDOW,
         L"NitLinkWindowClass",
         desc.title.c_str(),
         style,
-        CW_USEDEFAULT, CW_USEDEFAULT,
+        x, y,
         rc.right - rc.left, rc.bottom,
         nullptr, nullptr, hInstance, this
     );
@@ -167,6 +181,7 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
 
     m_windowedStyle = style;
     GetWindowRect(m_hwnd, &m_windowedRect);
+    m_windowedPosition = {{m_windowedRect.left, m_windowedRect.top}};
 
     return true;
 }
@@ -1175,6 +1190,11 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         // Native dragging runs a modal message loop. Notify the child browser
         // here, while deferred monitor detection waits for the application loop.
         if (self) {
+            if (!IsIconic(hwnd) && !IsZoomed(hwnd) && !self->m_isFullscreen && !self->m_isPiP && !self->m_glide.active) {
+                RECT position{};
+                GetWindowRect(hwnd, &position);
+                self->m_windowedPosition = {{position.left, position.top}};
+            }
             self->m_wasMoved = true;
             if (self->m_onMove) self->m_onMove();
         }

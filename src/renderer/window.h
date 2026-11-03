@@ -24,6 +24,7 @@ public:
         uint32_t     height = 1080;
         bool         darkMode = true;
         bool         settingsWindow = false;
+        std::optional<std::pair<int32_t, int32_t>> position;
     };
 
     // Input event callbacks -- set by the application to route mouse/keyboard
@@ -104,6 +105,7 @@ public:
     void SetGlassStatus(std::optional<GlassStatus> status);
     std::pair<uint32_t, uint32_t> GetClientSize() const;
     std::pair<uint32_t, uint32_t> GetWindowedClientSize() const { return m_windowedClientSize; }
+    std::optional<std::pair<int32_t, int32_t>> GetWindowedPosition() const { return m_windowedPosition; }
     bool WasResized() const { return m_wasResized; }
     void AcknowledgeResize() { m_wasResized = false; }
     // Deferred monitor-crossing detection for the present cap. WebView2
@@ -185,6 +187,7 @@ private:
     RECT       m_windowedRect{}; // Stored position for fullscreen restore
     DWORD      m_windowedStyle = 0;
     std::pair<uint32_t, uint32_t> m_windowedClientSize{};
+    std::optional<std::pair<int32_t, int32_t>> m_windowedPosition;
 
     // PiP state
     bool     m_isPiP = false;

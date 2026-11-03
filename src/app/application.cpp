@@ -438,6 +438,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     windowDesc.width    = m_config->windowWidth;
     windowDesc.height   = m_config->windowHeight;
     windowDesc.darkMode = true;
+    windowDesc.position = m_config->windowPosition;
 
     if (!m_window->Create(hInstance, windowDesc)) {
         AppLog(L"Initialize: Window::Create FAILED");
@@ -3345,6 +3346,7 @@ void Application::Shutdown()
             m_config->windowWidth = w;
             m_config->windowHeight = h;
         }
+        if (const auto position = m_window->GetWindowedPosition()) m_config->windowPosition = position;
         m_config->Save("nitlink.json");
     }
 

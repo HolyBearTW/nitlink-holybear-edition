@@ -434,6 +434,14 @@ bool Config::Load(const std::string& path)
         // Global settings (existing schema)
         if (key == "window_width")    windowWidth  = ParseU32(val, windowWidth, 320, 16384);
         if (key == "window_height")   windowHeight = ParseU32(val, windowHeight, 240, 16384);
+        if (key == "window_position") {
+            std::istringstream position(NumericText(val));
+            int32_t x = 0, y = 0;
+            char separator = 0;
+            if (position >> x >> separator >> y && separator == ',' && (position >> std::ws).eof()) {
+                windowPosition = std::pair{std::clamp(x, -100000, 100000), std::clamp(y, -100000, 100000)};
+            }
+        }
         if (key == "language") {
             if (val == "system" || val == "en-US" || val == "zh-TW" || val == "zh-CN" || val == "de-DE" || val == "ko-KR" || val == "ja-JP") language = val;
         }
@@ -671,7 +679,9 @@ bool Config::Save(const std::string& path)
 
     file << "# Window\n";
     file << "window_width = "  << windowWidth  << "\n";
-    file << "window_height = " << windowHeight << "\n\n";
+    file << "window_height = " << windowHeight << "\n";
+    if (windowPosition) file << "window_position = " << windowPosition->first << ", " << windowPosition->second << "\n";
+    file << "\n";
 
     file << "# Picture-in-Picture\n";
     file << "pip_width = "   << pipWidth   << "\n";

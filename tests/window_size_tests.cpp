@@ -1,6 +1,7 @@
 #include "app/config.h"
 #include "renderer/window.h"
 #include <objbase.h>
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -33,6 +34,7 @@ enum class CloseState { Normal, Minimized, Maximized, Fullscreen, PiP, Fullscree
 static void CheckClose(CloseState state, const std::filesystem::path& configPath)
 {
     constexpr std::pair<uint32_t, uint32_t> expected{1000, 600};
+    std::pair<int32_t, int32_t> expectedPosition{};
     const auto instance = GetModuleHandleW(nullptr);
     {
         Window window;
@@ -57,6 +59,18 @@ static void CheckClose(CloseState state, const std::filesystem::path& configPath
         ResizeClient(window, 800, 500);
         ResizeClient(window, expected.first, expected.second);
         Require(window.GetClientSize() == expected, "Resize produces the requested client dimensions");
+        RECT bounds{};
+        Require(GetWindowRect(window.GetHWND(), &bounds) != FALSE, "Window screen coordinates are available");
+        MONITORINFO monitor{sizeof(monitor)};
+        Require(GetMonitorInfoW(MonitorFromWindow(window.GetHWND(), MONITOR_DEFAULTTONEAREST), &monitor) != FALSE,
+                "The window monitor work area is available");
+        expectedPosition = {
+            monitor.rcWork.left + std::max<LONG>(0, (monitor.rcWork.right - monitor.rcWork.left - (bounds.right - bounds.left)) / 2),
+            monitor.rcWork.top + std::max<LONG>(0, (monitor.rcWork.bottom - monitor.rcWork.top - (bounds.bottom - bounds.top)) / 2)};
+        Require(SetWindowPos(window.GetHWND(), nullptr, expectedPosition.first, expectedPosition.second, 0, 0,
+                             SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+                "Move places the window at its intended screen coordinates");
+        Require(window.GetWindowedPosition() == expectedPosition, "A normal move updates the remembered position");
 
         switch (state) {
         case CloseState::Minimized:
@@ -87,10 +101,12 @@ static void CheckClose(CloseState state, const std::filesystem::path& configPath
         Require(window.GetClientSize() == std::pair<uint32_t, uint32_t>{0, 0},
                 "The destroyed window no longer supplies client dimensions");
         Require(window.GetWindowedClientSize() == expected, "The last normal client size survives close");
+        Require(window.GetWindowedPosition() == expectedPosition, "The last normal screen position survives close");
         Config config;
         const auto [width, height] = window.GetWindowedClientSize();
         config.windowWidth = width;
         config.windowHeight = height;
+        config.windowPosition = window.GetWindowedPosition();
         Require(config.Save(configPath.string()), "Window dimensions save");
     }
     Require(UnregisterClassW(L"NitLinkWindowClass", instance) != FALSE, "Closed window class releases");
@@ -102,8 +118,13 @@ static void CheckClose(CloseState state, const std::filesystem::path& configPath
         Window::Desc desc;
         desc.width = loaded.windowWidth;
         desc.height = loaded.windowHeight;
+        desc.position = loaded.windowPosition;
         Require(reopened.Create(instance, desc), "Window reopens from saved dimensions");
         Require(reopened.GetClientSize() == expected, "Reopened client dimensions match the last normal size");
+        RECT reopenedBounds{};
+        Require(GetWindowRect(reopened.GetHWND(), &reopenedBounds) != FALSE &&
+                    reopenedBounds.left == expectedPosition.first && reopenedBounds.top == expectedPosition.second,
+                "Reopened native window returns to the saved screen position");
         SendMessageW(reopened.GetHWND(), WM_CLOSE, 0, 0);
     }
     Require(UnregisterClassW(L"NitLinkWindowClass", instance) != FALSE, "Reopened window class releases");
@@ -183,7 +204,29 @@ int main()
             CheckClose(state, configPath);
         }
         CheckGlassWindows();
-        std::cout << "PASS Window size survives resize, close and reopen in all seven window states\n";
+        {
+            Window offscreen;
+            Window::Desc desc;
+            desc.width = 640; desc.height = 360; desc.position = {{100000, 100000}};
+            Require(offscreen.Create(GetModuleHandleW(nullptr), desc), "Saved offscreen window creates");
+            RECT bounds{}; GetWindowRect(offscreen.GetHWND(), &bounds);
+            MONITORINFO monitor{sizeof(monitor)};
+            Require(GetMonitorInfoW(MonitorFromWindow(offscreen.GetHWND(), MONITOR_DEFAULTTONEAREST), &monitor) != FALSE,
+                    "Restored window has an available monitor");
+            Require(bounds.left >= monitor.rcWork.left && bounds.top >= monitor.rcWork.top &&
+                        bounds.right <= monitor.rcWork.right && bounds.bottom <= monitor.rcWork.bottom,
+                    "A position from a disconnected monitor restores within an available work area");
+            SendMessageW(offscreen.GetHWND(), WM_CLOSE, 0, 0);
+
+            Window partial;
+            desc.position = {{monitor.rcWork.left - 60, monitor.rcWork.top + 40}};
+            Require(partial.Create(GetModuleHandleW(nullptr), desc), "Partially offscreen saved window creates");
+            Require(GetWindowRect(partial.GetHWND(), &bounds) != FALSE &&
+                        bounds.left == desc.position->first && bounds.top == desc.position->second,
+                    "A visible window keeps its exact position instead of being snapped inside one monitor");
+            SendMessageW(partial.GetHWND(), WM_CLOSE, 0, 0);
+        }
+        std::cout << "PASS Window size and position survive move, close and reopen in all seven window states\n";
     } catch (const std::exception& error) {
         std::cerr << "FAIL " << error.what() << '\n';
         result = 1;

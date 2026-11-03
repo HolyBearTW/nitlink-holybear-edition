@@ -15,7 +15,7 @@ struct Format {
 };
 inline bool Valid(const Format& f) {
     if (!f.channels || f.channels > 32) return false;
-    if (f.mask && std::popcount(f.mask) != f.channels) return false;
+    if (f.mask && unsigned(std::popcount(f.mask)) != f.channels) return false;
     if (f.floating) return f.bits == 32 || f.bits == 64;
     return (f.bits == 8 || f.bits == 16 || f.bits == 24 || f.bits == 32) &&
         f.validBits > 0 && f.validBits <= f.bits && (f.bits != 8 || f.validBits == 8);

@@ -12,7 +12,17 @@ FEATURE_COMMITS.tsv records the original feature commits and author identities.
 HolyBear Edition includes the selected audio implementation/helpers/tests,
 audio configuration and settings/menu dependencies, English/Traditional Chinese
 audio strings and Simplified Chinese resources from that tag. The original
-core audio source and four standalone audio tests remain unchanged.
+baseline audio source and four standalone audio tests were imported unchanged.
+
+Selected audio reliability update (2026-11-03):
+Source branch: codex/audio-reliability
+Source base: 19c011c235cb3457bfa54c789516205c3e6e9fc0
+Feature: 4269c6dfd1526caf66926b9ac8730c1522c39520
+Follow-up: 6829db62d5a37d7abc05f073065221566267e1ce
+The production audio core, processing/replay tests and replay utility match
+that follow-up. Settings wiring is selectively ported, including Japanese
+translations, while the HolyBear FIFO/render defaults remain 12/10 ms.
+No source CI workflow, release branding or whole upstream branch is merged.
 
 Integration also preserves PR #31 FPS/capture negotiation/Present Cap fixes
 and PR #23 HDMI input metadata/VRR/signal resync. Manual identity/Discord work

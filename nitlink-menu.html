@@ -45,15 +45,19 @@
     a { color: var(--accent-text); }
     a:hover { color: var(--accent); }
     ::selection { background: var(--accent-soft); }
-    #pane-audio input[type="number"], #audio-refresh { color:var(--ink); background:#202020; border:1px solid var(--hair2); padding:6px 8px; font:inherit; }
-    #pane-audio input:focus-visible, #audio-refresh:focus-visible { outline:2px solid var(--accent); }
-    #audio-refresh { cursor:pointer; transition:background-color .12s ease, border-color .12s ease, color .12s ease; }
-    #audio-refresh:hover:not(:disabled), #audio-refresh:focus-visible { color:var(--accent-text); border-color:var(--accent); background:var(--accent-soft); }
+    #pane-audio input[type="number"] { color:var(--ink); background:#202020; border:1px solid var(--hair2); padding:6px 8px; font:inherit; }
+    #pane-audio input:focus-visible, #audio-refresh:focus-visible, #audio-export-trace:focus-visible { outline:2px solid var(--accent); }
+    #audio-refresh:focus-visible { color:var(--accent-text); border-color:var(--accent); background:var(--accent-soft); }
     #audio-refresh[data-i18n="audio.refreshed"] { color:var(--accent-text); border-color:var(--accent); }
     #audio-refresh:active:not(:disabled) { background:var(--accent); color:var(--chrome); }
-    #audio-refresh:disabled { opacity:.6; cursor:wait; }
+    #audio-refresh:disabled { cursor:wait; }
     #pane-audio input[type="checkbox"] { accent-color:var(--accent); width:18px; height:18px; }
-    #pane-audio .audio-note { font-size:12px; line-height:1.6; white-space:pre-line; overflow-wrap:anywhere; padding:8px 16px; color:var(--ink2); }
+    #pane-audio .audio-note { font-size:12px; line-height:1.7; white-space:pre-line; overflow-wrap:anywhere; padding:16px 22px; color:var(--ink2); }
+    #audio-health { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:14px 24px; font-variant-numeric:tabular-nums; }
+    .audio-health-group { display:block; min-width:0; }
+    .audio-health-group:first-child { grid-column:1 / -1; color:var(--ink); font-weight:500; }
+    #audio-trace-row { border-bottom:0; }
+    html[data-panel-effect="blur"] #audio-trace-row::after { display:none; }
     .audio-label { display:flex; align-items:center; gap:8px; }
     .audio-help { flex:none; width:19px; height:19px; border:1px solid var(--hair2); border-radius:50%; background:none; color:var(--ink3); cursor:help; font-size:11px; }
     .audio-help:hover, .audio-help:focus-visible { color:var(--ink); border-color:var(--accent); outline:none; }
@@ -794,6 +798,7 @@
     </nav>
 
     <div class="content">
+      #pane-audio .audio-note { padding-left:16px; padding-right:16px; }
 
       <header class="topbar">
         <h1 data-i18n="top.settings"></h1>
@@ -1207,8 +1212,9 @@
           <div class="row"><div class="row-name audio-label"><label for="audio-debug" data-i18n="audio.debug"></label><button type="button" class="audio-help" data-audio-help="audio.debugHelp" data-i18n-aria-label="audio.moreHelp" aria-describedby="audio-tooltip">?</button></div><div class="row-right end"><input id="audio-debug" type="checkbox" aria-controls="audio-diagnostics" aria-expanded="false"></div></div>
           <div class="row kv"><span class="row-name" data-i18n="audio.status"></span><span id="audio-status" class="row-value" data-i18n="audio.waiting"></span></div>
           <div id="audio-diagnostics" hidden>
-            <div class="row"><span class="row-name" data-i18n="audio.health"></span><button id="audio-refresh" type="button" data-i18n="audio.refresh" aria-controls="audio-health" aria-busy="false" aria-live="polite"></button></div>
-            <p id="audio-health" class="audio-note" role="status" aria-live="polite"></p>
+            <div class="row"><div class="row-name audio-label"><span data-i18n="audio.health"></span><button type="button" class="audio-help" data-audio-help="audio.countersHelp" data-i18n-aria-label="audio.moreHelp" aria-describedby="audio-tooltip">?</button></div><div class="row-right end"><button id="audio-refresh" class="game-button" type="button" data-i18n="audio.refresh" aria-controls="audio-health" aria-busy="false" aria-live="polite"></button></div></div>
+            <div id="audio-health" class="audio-note" role="status" aria-live="polite"></div>
+            <div id="audio-trace-row" class="row"><div class="row-name audio-label"><span data-i18n="audio.trace"></span><button type="button" class="audio-help" data-audio-help="audio.traceHelp" data-i18n-aria-label="audio.moreHelp" aria-describedby="audio-tooltip">?</button></div><div class="row-right end"><button id="audio-export-trace" class="game-button" type="button" data-i18n="audio.exportTrace" disabled></button></div></div>
           </div>
         </section>
 

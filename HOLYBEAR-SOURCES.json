@@ -17,7 +17,13 @@
     "author": "CN_115",
     "tag": "v0.1.2",
     "commit": "240f1b0a91620bdf287eb57863136624a6b87b14",
-    "license": "MIT"
+    "license": "MIT",
+    "reliability": {
+      "branch": "codex/audio-reliability",
+      "base": "19c011c235cb3457bfa54c789516205c3e6e9fc0",
+      "commits": ["4269c6dfd1526caf66926b9ac8730c1522c39520", "6829db62d5a37d7abc05f073065221566267e1ce"],
+      "scope": "Audio processing, recovery, diagnostics and trace replay; preserve HolyBear FIFO/render defaults at 12/10 ms."
+    }
   },
   "installerUi": {
     "repository": "tavricccc/harbor",

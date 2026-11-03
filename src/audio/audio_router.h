@@ -4,6 +4,8 @@
 #include "drift_controller.h"
 #include "clock_recovery.h"
 #include "audio_convert.h"
+#include "block_resampler.h"
+#include "audio_trace.h"
 #include "exclusive_focus.h"
 #include <windows.h>
 #include <mmdeviceapi.h>
@@ -30,6 +32,8 @@ namespace NitLink {
 // capture card can be unplugged. Any of those invalidates the affected
 // IAudioClient, and the worker rebuilds it in place rather than falling
 // permanently silent.
+enum class AudioPlaybackState : uint32_t { Waiting, Priming, Playing, Rebuffering, CaptureStalled, Recovering };
+
 class AudioRouter {
 public:
     AudioRouter();
@@ -54,12 +58,21 @@ public:
     bool ExclusiveActive() const { return m_exclusiveActive.load(); }
     uint32_t RenderQueueMs() const { return m_queueMs.load(); }
     int EstimatedDriftPpm() const { return m_estimatedPpm.load(); }
+    AudioPlaybackState PlaybackState() const { return m_playbackState.load(); }
+    uint64_t StartupSilenceFrames() const { return m_startupSilenceFrames.load(); }
+    uint64_t RebufferFrames() const { return m_rebufferFrames.load(); }
+    uint64_t ResetDiscardFrames() const { return m_resetDiscardFrames.load(); }
+    uint64_t LocalReprimes() const { return m_localReprimes.load(); }
+    unsigned ClockConfidencePercent() const { return m_clockConfidence.load(); }
+    AudioClockState ClockState() const { return m_clockState.load(); }
+    bool ExportTrace(const std::filesystem::path& path, std::string& error) { return m_trace.ExportCsv(path,error); }
     bool ClockEstimateValid() const { return m_clockEstimateValid.load(); }
     uint64_t UnderrunEvents() const { return m_underrunEvents.load(); }
     uint64_t AutomaticReloads() const { return m_automaticReloads.load(); }
     int DriftPpm() const { return m_driftPpm.load(); }
     uint32_t RenderPeriodUs() const { return m_periodUs.load(); }
     uint64_t Resyncs() const { return m_resyncs.load(); }
+    bool SrcBypassed() const { return m_srcBypassed.load(); }
     bool AdaptiveSupported() const { return m_adaptiveSupported.load(); }
     std::wstring EndpointInfo() const;
     // One atomic publication: FIFO and render occupancy after the SAME pump.
@@ -118,7 +131,7 @@ private:
     // One wake of the pump: move every ready capture packet into the FIFO,
     // then top the render endpoint up from it. Each returns false after a
     // stream error was handed to HandleStreamError.
-    bool DrainCapture();
+    bool DrainCapture(bool& renderReady);
     bool FillRender(bool renderReady = true);
     bool FifoReset(UINT32 bytesPerFrame, UINT32 samplesPerSec);
     void FifoPush(const BYTE* data, UINT32 frames, bool silent);
@@ -126,14 +139,26 @@ private:
     void FifoSkip(UINT32 frames);
     void LogStatsIfDue();
     UINT32 FifoResample(BYTE* out, UINT32 frames, double ratio);
-    void ResetDrift(bool preserveClock = false);
+    void ResetDrift(bool preserveClock = false, DriftResetReason reason = DriftResetReason::DeviceChange);
+    void DiscardFifo();
+    void Trace(AudioTraceEvent event);
+    void CheckCaptureProgress(double now);
     void SetupRenderClock();
     double ReadClockEstimate(double now);
     void ObserveRecovery(double now, double error, double missing, double block);
     void PublishQueue(UINT32 padding);
     bool PrepareConversion();
     AudioConvert::Format m_inputPcm{}, m_outputPcm{};
-    AudioConvert::SincKernel m_sinc;
+    AudioConvert::BlockResampler m_processor;
+    bool m_lastRenderSilent = true;
+    AudioTraceRecorder m_trace;
+    uint32_t m_traceSession = 0;
+    double m_lastPacketTime = 0;
+    std::atomic<AudioPlaybackState> m_playbackState{AudioPlaybackState::Waiting};
+    std::atomic<uint64_t> m_startupSilenceFrames{0}, m_rebufferFrames{0}, m_resetDiscardFrames{0}, m_localReprimes{0};
+    std::atomic<unsigned> m_clockConfidence{0};
+    std::atomic<AudioClockState> m_clockState{AudioClockState::Learning};
+    bool m_hasPlayed = false, m_captureStalled = false;
     bool m_conversionReady = false;
     mutable std::mutex m_endpointInfoMutex;
     std::wstring m_endpointInfo = L"Waiting for endpoints";
@@ -153,11 +178,13 @@ private:
     std::atomic<uint32_t> m_queueMs{0}, m_periodUs{0};
     std::atomic<int> m_driftPpm{0};
     std::atomic<uint64_t> m_resyncs{0};
-    std::atomic<bool> m_adaptiveSupported{false};
+    std::atomic<bool> m_adaptiveSupported{false}, m_srcBypassed{false};
     UINT32 m_renderPeriodFrames = 0;
     DriftController m_drift;
     AudioClockRate m_captureClockRate, m_renderClockRate;
     AudioRecoveryGuard m_recoveryGuard;
+    AudioClockBlend m_clockBlend;
+    CaptureProgressWatchdog m_captureWatchdog;
     ComPtr<IAudioClock> m_renderClock;
     UINT64 m_renderClockFrequency = 0;
     std::atomic<int> m_estimatedPpm{0};
@@ -167,6 +194,9 @@ private:
     std::chrono::steady_clock::time_point m_lastDrift{};
 
     std::wstring m_nameHint = L"Elgato";
+    std::wstring m_watchdogCaptureDeviceId;
+    HRESULT m_lastStreamError[2] = {S_OK,S_OK};
+    double m_lastStreamErrorLog[2] = {0,0};
 
     ComPtr<IMMDeviceEnumerator> m_enumerator;
     ComPtr<IMMNotificationClient> m_notifier;
@@ -197,6 +227,7 @@ private:
     std::vector<BYTE> m_fifo;
     size_t   m_fifoHead      = 0;      // read offset, bytes
     size_t   m_fifoBytes     = 0;      // bytes held
+    bool m_capturePending = false;
     bool     m_fifoPrimed    = false;  // fill reached the target once
     UINT32   m_bytesPerFrame = 0;
     UINT32   m_samplesPerSec = 0;
@@ -225,6 +256,7 @@ private:
     // catches everything else, including in-place format changes.
     std::atomic<bool>  m_restartCapture{false};
     std::atomic<bool>  m_restartRender{false};
+    std::atomic<DriftResetReason> m_renderResetReason{DriftResetReason::DeviceChange};
 
     // Reports the first attempt's outcome back to Initialize().
     std::mutex              m_startMutex;

@@ -80,6 +80,7 @@ private:
     // stats tick while the menu is visible.
     void PushSettingsState(bool refreshCaptureDevices = false, uint32_t audioRefreshRequest = 0);
     void CheckHolyBearUpdate(bool automatic);
+    bool ExportAudioTrace();
     void ConsumeHolyBearUpdate();
     void ConsumeGameResults();
     bool HandleGameMessage(const SettingsMessage& message);
@@ -286,6 +287,7 @@ private:
     std::unique_ptr<Config>           m_config;
     std::unique_ptr<HolyBear::UpdateChecker> m_updateChecker;
     HolyBear::UpdateStatus m_updateStatus = HolyBear::UpdateStatus::Never;
+    bool m_audioTraceExporting = false;
     std::unique_ptr<DiscordRPC>       m_discord;
     std::wstring m_lastDiscordPreviewStatus;
     DiscordRPC::ImageSnapshot m_discordImageSnapshot;

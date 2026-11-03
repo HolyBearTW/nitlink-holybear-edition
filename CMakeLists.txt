@@ -104,6 +104,7 @@ set(NITLINK_SOURCES
     src/input/hotkey_manager.h
     src/input/shortcut_bindings.h
     src/audio/audio_router.cpp
+    src/audio/audio_trace.cpp
     src/audio/audio_router.h
     src/overlay/no_signal_image.cpp
     src/overlay/overlay.cpp
@@ -182,6 +183,11 @@ install(FILES third_party/nis/NIS_Scaler.h third_party/nis/LICENSE.txt
         DESTINATION bin/third_party/nis)
 install(FILES LICENSE LICENSES.md ACKNOWLEDGMENTS.md DESTINATION bin)
 install(FILES docs/hdmi-source-metadata.md DESTINATION bin/docs)
+add_executable(NitLinkAudioReplay tools/audio_replay.cpp src/audio/audio_trace.cpp)
+target_include_directories(NitLinkAudioReplay PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_dependencies(NitLink NitLinkAudioReplay)
+install(TARGETS NitLinkAudioReplay RUNTIME DESTINATION bin)
+install(FILES docs/audio-diagnostics.md DESTINATION bin/docs)
 install(FILES docs/cn115/SOURCE.txt docs/cn115/FEATURE_COMMITS.tsv
               docs/cn115/AUDIO_FORK.txt docs/cn115/AUDIO_TESTING.txt
         DESTINATION bin/docs/cn115)
@@ -279,6 +285,18 @@ if(BUILD_TESTING)
     target_include_directories(NitLinkHolyBearUpdateTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(NitLinkHolyBearUpdateTests PRIVATE winhttp windowsapp)
     add_test(NAME holybear_update_checker COMMAND NitLinkHolyBearUpdateTests)
+    add_executable(NitLinkAudioResamplerBenchmark tests/audio_resampler_benchmark.cpp)
+    target_include_directories(NitLinkAudioResamplerBenchmark PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(NitLinkAudioProcessingTests tests/audio_processing_tests.cpp)
+    target_include_directories(NitLinkAudioProcessingTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME audio_processing COMMAND NitLinkAudioProcessingTests)
+    add_executable(NitLinkAudioTraceReplayTests tests/audio_trace_replay_tests.cpp src/audio/audio_trace.cpp)
+    target_include_directories(NitLinkAudioTraceReplayTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME audio_trace_replay COMMAND NitLinkAudioTraceReplayTests
+        --export ${CMAKE_CURRENT_BINARY_DIR}/audio-simulation.csv)
+    add_test(NAME audio_trace_cli COMMAND NitLinkAudioReplay ${CMAKE_CURRENT_BINARY_DIR}/audio-simulation.csv)
+    set_tests_properties(audio_trace_cli PROPERTIES DEPENDS audio_trace_replay)
+
     add_executable(NitLinkAudioConversionTests tests/audio_conversion_tests.cpp)
     target_include_directories(NitLinkAudioConversionTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     add_test(NAME audio_native_conversion COMMAND NitLinkAudioConversionTests)
@@ -325,7 +343,7 @@ if(BUILD_TESTING)
     target_link_libraries(NitLinkDiscordReplyTests PRIVATE windowsapp)
     add_test(NAME discord_reply_json COMMAND NitLinkDiscordReplyTests)
 
-    add_executable(NitLinkMediaSecurityTests tests/media_security_tests.cpp)
+    add_executable(NitLinkMediaSecurityTests tests/media_security_tests.cpp src/audio/audio_trace.cpp)
     target_include_directories(NitLinkMediaSecurityTests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(NitLinkMediaSecurityTests PRIVATE ole32 oleaut32 strmiids uuid mfuuid avrt)
     add_test(NAME media_metadata_security COMMAND NitLinkMediaSecurityTests)
@@ -667,6 +685,9 @@ if(BUILD_TESTING)
     set_property(TEST
         frame_differ_adaptive_pacing
         audio_native_conversion
+        audio_processing
+        audio_trace_replay
+        audio_trace_cli
         audio_clock_recovery
         audio_packet_drift
         native_input_security

@@ -1,19 +1,33 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 namespace NitLink {
 // All inputs are seconds. Integrate by elapsed time, never by wake count.
 // A one-second low-pass rejects USB packet jitter; anti-windup and slew
 // limits keep the correction bounded during scheduler stalls.
+enum class DriftResetReason : uint8_t { Underflow=0, BacklogTrim=1, TimestampReset=2, DeviceChange=3, UserChange=4 };
+
 class DriftController {
 public:
     void Reset() { clock_ = filtered_ = integral_ = ppm_ = 0; Reprime(); }
     // Preserve device-clock feed-forward and protective negative feedback across
     // a re-prime, but discard positive feedback that could repeat starvation.
-    void Reprime() {
-        filtered_ = 0; integral_ = std::min(integral_,0.0); ppm_ = std::min(ppm_,clock_);
+    void Reprime(DriftResetReason reason=DriftResetReason::Underflow) {
+        if (reason==DriftResetReason::DeviceChange || reason==DriftResetReason::UserChange) {
+            clock_=integral_=ppm_=0;
+        } else if (reason==DriftResetReason::BacklogTrim) {
+            // A backlog trim must not keep the slowing correction that may
+            // have created it. Retain only the measured device-clock rate.
+            integral_=0; ppm_=clock_;
+        } else if (reason==DriftResetReason::Underflow) {
+            integral_=std::min(integral_,0.0); ppm_=std::min(ppm_,clock_);
+        }
+        // A timestamp fault leaves the relative-rate blend in charge of
+        // holding/decaying feed-forward; it only clears level observations.
+        filtered_ = 0;
         windowSeconds_ = 0; minimum_ = previousMinimum_ = Infinity;
         errorMin_ = previousErrorMin_ = Infinity; errorMax_ = previousErrorMax_ = -Infinity;
     }

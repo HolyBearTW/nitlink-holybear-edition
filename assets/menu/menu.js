@@ -198,6 +198,7 @@
       status.classList.toggle('is-new-version', showRelease);
       link.hidden = !showRelease;
       if (showRelease) link.href = expectedUrl;
+    document.getElementById('audio-export-trace')?.addEventListener('click', () => post('exportAudioTrace'));
       else link.removeAttribute('href');
       document.getElementById('holy-bear-update-badge').hidden = !s.unread;
     };
@@ -1736,6 +1737,11 @@
         toast.classList.remove('toast-show');
       }, 3500);
     };
+      const playbackStateKey = {
+        waiting: 'audio.waiting', priming: 'audio.priming', playing: 'audio.running',
+        rebuffering: 'audio.rebuffering', captureStalled: 'audio.captureStalled', recovering: 'audio.recovering'
+      }[s.audioPlaybackState] || (s.audioStreaming ? 'audio.running' : 'audio.waiting');
+      const playbackState = t(playbackStateKey);
 
     const applyState = s => {
       window.NitLinkShortcutEditor?.update(s.shortcuts);
@@ -1771,21 +1777,43 @@
       const driftInput = document.getElementById('audio-drift');
       if (driftInput && typeof s.audioDrift === 'boolean') driftInput.checked = s.audioDrift;
       setText('audio-status', s.audioStreaming
-        ? `${t('audio.running')} · ${t(s.audioExclusiveActive ? 'audio.exclusiveMode' : 'audio.sharedMode')}`
-        : t('audio.waiting'));
+        ? `${playbackState} · ${t(s.audioExclusiveActive ? 'audio.exclusiveMode' : 'audio.sharedMode')}`
+        : playbackState);
+      const traceExport = document.getElementById('audio-export-trace');
+      if (traceExport && typeof s.audioTraceAvailable === 'boolean') traceExport.disabled = !s.audioTraceAvailable;
       const health = document.getElementById('audio-health');
       if (health && Number.isFinite(s.audioFillMs)) {
         const ms = value => Number.isFinite(value) ? value.toFixed(2) : '--';
-        health.textContent = `${s.audioStreaming ? t('audio.running') : t('audio.waiting')} · ${s.audioAdaptive ? 'Sinc SRC' : t('audio.fallback')} · ${s.audioDrift ? t('audio.driftOn') : t('audio.off')}\n` +
+        const clockState = Number.isInteger(s.audioClockState) ? s.audioClockState : (s.audioClockValid ? 1 : 0);
+        const clockPpm = Number.isFinite(s.audioEstimatedPpm) ? `${s.audioEstimatedPpm} ppm` : '--';
+        const clockEstimate = clockState === 1 ? clockPpm
+          : clockState === 2 ? `${clockPpm} (${t('audio.clockHolding')})`
+          : t(clockState === 3 ? 'audio.clockUnavailable' : 'audio.clockLearning');
+        const endpoint = localizeEndpointInfo(s.audioEndpointInfo)
+          .replace(/\s*\|\s*|\s*->\s*/g, '\n')
+          .replace(/\b\d+\.\d+(?=\s*ms\b)/g, value => String(Number(value)));
+        const groups = [
+          `${playbackState} · ${s.audioSrcBypassed ? t('audio.srcBypass') : s.audioAdaptive ? 'Sinc SRC' : t('audio.fallback')} · ${s.audioDrift ? t('audio.driftOn') : t('audio.off')}`,
           (s.audioExclusiveActive
-            ? `${t('audio.exclusiveAuto')} · ${t('audio.block')} ${ms(s.audioEffectiveMs)} ms\nFIFO ${ms(s.audioFillMs)} ms (${t('audio.afterPump')})\n`
-            : `${t('audio.requested')} ${ms(s.audioRenderMs)} ms → ${t('audio.effective')} ${ms(s.audioEffectiveMs)} ms\nFIFO ${ms(s.audioFillMs)} ms + ${t('audio.queued')} ${ms(s.audioQueueMs)} ms (${t('audio.afterPump')})\n`) +
-          `FIFO ${t('audio.average')} ${ms(s.audioAverageMs)} ms [${ms(s.audioMinMs)}–${ms(s.audioMaxMs)}]\n` +
-          `${t('audio.period')} ${ms(s.audioPeriodUs / 1000)} ms · ${t('audio.correction')} ${s.audioPpm} ppm\n` +
-          `${t('audio.clockEstimate')} ${s.audioClockValid ? s.audioEstimatedPpm + ' ppm' : t('audio.clockLearning')}\n` +
-          `${t('audio.underrunEvents')} ${s.audioUnderrunEvents ?? 0} · ${t('audio.reloads')} ${s.audioReloads ?? 0}\n` +
-          `${t('audio.underruns')} ${s.audioUnderruns} · ${t('audio.dropped')} ${s.audioOverruns} · ${t('audio.resyncs')} ${s.audioResyncs}\n` +
-          localizeEndpointInfo(s.audioEndpointInfo);
+            ? `${t('audio.exclusiveAuto')} · ${t('audio.block')} ${ms(s.audioEffectiveMs)} ms\nFIFO ${ms(s.audioFillMs)} ms`
+            : `${t('audio.requested')} ${ms(s.audioRenderMs)} ms → ${t('audio.effective')} ${ms(s.audioEffectiveMs)} ms\nFIFO ${ms(s.audioFillMs)} ms + ${t('audio.queued')} ${ms(s.audioQueueMs)} ms`) +
+            `\n(${t('audio.afterPump')})\nFIFO ${t('audio.average')} ${ms(s.audioAverageMs)} ms\n[${ms(s.audioMinMs)}–${ms(s.audioMaxMs)}] ms`,
+          `${t('audio.period')} ${ms(s.audioPeriodUs / 1000)} ms\n${t('audio.correction')} ${s.audioPpm} ppm\n` +
+            `${t('audio.clockEstimate')} ${clockEstimate} · ${t('audio.confidence')} ${s.audioClockConfidence ?? 0}%`,
+          `${t('audio.underrunEvents')} ${s.audioUnderrunEvents ?? 0} · ${t('audio.localReprimes')} ${s.audioLocalReprimes ?? 0}\n` +
+            `${t('audio.reloads')} ${s.audioReloads ?? 0}\n` +
+            `${t('audio.underruns')} ${s.audioUnderruns} · ${t('audio.dropped')} ${s.audioOverruns}\n` +
+            `${t('audio.resyncs')} ${s.audioResyncs}\n` +
+            `${t('audio.startupSilence')} ${s.audioStartupSilence ?? 0} · ${t('audio.rebufferFrames')} ${s.audioRebufferFrames ?? 0}\n` +
+            `${t('audio.resetDiscardFrames')} ${s.audioResetDiscardFrames ?? 0}`,
+          endpoint
+        ];
+        health.replaceChildren(...groups.map(text => {
+          const group = document.createElement('span');
+          group.className = 'audio-health-group';
+          group.textContent = text + '\n';
+          return group;
+        }));
         // Ordinary broadcasts and late replies must not acknowledge this click.
         if (s.audioRefreshRequest === audioRefreshRequest) finishAudioRefresh(true);
       }

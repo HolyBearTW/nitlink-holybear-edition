@@ -511,6 +511,66 @@ void TestLayouts(WebViewSettings& host, HWND window, std::vector<std::wstring>& 
     }
 }
 
+void TestAudioDiagnostics(WebViewSettings& host, std::vector<std::wstring>& messages) {
+    auto* view = WebViewSettingsTestAccess::View(host);
+    Check(Script(view, L"document.querySelector('#audio-diagnostics').hidden && !document.querySelector('#audio-debug').checked") == L"true",
+        "audio diagnostics remain hidden by default");
+    Check(Script(view, LR"JS((() => {
+        const keys = ['audio.priming','audio.rebuffering','audio.captureStalled','audio.recovering',
+            'audio.confidence','audio.localReprimes','audio.startupSilence','audio.rebufferFrames',
+            'audio.resetDiscardFrames','audio.srcBypass','audio.trace','audio.exportTrace',
+            'audio.traceHelp','audio.countersHelp','audio.clockLearning','audio.clockHolding','audio.clockUnavailable'];
+        return ['en-US','zh-TW','zh-CN','de-DE','ko-KR','ja-JP'].every(locale =>
+            keys.every(key => typeof window.NitLinkLocales[locale][key] === 'string' &&
+                window.NitLinkLocales[locale][key].length > 0));
+    })())JS") == L"true", "all six locales define the audio diagnostics and export controls");
+    host.PostMessage(LR"({"state":{"locale":"zh-CN","audioPlaybackState":"captureStalled",
+        "audioStreaming":false,"audioTraceAvailable":true,"audioFillMs":3,"audioClockConfidence":87,
+        "audioStartupSilence":111,"audioRebufferFrames":222,"audioResetDiscardFrames":333,
+        "audioLocalReprimes":4,"audioUnderruns":555,"audioOverruns":666,"audioResyncs":7,
+        "audioSrcBypassed":true,"audioDrift":false}})");
+    Check(PumpUntil([&] {
+        return Script(view, LR"JS(document.querySelector('#audio-status').textContent === window.NitLinkLocales['zh-CN']['audio.captureStalled'] &&
+            document.querySelector('#audio-health').textContent.includes('87%') &&
+            !document.querySelector('#audio-export-trace').disabled)JS") == L"true";
+    }), "native state distinguishes capture stalls and enables trace export");
+    Check(Script(view, LR"JS((() => {
+        const text = document.querySelector('#audio-health').textContent;
+        return document.querySelector('#audio-diagnostics').hidden &&
+            ['111','222','333','555','666',window.NitLinkLocales['zh-CN']['audio.srcBypass']].every(value => text.includes(value));
+    })())JS") == L"true", "hidden diagnostics retain distinct counters and correctly identify SRC bypass");
+    const size_t before = messages.size();
+    Script(view, L"document.querySelector('#audio-debug').click()");
+    Check(Script(view, L"!document.querySelector('#audio-diagnostics').hidden && document.querySelector('#audio-debug').getAttribute('aria-expanded') === 'true'") == L"true",
+        "diagnostics visibility is an accessible local presentation toggle");
+    Check(messages.size()==before,"diagnostics toggle never changes audio processing through the native bridge");
+    Script(view, L"document.querySelector('#audio-export-trace').click()");
+    Check(PumpUntil([&] { return messages.size()==before+1; }),"trace export posts exactly one native action");
+    const auto exported = NitLink::ParseSettingsMessage(messages.back());
+    Check(exported && exported->action==L"exportAudioTrace" && exported->text.empty(),
+        "trace export delegates destination selection to native code");
+    Check(Script(view,L"Object.keys(" + messages.back() + L").length") == L"1",
+        "trace export message contains no value or path");
+    Script(view, L"document.querySelector('#audio-debug').click()");
+    Check(Script(view, L"document.querySelector('#audio-diagnostics').hidden") == L"true",
+        "diagnostics can be hidden after export");
+    for (unsigned state : {0u,1u,2u,3u}) {
+        host.PostMessage(L"{\"state\":{\"audioClockState\":" + std::to_wstring(state) +
+            LR"(,"audioClockValid":false,"audioEstimatedPpm":123,"audioClockConfidence":61,"audioFillMs":3}})");
+        const auto script = L"(() => { const state = " + std::to_wstring(state) + LR"JS(;
+            const words = window.NitLinkLocales['zh-CN'];
+            const states = [words['audio.clockLearning'], '123 ppm',
+                '123 ppm (' + words['audio.clockHolding'] + ')', words['audio.clockUnavailable']];
+            const line = document.querySelector('#audio-health').textContent.split('\n')
+                .find(value => value.startsWith(words['audio.clockEstimate'] + ' '));
+            return line === words['audio.clockEstimate'] + ' ' + states[state] + ' · ' + words['audio.confidence'] + ' 61%';
+        })())JS";
+        Check(PumpUntil([&] { return Script(view,script)==L"true"; }),
+            "clock display distinguishes learning, fresh, holding and unavailable while keeping confidence");
+    }
+}
+
+
 void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstring>& messages) {
     auto* view = WebViewSettingsTestAccess::View(host);
     const auto firstMessage = messages.size();
@@ -564,6 +624,36 @@ void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstri
                     b.blur(); b.scrollIntoView({block:'center'});
                 })())JS");
                 pushAudio(0, 11.11);
+                Check(Script(view, LR"JS((() => {
+                    const health = document.getElementById('audio-health');
+                    const label = document.getElementById('audio-refresh').closest('.row').querySelector('.row-name');
+                    const inset = health.getBoundingClientRect().left + parseFloat(getComputedStyle(health).paddingLeft);
+                    const reference = getComputedStyle(document.getElementById('shortcut-reset'));
+                    return Math.abs(inset - label.getBoundingClientRect().left) < 1 &&
+                        health.querySelectorAll('.audio-health-group').length === 5 &&
+                        ['audio-refresh','audio-export-trace'].every(id => {
+                            const b = document.getElementById(id), style = getComputedStyle(b);
+                            const range = document.createRange(); range.selectNodeContents(b);
+                            const natural = range.getBoundingClientRect().width + parseFloat(style.paddingLeft) +
+                                parseFloat(style.paddingRight) + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+                            return Math.abs(b.getBoundingClientRect().width - natural) < 2 &&
+                                style.borderRadius === reference.borderRadius && style.fontSize === reference.fontSize;
+                        }) && health.scrollWidth <= health.clientWidth;
+                })())JS") == L"true", "diagnostics align with row labels and both buttons use the common content-sized style");
+                if (std::wstring_view(locale) == L"zh-TW") {
+                    for (const auto effect : {L"classic", L"blur"}) {
+                        host.PostMessage(L"{\"state\":{\"panelEffect\":\"" + std::wstring(effect) + L"\"}}");
+                        Check(PumpUntil([&] { return Script(view, L"document.documentElement.dataset.panelEffect === '" +
+                            std::wstring(effect) + L"'") == L"true"; }), "audio panel effect changes through native state");
+                        Check(Script(view, LR"JS((() => {
+                            const row = document.getElementById('audio-trace-row');
+                            const after = getComputedStyle(row,'::after');
+                            return getComputedStyle(row).borderBottomWidth === '0px' &&
+                                (after.display === 'none' || after.content === 'none' || after.content === 'normal');
+                        })())JS") == L"true",
+                            "the trace row has no bottom divider in either panel style");
+                    }
+                }
                 BrowserCommand(view, L"Input.dispatchMouseEvent", L"{\"type\":\"mouseMoved\",\"x\":0,\"y\":0}");
                 PumpUntil([] { return false; }, 150);
                 Script(view, L"window.__refreshNormal = getComputedStyle(document.getElementById('audio-refresh')).backgroundColor");

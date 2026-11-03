@@ -47,3 +47,5 @@ f515f7a788dcd66092907013754f6fdc9a9a0110	CN_115 <68493388+CN115@users.noreply.gi
 96ec766dbcf5e66917590f8f1327718c9eeb8b3c	CN_115 <68493388+CN115@users.noreply.github.com>	Estimate audio clock drift and reload on sustained faults without raising FIFO targets
 a66ff521b713f0efcad33eb0c3e49445ef5dd8e1	CN_115 <68493388+CN115@users.noreply.github.com>	Fix drift-induced underruns with packet-window feedback and low-water anti-windup
 240f1b0a91620bdf287eb57863136624a6b87b14	CN_115 <68493388+CN115@users.noreply.github.com>	Release v0.1.2 with concise audio settings and opt-in diagnostics
+4269c6dfd1526caf66926b9ac8730c1522c39520	CN_115 <68493388+CN115@users.noreply.github.com>	Improve audio recovery, timing diagnostics and block processing
+6829db62d5a37d7abc05f073065221566267e1ce	CN_115 <68493388+CN115@users.noreply.github.com>	Verify native trace replay and handle capture error recovery

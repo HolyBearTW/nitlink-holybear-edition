@@ -31,6 +31,9 @@ static constexpr int   kFifoCapacityMs  = 400;
 
 static constexpr int   kStatsIntervalMs = 5000;
 static constexpr DWORD kPumpWaitMs      = 200;
+static double AudioNow() {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 // KSDATAFORMAT_SUBTYPE_* live in ksmedia.h, which drags in the whole kernel
 // streaming header chain. These two are the only ones the router needs.
@@ -219,7 +222,7 @@ public:
             std::lock_guard<std::mutex> lock(m_mutex);
             if (m_owner) {
                 m_owner->m_restartRender = true;
-                AudioLog(L"Notify: default render endpoint changed");
+
             }
         }
         return S_OK;
@@ -232,12 +235,12 @@ public:
         if (!m_captureId.empty() && m_captureId == id) {
             if (newState != DEVICE_STATE_ACTIVE) {
                 m_owner->m_restartCapture = true;
-                AudioLog(L"Notify: capture endpoint left the active state");
+
             }
         } else if (!m_renderId.empty() && m_renderId == id) {
             if (newState != DEVICE_STATE_ACTIVE) {
                 m_owner->m_restartRender = true;
-                AudioLog(L"Notify: render endpoint left the active state");
+
             }
         } else if (newState == DEVICE_STATE_ACTIVE && m_captureId.empty()) {
             // A device came back while the capture side is down: worth a
@@ -318,6 +321,7 @@ bool AudioRouter::Initialize(const std::wstring& nameHint)
     m_lastCaptureError = S_OK;
     if (m_stopEvent) ResetEvent(m_stopEvent);
     m_running = true;
+    m_trace.Start();
     m_thread = std::thread(&AudioRouter::RouteLoop, this);
 
     // Wait for the worker's first open attempt so callers keep the original
@@ -338,6 +342,8 @@ void AudioRouter::Shutdown()
         m_thread.join();
     }
     m_streaming = false;
+    m_playbackState=AudioPlaybackState::Waiting;
+    m_trace.Stop();
 }
 
 bool AudioRouter::FindCaptureDevice(const std::wstring& nameHint, ComPtr<IMMDevice>& outDevice)
@@ -425,6 +431,11 @@ bool AudioRouter::SetupCapture()
     hr = m_captureClient->Start();
     if (FAILED(hr)) { AudioLog(L"captureClient->Start failed " + HrString(hr)); return false; }
 
+    if (m_watchdogCaptureDeviceId!=m_captureDeviceId) {
+        m_watchdogCaptureDeviceId=m_captureDeviceId;
+        const double now=AudioNow(); m_captureWatchdog.Reset(now); m_lastPacketTime=0;
+        AudioTraceEvent e; e.kind=AudioTraceKind::Reset; e.now=now; e.flags=TraceResetWatchdog; Trace(e);
+    }
     m_lastCaptureError = S_OK;
     AudioLog(L"Capture format: " + DescribeFormat(m_captureFormat));
     return true;
@@ -535,13 +546,19 @@ bool AudioRouter::SetupExclusive(IMMDevice* device, const WAVEFORMATEX* native, 
     if (FAILED(hr)) return fail(hr,L"get exclusive render service");
     m_conversionReady=PrepareConversion();
     if (!m_conversionReady) return fail(E_FAIL,L"prepare exclusive conversion");
-    m_fifoHead=m_fifoBytes=0; m_fifoPrimed=false; ResetDrift();
+    DiscardFifo(); ResetDrift(false,m_renderResetReason.exchange(DriftResetReason::DeviceChange));
     // Prime one WHOLE ping-pong buffer before Start, without consuming stale FIFO.
     BYTE* data=nullptr;
     hr=m_renderService->GetBuffer(m_renderBufferFrames,&data);
     if (FAILED(hr)) return fail(hr,L"prime exclusive buffer");
     hr=m_renderService->ReleaseBuffer(m_renderBufferFrames,AUDCLNT_BUFFERFLAGS_SILENT);
     if (FAILED(hr)) return fail(hr,L"release exclusive prime");
+    if (m_hasPlayed) m_rebufferFrames+=m_renderBufferFrames;
+    else m_startupSilenceFrames+=m_renderBufferFrames;
+    AudioTraceEvent prime; prime.kind=AudioTraceKind::RenderResult;
+    prime.want=prime.rebufferFrames=m_renderBufferFrames;
+    prime.flags=m_hasPlayed ? 0 : TraceStartupSilence;
+    Trace(prime);
     ResetEvent(m_renderEvent);
     // Activation can change while the driver is being initialized.
     if (m_ownerWindow.load() && (!m_running.load() || !m_exclusiveRequested.load() || !OwnerIsForeground()))
@@ -666,8 +683,8 @@ bool AudioRouter::SetupRender()
     if (!lowPeriod) status << L" | fallback: " << probe.stage << L" " << HrString(probe.hr);
     { std::lock_guard<std::mutex> lock(m_endpointInfoMutex); m_endpointInfo=status.str(); }
     AudioLog(status.str());
-    m_fifoHead=m_fifoBytes=0; m_fifoPrimed=false;
-    ResetDrift();
+    DiscardFifo();
+    ResetDrift(false,m_renderResetReason.exchange(DriftResetReason::DeviceChange));
     SetupRenderClock();
     hr=m_renderClient->Start();
     if (FAILED(hr)) { AudioLog(L"render Start failed "+HrString(hr)); return false; }
@@ -683,7 +700,12 @@ bool AudioRouter::PrepareConversion() {
     m_inputPcm=PcmDescription(m_captureFormat);
     m_outputPcm=PcmDescription(m_renderFormat);
     if (!AudioConvert::CanMap(m_inputPcm,m_outputPcm)) return false;
-    return m_sinc.Initialize(double(m_captureFormat->nSamplesPerSec)/m_renderFormat->nSamplesPerSec);
+    const double ratio=double(m_captureFormat->nSamplesPerSec)/m_renderFormat->nSamplesPerSec;
+    const bool ready=m_processor.Initialize(m_inputPcm,m_outputPcm,ratio,
+        UINT32(m_fifo.size()/m_bytesPerFrame),m_renderFormat->nSamplesPerSec,
+        !m_driftEnabled.load() && ratio==1);
+    m_srcBypassed=ready && m_processor.Bypass();
+    return ready;
 }
 
 void AudioRouter::TeardownCapture()
@@ -707,6 +729,7 @@ void AudioRouter::TeardownRender()
     m_queueMs = 0;
     m_periodUs = 0;
     m_adaptiveSupported = false;
+    m_srcBypassed=false;
     m_conversionReady = false;
     m_exclusiveActive = false;
     m_queueSnapshot = 0; m_effectiveQueueUs = 0;
@@ -717,6 +740,7 @@ void AudioRouter::TeardownRender()
 
 bool AudioRouter::EnsureEndpoints()
 {
+    bool endpointsChanged = false;
     if (!m_enumerator) {
         HRESULT hr = CoCreateInstance(
             __uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&m_enumerator));
@@ -742,6 +766,10 @@ bool AudioRouter::EnsureEndpoints()
     // The render client is opened against the capture format, so a capture
     // rebuild forces a render rebuild too.
     if (m_restartCapture.exchange(false)) {
+        const double now=AudioNow();
+        m_captureWatchdog.EndpointRestarted(now);
+        AudioTraceEvent e; e.kind=AudioTraceKind::Reset; e.now=now;
+        e.flags=TraceWatchdogRestarted; Trace(e);
         TeardownCapture();
         TeardownRender();
     }
@@ -763,6 +791,7 @@ bool AudioRouter::EnsureEndpoints()
     }
 
     if (!m_renderService) {
+        endpointsChanged = true;
         if (!SetupRender()) {
             TeardownRender();
             if (!m_setupFailureLogged) {
@@ -773,7 +802,7 @@ bool AudioRouter::EnsureEndpoints()
         }
     }
 
-    if (m_notifier) {
+    if (m_notifier && endpointsChanged) {
         static_cast<EndpointNotifier*>(m_notifier.Get())
             ->SetDeviceIds(m_captureDeviceId, m_renderDeviceId);
     }
@@ -795,8 +824,13 @@ void AudioRouter::HandleStreamError(HRESULT hr, const wchar_t* what, bool captur
                        (hr == AUDCLNT_E_NOT_INITIALIZED) ||
                        (hr == AUDCLNT_E_RESOURCES_INVALIDATED);
 
-    AudioLog(std::wstring(what) + L" failed " + HrString(hr) +
-             (fatal ? L"; rebuilding endpoint" : L""));
+    const unsigned side=captureSide ? 0 : 1;
+    const double now=AudioNow();
+    if (m_lastStreamError[side]!=hr || now-m_lastStreamErrorLog[side]>=5) {
+        AudioLog(std::wstring(what) + L" failed " + HrString(hr) +
+                 (fatal ? L"; rebuilding endpoint" : L""));
+        m_lastStreamError[side]=hr; m_lastStreamErrorLog[side]=now;
+    }
 
     if (!captureSide && m_exclusiveActive.load()) {
         m_exclusiveFailure=std::wstring(what)+L" "+HrString(hr);
@@ -833,6 +867,13 @@ void AudioRouter::RouteLoop()
     DWORD taskIndex = 0;
     HANDLE mmcss = AvSetMmThreadCharacteristicsW(L"Pro Audio", &taskIndex);
 
+    ++m_traceSession;
+    m_drift.Reset(); m_captureClockRate.Reset(); m_renderClockRate.Reset();
+    m_clockBlend.Reset(); m_recoveryGuard.Reset(); m_captureWatchdog.Reset(AudioNow());
+    m_clockState=AudioClockState::Learning;
+    m_hasPlayed=false; m_captureStalled=false; m_lastPacketTime=0; m_capturePending=false;
+    AudioTraceEvent session; session.kind=AudioTraceKind::Reset; session.flags=TraceNewSession;
+    Trace(session);
     bool firstAttemptReported = false;
 
     while (m_running) {
@@ -852,17 +893,17 @@ void AudioRouter::RouteLoop()
 
         if (!ready) {
             m_streaming = false;
+            m_playbackState=AudioPlaybackState::Waiting;
             WaitForSingleObject(m_stopEvent,kRetryIntervalMs);
             continue;
         }
-        m_streaming = true;
 
         // Sleep until either endpoint has something to do, or the stop event
         // fires. Always drain capture. Shared output may be topped up on
         // either wake; exclusive output writes exactly one full block only
         // when its own render event is signaled.
-        HANDLE waits[3] = { m_stopEvent, m_captureEvent, m_renderEvent };
-        const DWORD wake = WaitForMultipleObjects(3, waits, FALSE, kPumpWaitMs);
+        HANDLE waits[3] = { m_stopEvent, m_renderEvent, m_captureEvent };
+        const DWORD wake = WaitForMultipleObjects(3, waits, FALSE, m_capturePending ? 0 : kPumpWaitMs);
         if (wake == WAIT_OBJECT_0) break;
         if (wake == WAIT_FAILED) {
             AudioLog(L"WaitForMultipleObjects failed; retrying");
@@ -872,8 +913,12 @@ void AudioRouter::RouteLoop()
         // Release exclusive access before pumping again after an activation change.
         UpdateExclusiveFocus(OwnerIsForeground(),std::chrono::steady_clock::now());
         if (m_restartRender.load()) continue;
-        if (!DrainCapture()) continue;
-        const bool renderReady=wake==WAIT_OBJECT_0+2;
+        bool renderReady=wake==WAIT_OBJECT_0+1;
+        if (!renderReady) renderReady=WaitForSingleObject(m_renderEvent,0)==WAIT_OBJECT_0;
+        const double pumpStart=AudioNow();
+        const bool captured=DrainCapture(renderReady);
+        CheckCaptureProgress(AudioNow());
+        if (!captured && (m_restartCapture.load() || m_restartRender.load())) continue;
         if (m_exclusiveActive.load()) {
             if (renderReady) m_lastRenderEvent=std::chrono::steady_clock::now();
             else if (std::chrono::steady_clock::now()-m_lastRenderEvent>std::chrono::seconds(2)) {
@@ -882,6 +927,8 @@ void AudioRouter::RouteLoop()
             }
         }
         if (!FillRender(renderReady)) continue;
+        AudioTraceEvent timing; timing.kind=AudioTraceKind::Timing;
+        timing.workSeconds=AudioNow()-pumpStart; Trace(timing);
         LogStatsIfDue();
     }
 
@@ -906,6 +953,7 @@ void AudioRouter::RouteLoop()
 
 bool AudioRouter::FifoReset(UINT32 bytesPerFrame, UINT32 samplesPerSec)
 {
+    DiscardFifo();
     m_fifo.clear();
     if (!bytesPerFrame || bytesPerFrame > 256 || !samplesPerSec || samplesPerSec > 768000) return false;
     m_bytesPerFrame = bytesPerFrame;
@@ -929,6 +977,7 @@ void AudioRouter::FifoPush(const BYTE* data, UINT32 frames, bool silent)
     if (m_fifo.empty() || m_bytesPerFrame == 0 || (!silent && !data) || !frames) return;
     size_t bytes = (size_t)frames * m_bytesPerFrame;
     const size_t cap = m_fifo.size();
+    const bool discontinuity=bytes>cap-m_fifoBytes;
     if (bytes > cap) {
         m_overrunFrames += (bytes - cap) / m_bytesPerFrame;
         m_winOverrun += (bytes - cap) / m_bytesPerFrame;
@@ -955,6 +1004,10 @@ void AudioRouter::FifoPush(const BYTE* data, UINT32 frames, bool silent)
         if (bytes > first) memcpy(m_fifo.data(), data + first, bytes - first);
     }
     m_fifoBytes += bytes;
+    if (discontinuity) {
+        ++m_resyncs;
+        ResetDrift(true,DriftResetReason::BacklogTrim);
+    }
 }
 
 UINT32 AudioRouter::FifoPop(BYTE* out, UINT32 frames)
@@ -979,8 +1032,13 @@ void AudioRouter::FifoSkip(UINT32 frames)
     m_fifoBytes -= bytes;
 }
 
-bool AudioRouter::DrainCapture()
+bool AudioRouter::DrainCapture(bool& renderReady)
 {
+    // Capture bursts may not monopolize a thread with a ready output block.
+    // A pending packet resumes without sleeping; each pass has a time/count budget.
+    const auto drainStart=std::chrono::steady_clock::now();
+    unsigned packets=0;
+    m_capturePending=false;
     UINT32 packetLength = 0;
     HRESULT hr = m_captureService->GetNextPacketSize(&packetLength);
     if (FAILED(hr)) { HandleStreamError(hr, L"GetNextPacketSize", true); return false; }
@@ -996,37 +1054,85 @@ bool AudioRouter::DrainCapture()
             HandleStreamError(FAILED(release) ? release : E_INVALIDARG, L"invalid capture packet", true);
             return false;
         }
-        if ((flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY) && m_fifoPrimed) {
-            m_fifoHead = m_fifoBytes = 0;
-            m_fifoPrimed = false;
-            ++m_resyncs;
-            ResetDrift();
+        if (flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY) {
+            DiscardFifo(); ++m_resyncs;
+            ResetDrift(false,DriftResetReason::TimestampReset);
         }
+        const double packetNow=AudioNow();
+        m_captureWatchdog.Progress(packetNow,devicePosition,frames);
         if (flags & (AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR | AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY))
-            m_captureClockRate.Reset();
-        else if (frames)
-            m_captureClockRate.Sample(devicePosition, qpcPosition, m_samplesPerSec,
-                std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count());
+            m_captureClockRate.RejectTimestamp(packetNow);
+        else if (frames) m_captureClockRate.Sample(devicePosition,qpcPosition,m_samplesPerSec,packetNow);
+        AudioTraceEvent captured; captured.kind=AudioTraceKind::Capture; captured.now=packetNow;
+        captured.position=devicePosition; captured.qpc=qpcPosition; captured.frequency=m_samplesPerSec;
+        captured.frames=frames; captured.flags=flags & 7;
+        captured.packetInterval=m_lastPacketTime ? packetNow-m_lastPacketTime : 0;
+        m_lastPacketTime=packetNow; Trace(captured);
         FifoPush(data, frames, (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0);
         m_winIn += frames;
         hr = m_captureService->ReleaseBuffer(frames);
         if (FAILED(hr)) { HandleStreamError(hr, L"capture ReleaseBuffer", true); return false; }
         hr = m_captureService->GetNextPacketSize(&packetLength);
         if (FAILED(hr)) { HandleStreamError(hr, L"GetNextPacketSize", true); return false; }
+        ++packets;
+        if (!renderReady) renderReady=WaitForSingleObject(m_renderEvent,0)==WAIT_OBJECT_0;
+        const auto budget=std::chrono::microseconds(renderReady ? 250 : 1000);
+        if (packetLength && (packets >= (renderReady ? 4u : 32u) ||
+                std::chrono::steady_clock::now()-drainStart>=budget)) {
+            m_capturePending=true;
+            break;
+        }
     }
     return true;
 }
 
-void AudioRouter::ResetDrift(bool preserveClock) {
-    if (preserveClock) m_drift.Reprime();
+void AudioRouter::Trace(AudioTraceEvent event) {
+    if (!event.now) event.now=AudioNow();
+    event.session=m_traceSession; event.sourceRate=m_samplesPerSec;
+    event.renderRate=m_renderFormat ? m_renderFormat->nSamplesPerSec : 0;
+    event.fifoTargetFrames=UINT32(uint64_t(m_samplesPerSec)*m_fifoTargetMs.load()/1000);
+    m_trace.Push(event);
+}
+
+void AudioRouter::DiscardFifo() {
+    if (m_bytesPerFrame && m_fifoBytes) {
+        const UINT32 discarded=UINT32(m_fifoBytes/m_bytesPerFrame);
+        m_resetDiscardFrames+=discarded;
+        AudioTraceEvent e; e.kind=AudioTraceKind::Reset;
+        e.frames=discarded; e.state=uint32_t(DriftResetReason::DeviceChange); Trace(e);
+    }
+    m_fifoHead=m_fifoBytes=0; m_fifoPrimed=false; m_streaming=false;
+}
+
+void AudioRouter::CheckCaptureProgress(double now) {
+    const auto status=m_captureWatchdog.Observe(now);
+    m_captureStalled=status.stalled;
+    AudioTraceEvent e; e.kind=AudioTraceKind::Watchdog; e.now=now;
+    e.flags=(status.stalled ? TraceStalled : 0) | (status.restartCapture ? TraceRestartCapture : 0);
+    Trace(e);
+    if (status.stalled) { m_streaming=false; m_playbackState=AudioPlaybackState::CaptureStalled; }
+    if (status.restartCapture) { ++m_automaticReloads; m_restartCapture=true; }
+}
+
+void AudioRouter::ResetDrift(bool preserveClock, DriftResetReason reason) {
+    if (preserveClock && reason==DriftResetReason::DeviceChange) reason=DriftResetReason::Underflow;
+    AudioTraceEvent e; e.kind=AudioTraceKind::Reset; e.state=uint32_t(reason);
+    if (preserveClock) {
+        m_drift.Reprime(reason); e.flags=TraceReprime;
+        if (reason==DriftResetReason::BacklogTrim && m_conversionReady) m_processor.MarkDiscontinuity();
+    }
     else {
         m_drift.Reset(); m_driftPpm=0;
-        m_captureClockRate.Reset(); m_renderClockRate.Reset();
-        m_estimatedPpm=0; m_clockEstimateValid=false;
+        m_captureClockRate.Reset(); m_renderClockRate.Reset(); m_clockBlend.Reset();
+        m_estimatedPpm=0; m_clockEstimateValid=false; m_clockConfidence=0;
+        m_clockState=AudioClockState::Learning;
         m_recoveryGuard.ClearWindow();
+        if (m_conversionReady) m_processor.Reset();
+        e.flags=TraceResetController | TraceResetClocks | TraceClearRecovery;
     }
+    Trace(e);
     m_slipBudget=0;
-    m_phase=m_conversionReady ? m_sinc.History() : 1.0;
+    m_phase=m_conversionReady ? m_processor.History() : 1.0;
     m_lastDrift=std::chrono::steady_clock::now();
     m_occupancyStart=m_occupancyLast=m_lastDrift;
     m_occupancyIntegral=m_occupancySeconds=0;
@@ -1045,61 +1151,53 @@ void AudioRouter::SetupRenderClock() {
 double AudioRouter::ReadClockEstimate(double now) {
     if (m_renderClock) {
         UINT64 position=0, qpc=0;
-        // S_FALSE reports an imprecise measurement; never feed it to the estimator.
-        if (m_renderClock->GetPosition(&position,&qpc)==S_OK)
-            m_renderClockRate.Sample(position,qpc,double(m_renderClockFrequency),now);
+        const HRESULT hr=m_renderClock->GetPosition(&position,&qpc);
+        if (hr==S_OK) m_renderClockRate.Sample(position,qpc,double(m_renderClockFrequency),now);
+        else m_renderClockRate.RejectTimestamp(now);
+        AudioTraceEvent e; e.kind=AudioTraceKind::RenderClock; e.now=now;
+        e.position=position; e.qpc=qpc; e.frequency=double(m_renderClockFrequency);
+        e.flags=hr==S_OK ? 0 : TraceTimestampError; Trace(e);
     }
-    const bool valid=m_captureClockRate.Valid(now) && m_renderClockRate.Valid(now);
-    const double estimate=valid ? (m_captureClockRate.Rate()/m_renderClockRate.Rate()-1)*1e6 : 0;
-    m_clockEstimateValid=valid;
-    m_estimatedPpm=int(std::lround(estimate));
-    return valid ? std::clamp(estimate,-2000.0,2000.0) : 0;
+    const auto estimate=m_clockBlend.Update(m_captureClockRate,m_renderClockRate,now);
+    m_clockEstimateValid=estimate.state==AudioClockState::Fresh;
+    m_estimatedPpm=int(std::lround(estimate.ppm));
+    m_clockConfidence=unsigned(std::lround(estimate.confidence*100));
+    m_clockState=estimate.state;
+    AudioTraceEvent e; e.kind=AudioTraceKind::ClockEstimate; e.now=now;
+    e.clockPpm=estimate.ppm; e.confidence=estimate.confidence; e.state=uint32_t(estimate.state); Trace(e);
+    return estimate.ppm;
 }
 
 void AudioRouter::ObserveRecovery(double now, double error, double missing, double block) {
-    if (!m_driftEnabled.load()) { m_recoveryGuard.ClearWindow(); return; }
-    if (m_recoveryGuard.Observe(now,error,missing,block)) {
+    const bool enabled=m_driftEnabled.load();
+    const auto action=enabled ? m_recoveryGuard.Decide(now,error,missing,block) : AudioRecoveryAction::None;
+    if (!enabled) m_recoveryGuard.ClearWindow();
+    AudioTraceEvent e; e.kind=AudioTraceKind::RenderResult; e.now=now;
+    e.flags=enabled ? (TraceDriftEnabled | TraceObserveRecovery) : TraceClearRecovery; e.errorSeconds=error; e.dt=block;
+    e.want=UINT32(std::llround(block*(m_renderFormat ? m_renderFormat->nSamplesPerSec : 48000)));
+    e.missingFrames=UINT32(std::llround(missing*(m_renderFormat ? m_renderFormat->nSamplesPerSec : 48000)));
+    e.frames=e.want-e.missingFrames; e.recovery=uint32_t(action); Trace(e);
+    if (action==AudioRecoveryAction::None) return;
+    m_streaming=false; m_playbackState=AudioPlaybackState::Recovering;
+    if (action==AudioRecoveryAction::Reprime) {
+        ++m_localReprimes; m_fifoPrimed=false; ResetDrift(true,DriftResetReason::Underflow);
+    } else {
         ++m_automaticReloads;
-        // EnsureEndpoints rebuilds both clients on the next worker iteration.
-        // No fault latch: the preferred exclusive mode can be opened again.
-        m_restartCapture=true;
-        AudioLog(L"audio recovery threshold exceeded; reloading endpoints (10 s cooldown, FIFO target unchanged)");
+        if (action==AudioRecoveryAction::RestartBoth) m_restartCapture=true;
+        else m_restartRender=true;
     }
 }
 
 UINT32 AudioRouter::FifoResample(BYTE* out, UINT32 frames, double ratio) {
     if (!out || !m_conversionReady || !std::isfinite(ratio) || ratio<=0) return 0;
-    const UINT32 fill=UINT32(m_fifoBytes/m_bytesPerFrame);
-    const UINT32 history=m_sinc.History(), taps=m_sinc.Taps();
-    const UINT32 inBytes=m_inputPcm.bits/8, outBytes=m_outputPcm.bits/8;
-    UINT32 written=0;
-    for (;written<frames;++written) {
-        const UINT32 k=UINT32(m_phase);
-        if (k<history || k-history+taps>fill) break;
-        const double phase=(m_phase-k)*AudioConvert::SincKernel::Phases;
-        const unsigned p=std::min(unsigned(phase),AudioConvert::SincKernel::Phases-1);
-        const double fraction=phase-p;
-        const float *a=m_sinc.Phase(p), *b=m_sinc.Phase(p+1);
-        std::array<double,32> input{}, output{};
-        for (unsigned tap=0;tap<taps;++tap) {
-            const double weight=a[tap]+fraction*(b[tap]-a[tap]);
-            const size_t at=(m_fifoHead+size_t(k-history+tap)*m_bytesPerFrame)%m_fifo.size();
-            for (unsigned ch=0;ch<m_inputPcm.channels;++ch)
-                input[ch]+=weight*AudioConvert::Read(m_fifo.data()+at+ch*inBytes,m_inputPcm);
-        }
-        AudioConvert::Map(input.data(),m_inputPcm,output.data(),m_outputPcm);
-        for (unsigned ch=0;ch<m_outputPcm.channels;++ch)
-            AudioConvert::Write(out+size_t(written)*m_renderFormat->nBlockAlign+ch*outBytes,m_outputPcm,output[ch]);
-        m_phase+=ratio;
-    }
-    // Retain FIR history plus the fractional phase across arbitrary packets.
-    const UINT32 consumed=UINT32(m_phase)-history;
-    FifoSkip(consumed); m_phase-=consumed;
-    return written;
+    const auto result=m_processor.RenderRing(out,frames,m_fifo.data(),m_fifo.size(),m_fifoHead,
+        UINT32(m_fifoBytes/m_bytesPerFrame),ratio,m_phase,m_volume.load(),m_muted.load());
+    FifoSkip(result.consumed); m_lastRenderSilent=result.silent;
+    return result.written;
 }
 
 void AudioRouter::PublishQueue(UINT32 padding) {
-    const UINT32 history=m_conversionReady ? m_sinc.History() : 0;
+    const UINT32 history=m_conversionReady ? m_processor.History() : 0;
     const UINT32 fill=UINT32(m_fifoBytes/m_bytesPerFrame);
     const UINT32 fifoUs=UINT32(uint64_t(fill>history ? fill-history : 0)*1000000/m_samplesPerSec);
     const UINT32 queueUs=UINT32(uint64_t(padding)*1000000/m_renderFormat->nSamplesPerSec);
@@ -1123,6 +1221,7 @@ bool AudioRouter::FillRender(bool renderReady)
 {
     if (!m_bytesPerFrame || !m_samplesPerSec || !m_renderFormat) return true;
     const bool exclusive=m_exclusiveActive.load();
+    const bool driftEnabled=m_driftEnabled.load() && !(m_conversionReady && m_processor.Bypass());
     // Capture notifications/timeouts must never write an exclusive ping-pong buffer.
     if (exclusive && !renderReady) return true;
     UINT32 padding=0;
@@ -1144,8 +1243,8 @@ bool AudioRouter::FillRender(bool renderReady)
     const double nowSeconds=std::chrono::duration<double>(pumpNow.time_since_epoch()).count();
     const double clockPpm=ReadClockEstimate(nowSeconds);
     UINT32 fill=UINT32(m_fifoBytes/m_bytesPerFrame);
-    const UINT32 history=m_conversionReady ? m_sinc.History() : 0;
-    const UINT32 lookahead=m_conversionReady ? m_sinc.Taps()-history : 0;
+    const UINT32 history=m_conversionReady ? m_processor.History() : 0;
+    const UINT32 lookahead=m_conversionReady ? m_processor.Lookahead() : 0;
     // All FIFO/controller math is in SOURCE frames. Padding and requests are
     // in RENDER frames and must be converted when nominal rates differ.
     const UINT32 need=UINT32(std::ceil(want*baseRatio*1.002))+lookahead+1;
@@ -1156,18 +1255,32 @@ bool AudioRouter::FillRender(bool renderReady)
         const UINT32 keep=history+reserve+need;
         if (fill>keep) {
             const UINT32 drop=fill-keep; FifoSkip(drop); fill-=drop;
-            m_overrunFrames+=drop; m_winOverrun+=drop; ++m_resyncs; ResetDrift(true);
+            m_overrunFrames+=drop; m_winOverrun+=drop; ++m_resyncs; ResetDrift(true,DriftResetReason::BacklogTrim);
         }
     }
     if (!m_fifoPrimed) {
         if (fill<history+reserve+need) {
-            if (exclusive) {
-                BYTE* silent=nullptr;
-                hr=m_renderService->GetBuffer(want,&silent);
-                if (SUCCEEDED(hr)) hr=m_renderService->ReleaseBuffer(want,AUDCLNT_BUFFERFLAGS_SILENT);
-                if (FAILED(hr)) { HandleStreamError(hr,L"exclusive priming silence",false); return false; }
+            m_streaming=false;
+            m_playbackState=m_captureStalled ? AudioPlaybackState::CaptureStalled :
+                (m_hasPlayed ? AudioPlaybackState::Rebuffering : AudioPlaybackState::Priming);
+            BYTE* silent=nullptr;
+            hr=m_renderService->GetBuffer(want,&silent);
+            bool allSilent=true;
+            if (SUCCEEDED(hr)) {
+                if (m_conversionReady) allSilent=m_processor.FillSilence(silent,want,m_volume.load(),m_muted.load()).silent;
+                hr=m_renderService->ReleaseBuffer(want,allSilent ? AUDCLNT_BUFFERFLAGS_SILENT : 0);
             }
-            PublishQueue(exclusive ? queue : padding); return true;
+            if (FAILED(hr)) { HandleStreamError(hr,L"priming silence",false); return false; }
+            if (m_hasPlayed) m_rebufferFrames+=want; else m_startupSilenceFrames+=want;
+            const double recoveryNow=AudioNow();
+            const bool enabled=m_driftEnabled.load();
+            const auto action=enabled ? m_recoveryGuard.Decide(recoveryNow,0,0,double(want)/renderRate) : AudioRecoveryAction::None;
+            if (!enabled) m_recoveryGuard.ClearWindow();
+            AudioTraceEvent e; e.kind=AudioTraceKind::RenderResult; e.now=recoveryNow;
+            e.flags=enabled ? (TraceDriftEnabled | TraceObserveRecovery) : TraceClearRecovery; e.want=want; e.rebufferFrames=want;
+            if (!m_hasPlayed) e.flags|=TraceStartupSilence;
+            e.dt=double(want)/renderRate; e.recovery=uint32_t(action); Trace(e);
+            PublishQueue(queue); return true;
         }
         m_fifoPrimed=true; ResetDrift(true);
     }
@@ -1177,9 +1290,15 @@ bool AudioRouter::FillRender(bool renderReady)
     // future taps. Observe the trough across packets before speeding up input.
     const double headroom=(double(fill)-(m_conversionReady ? m_phase+lookahead : 0)
         -want*baseRatio)/m_samplesPerSec;
-    const double ppm=m_driftEnabled.load() ? m_drift.Update(
+    const double ppm=driftEnabled ? m_drift.Update(
         (double(fill)-history+padding*baseRatio-target)/m_samplesPerSec,dt,clockPpm,headroom) : 0;
     m_driftPpm=int(std::lround(ppm));
+    AudioTraceEvent control; control.kind=AudioTraceKind::Control;
+    control.flags=driftEnabled ? TraceDriftEnabled : 0;
+    control.dt=dt; control.fill=fill; control.padding=padding; control.want=want;
+    control.errorSeconds=(double(fill)-history+padding*baseRatio-target)/m_samplesPerSec;
+    control.headroomSeconds=headroom; control.clockPpm=clockPpm; control.ppm=ppm;
+    control.ratio=baseRatio*(1+ppm/1000000); Trace(control);
     BYTE* out=nullptr;
     hr=m_renderService->GetBuffer(want,&out);
     if (FAILED(hr)) { HandleStreamError(hr,L"render GetBuffer",false); return false; }
@@ -1201,18 +1320,22 @@ bool AudioRouter::FillRender(bool renderReady)
         }
     }
     if (written<want) {
-        memset(out+size_t(written)*m_renderFormat->nBlockAlign,
+        if (!m_conversionReady) memset(out+size_t(written)*m_renderFormat->nBlockAlign,
             m_renderFormat->wBitsPerSample==8 ? 128 : 0,size_t(want-written)*m_renderFormat->nBlockAlign);
         m_underrunFrames+=want-written; m_winUnderrun+=want-written;
         ++m_underrunEvents;
         m_fifoPrimed=false; ResetDrift(true);
     }
-    const bool silent=m_muted.load() || written==0;
+    const bool silent=m_conversionReady ? m_lastRenderSilent : (m_muted.load() || written==0);
     const float volume=m_volume.load();
-    if (!silent && volume<0.999f) ScaleInPlace(out,want,m_renderFormat,volume);
+    if (!m_conversionReady && !silent && volume<0.999f) ScaleInPlace(out,want,m_renderFormat,volume);
     hr=m_renderService->ReleaseBuffer(want,silent ? AUDCLNT_BUFFERFLAGS_SILENT : 0);
     if (FAILED(hr)) { HandleStreamError(hr,L"render ReleaseBuffer",false); return false; }
-    ObserveRecovery(nowSeconds,error,double(want-written)/renderRate,double(want)/renderRate);
+    m_streaming=written>0 && !m_captureStalled;
+    if (written>0) m_hasPlayed=true;
+    m_playbackState=m_captureStalled ? AudioPlaybackState::CaptureStalled :
+        (written<want ? AudioPlaybackState::Rebuffering : AudioPlaybackState::Playing);
+    ObserveRecovery(AudioNow(),error,double(want-written)/renderRate,double(want)/renderRate);
     m_winOut+=want;
     // Refresh actual padding after release, rather than reporting the target.
     if (!exclusive) {
@@ -1240,12 +1363,14 @@ void AudioRouter::UpdateExclusiveFocus(bool foreground, ExclusiveFocusGate::Cloc
     const bool allowed=m_focusGate.Update(foreground,now);
     if (m_exclusivePermitted.exchange(allowed)==allowed || !m_exclusiveRequested.load()) return;
     if (allowed) m_retryExclusive=true; // a new foreground session may retry a previous fallback
+    m_renderResetReason=DriftResetReason::UserChange;
     m_restartRender=true;
 }
 
 void AudioRouter::SetExclusive(bool enabled) {
     if (m_exclusiveRequested.exchange(enabled)!=enabled) {
         m_retryExclusive=true;
+        m_renderResetReason=DriftResetReason::UserChange;
         m_restartRender=true;
     }
 }
@@ -1256,24 +1381,18 @@ void AudioRouter::SetLatency(int fifoMs, int renderMs, bool drift) {
     const bool fifoChanged = m_fifoTargetMs.exchange(fifoMs) != fifoMs;
     const bool queueChanged = m_renderQueueTargetMs.exchange(renderMs) != renderMs;
     const bool driftChanged = m_driftEnabled.exchange(drift) != drift;
-    if (fifoChanged || queueChanged || driftChanged) m_restartRender = true;
+    if (fifoChanged || queueChanged || driftChanged) {
+        m_renderResetReason=DriftResetReason::UserChange;
+        m_restartRender=true;
+    }
 }
 
 void AudioRouter::LogStatsIfDue()
 {
     const auto now = std::chrono::steady_clock::now();
     if (now - m_winStart < std::chrono::milliseconds(kStatsIntervalMs)) return;
-    std::wstringstream ss;
-    ss << L"stats: fill " << m_fillMs.load() << L" ms (min "
-       << (m_winFillMin == 0xFFFFFFFFu ? 0u : m_winFillMin) << L", max " << m_winFillMax
-       << L"), in " << m_winIn << L", out " << m_winOut
-       << L", underrun " << m_winUnderrun << L", overrun " << m_winOverrun
-       << L", render " << m_queueMs.load() << L" ms, drift " << m_driftPpm.load()
-       << L" ppm, estimate " << m_estimatedPpm.load() << L" ppm (valid " << m_clockEstimateValid.load()
-       << L"), underrun events " << m_underrunEvents.load() << L", automatic reloads " << m_automaticReloads.load()
-       << L", resync " << m_resyncs.load()
-       << L", slip +" << m_winSlipDrop << L"/-" << m_winSlipDup;
-    AudioLog(ss.str());
+    // Structured telemetry is copied to the trace ring on the worker. Formatting
+    // and disk writes are performed only by the non-realtime export consumer.
     m_winStart = now;
     m_winIn = m_winOut = m_winUnderrun = m_winOverrun = m_winSlipDrop = m_winSlipDup = 0;
     m_winFillMin = 0xFFFFFFFFu;

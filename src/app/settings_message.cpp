@@ -238,7 +238,9 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
         L"clearNoSignalImage", L"cycleNoSignalFit", L"cycleNoSignalDimImage",
         L"cyclePresentPacing", L"cycleAspect", L"cyclePanelSide", L"cycleScaler",
         L"clearGame", L"resetGameSettings", L"saveGameSettings", L"getDeviceList", L"refreshDevices",
-        L"openScreenshotFolder", L"checkHolyBearUpdate", L"markHolyBearUpdateSeen",L"getAccountLibrary",L"openPsnCookie"})) {
+        L"openScreenshotFolder", L"exportAudioTrace", L"checkHolyBearUpdate", L"markHolyBearUpdateSeen",
+        L"downloadHolyBearUpdate", L"cancelHolyBearUpdateDownload", L"installHolyBearUpdate",
+        L"getAccountLibrary",L"openPsnCookie"})) {
         if (value) return std::nullopt;
     } else if (action == L"restoreAutoCover" || action == L"cancelGameSearch") {
         if (value) return std::nullopt;

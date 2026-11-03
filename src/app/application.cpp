@@ -1385,6 +1385,10 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             CycleNoSignalFit();
             return;
         }
+        if (action == L"exportAudioTrace") {
+            ExportAudioTrace();
+            return;
+        }
         if (action == L"cycleNoSignalDimImage") {
             CycleNoSignalDimImage();
             return;
@@ -4554,6 +4558,59 @@ bool Application::ChooseNoSignalImage()
     if (FAILED(hr) || FAILED(dialog->SetOptions(
             options | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST))) {
         AppLog(L"ChooseNoSignalImage: failed to configure dialog options");
+bool Application::ExportAudioTrace()
+{
+    if (!m_audioRouter || !m_window || m_audioTraceExporting) return false;
+    m_audioTraceExporting = true;
+    struct ExportGuard {
+        bool& active;
+        ~ExportGuard() { active = false; }
+    } guard{m_audioTraceExporting};
+    const auto failed = [this](const std::wstring& detail) {
+        AppLog(L"Audio trace export: " + detail);
+        ShowToast(Tr(L"toast.audioTraceFailed"), std::chrono::milliseconds(6000));
+        return false;
+    };
+
+    // The web message carries no filename. Only the native save dialog can
+    // choose a destination, including confirmation before an existing file is replaced.
+    ComPtr<IFileSaveDialog> dialog;
+    HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                  IID_PPV_ARGS(&dialog));
+    if (FAILED(hr)) return failed(L"could not create the save dialog");
+    const std::wstring title = Tr(L"dialog.exportAudioTrace");
+    const std::wstring filter = Tr(L"dialog.audioTraceFilter");
+    const COMDLG_FILTERSPEC filters[] = {{filter.c_str(), L"*.csv"}};
+    FILEOPENDIALOGOPTIONS options{};
+    if (FAILED(dialog->GetOptions(&options)) ||
+        FAILED(dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST |
+                                   FOS_OVERWRITEPROMPT | FOS_STRICTFILETYPES)) ||
+        FAILED(dialog->SetFileTypes(ARRAYSIZE(filters), filters)) ||
+        FAILED(dialog->SetFileTypeIndex(1)) || FAILED(dialog->SetDefaultExtension(L"csv")) ||
+        FAILED(dialog->SetTitle(title.c_str()))) return failed(L"could not configure the save dialog");
+    SYSTEMTIME now{};
+    GetLocalTime(&now);
+    wchar_t filename[96]{};
+    swprintf_s(filename, L"nitlink-audio-%04u%02u%02u-%02u%02u%02u.csv",
+        unsigned(now.wYear), unsigned(now.wMonth), unsigned(now.wDay),
+        unsigned(now.wHour), unsigned(now.wMinute), unsigned(now.wSecond));
+    if (FAILED(dialog->SetFileName(filename))) return failed(L"could not set the suggested filename");
+    hr = dialog->Show(m_webviewSettings->GetParentWindow());
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return false;
+    if (FAILED(hr)) return failed(L"save dialog failed");
+    ComPtr<IShellItem> item;
+    if (FAILED(dialog->GetResult(&item)) || !item) return failed(L"no destination was selected");
+    PWSTR rawPath = nullptr;
+    hr = item->GetDisplayName(SIGDN_FILESYSPATH, &rawPath);
+    if (FAILED(hr) || !rawPath) return failed(L"selected destination has no filesystem path");
+    const std::filesystem::path path(rawPath);
+    CoTaskMemFree(rawPath);
+    std::string error;
+    if (!m_audioRouter->ExportTrace(path,error)) return failed(Utf8ToWide(error));
+    ShowToast(Tr(L"toast.audioTraceSaved"), std::chrono::milliseconds(5000));
+    return true;
+}
+
         return false;
     }
 
@@ -5252,7 +5309,18 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
         for (const auto& af : formats) {
             if (af.interlaced) continue;
             if (!firstFormat) js << L",";
+    js << L"\"audioTraceAvailable\":" << (m_audioRouter ? L"true" : L"false") << L",";
             firstFormat = false;
+        const wchar_t* playbackState = L"waiting";
+        switch (m_audioRouter->PlaybackState()) {
+        case AudioPlaybackState::Waiting: break;
+        case AudioPlaybackState::Priming: playbackState=L"priming"; break;
+        case AudioPlaybackState::Playing: playbackState=L"playing"; break;
+        case AudioPlaybackState::Rebuffering: playbackState=L"rebuffering"; break;
+        case AudioPlaybackState::CaptureStalled: playbackState=L"captureStalled"; break;
+        case AudioPlaybackState::Recovering: playbackState=L"recovering"; break;
+        }
+        js << L"\"audioPlaybackState\":\"" << playbackState << L"\",";
             js << L"{\"width\":"   << af.width
                << L",\"height\":" << af.height
                << L",\"fps\":"    << af.fps
@@ -5268,12 +5336,19 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     // storage in m_config->captureFormatOverrides; the JS wire schema
     // stays single-object because the picker only ever shows one
     // device's choices at a time. Switching devices triggers another
+        js << L"\"audioClockState\":" << unsigned(m_audioRouter->ClockState()) << L",";
+        js << L"\"audioClockConfidence\":" << m_audioRouter->ClockConfidencePercent() << L",";
+        js << L"\"audioStartupSilence\":" << m_audioRouter->StartupSilenceFrames() << L",";
+        js << L"\"audioRebufferFrames\":" << m_audioRouter->RebufferFrames() << L",";
+        js << L"\"audioResetDiscardFrames\":" << m_audioRouter->ResetDiscardFrames() << L",";
+        js << L"\"audioLocalReprimes\":" << m_audioRouter->LocalReprimes() << L",";
     // PushSettingsState which emits the new device's saved override.
     //
     // Convention: each numeric field at 0 means Auto for that dimension;
     // empty format string means Auto for format. All-Auto = full automatic
     // negotiation (default). The JS side mirrors this interpretation;
     // no separate "isAuto" flag is needed.
+        js << L"\"audioSrcBypassed\":" << (m_audioRouter->SrcBypassed() ? L"true" : L"false") << L",";
     {
         const CaptureFormatOverride ov =
             m_config->GetOverride(m_currentDeviceInfo.name);

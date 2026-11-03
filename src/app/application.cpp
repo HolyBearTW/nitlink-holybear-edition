@@ -4598,6 +4598,51 @@ bool Application::ChooseNoSignalImage()
     if (FAILED(hr) || FAILED(dialog->SetOptions(
             options | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST))) {
         AppLog(L"ChooseNoSignalImage: failed to configure dialog options");
+
+        return false;
+    }
+
+    hr = dialog->Show(m_window->GetHWND());
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return false;
+    if (FAILED(hr)) {
+        AppLog(L"ChooseNoSignalImage: dialog failed");
+        return false;
+    }
+
+    ComPtr<IShellItem> item;
+    hr = dialog->GetResult(&item);
+    if (FAILED(hr) || !item) {
+        AppLog(L"ChooseNoSignalImage: GetResult failed");
+        return false;
+    }
+
+    PWSTR rawPath = nullptr;
+    hr = item->GetDisplayName(SIGDN_FILESYSPATH, &rawPath);
+    if (FAILED(hr) || !rawPath) {
+        AppLog(L"ChooseNoSignalImage: GetDisplayName failed");
+        return false;
+    }
+    const std::wstring path(rawPath);
+    CoTaskMemFree(rawPath);
+
+    const std::string utf8Path = WideToUtf8(path);
+    if (utf8Path.empty()) {
+        AppLog(L"ChooseNoSignalImage: selected path is not valid Unicode");
+        return false;
+    }
+
+    AppLog(L"No Signal image selected: \"" + path + L"\"");
+    m_config->noSignalImage = utf8Path;
+    m_config->noSignalMode = "image";
+    const bool loaded = ApplyNoSignalSettings(/*forceReload=*/true);
+    if (!m_config->Save("nitlink.json")) {
+        AppLog(L"No Signal image: could not save nitlink.json");
+    }
+    if (loaded) ShowToast(Tr(L"toast.noSignalImageLoaded"), std::chrono::milliseconds(5000));
+    PushSettingsState();
+    return true;
+}
+
 bool Application::ExportAudioTrace()
 {
     if (!m_audioRouter || !m_window || m_audioTraceExporting) return false;
@@ -4648,50 +4693,6 @@ bool Application::ExportAudioTrace()
     std::string error;
     if (!m_audioRouter->ExportTrace(path,error)) return failed(Utf8ToWide(error));
     ShowToast(Tr(L"toast.audioTraceSaved"), std::chrono::milliseconds(5000));
-    return true;
-}
-
-        return false;
-    }
-
-    hr = dialog->Show(m_window->GetHWND());
-    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return false;
-    if (FAILED(hr)) {
-        AppLog(L"ChooseNoSignalImage: dialog failed");
-        return false;
-    }
-
-    ComPtr<IShellItem> item;
-    hr = dialog->GetResult(&item);
-    if (FAILED(hr) || !item) {
-        AppLog(L"ChooseNoSignalImage: GetResult failed");
-        return false;
-    }
-
-    PWSTR rawPath = nullptr;
-    hr = item->GetDisplayName(SIGDN_FILESYSPATH, &rawPath);
-    if (FAILED(hr) || !rawPath) {
-        AppLog(L"ChooseNoSignalImage: GetDisplayName failed");
-        return false;
-    }
-    const std::wstring path(rawPath);
-    CoTaskMemFree(rawPath);
-
-    const std::string utf8Path = WideToUtf8(path);
-    if (utf8Path.empty()) {
-        AppLog(L"ChooseNoSignalImage: selected path is not valid Unicode");
-        return false;
-    }
-
-    AppLog(L"No Signal image selected: \"" + path + L"\"");
-    m_config->noSignalImage = utf8Path;
-    m_config->noSignalMode = "image";
-    const bool loaded = ApplyNoSignalSettings(/*forceReload=*/true);
-    if (!m_config->Save("nitlink.json")) {
-        AppLog(L"No Signal image: could not save nitlink.json");
-    }
-    if (loaded) ShowToast(Tr(L"toast.noSignalImageLoaded"), std::chrono::milliseconds(5000));
-    PushSettingsState();
     return true;
 }
 

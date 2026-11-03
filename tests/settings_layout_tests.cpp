@@ -220,7 +220,9 @@ void PushAboutUpdate(WebViewSettings& host, const wchar_t* side, const wchar_t* 
     message += unread ? L"true" : L"false";
     message += L",\"url\":\"";
     message += url;
-    message += L"\"}}}";
+    message += L"\",\"canDownload\":";
+    message += hasNewer && NitLink::HolyBear::IsReleaseUrl(url) ? L"true" : L"false";
+    message += L",\"transferStatus\":\"idle\",\"packageBytes\":8388608,\"publishedAt\":\"2026-11-03T00:00:00Z\",\"notes\":\"\"}}}";
     host.PostMessage(message);
     auto* view = WebViewSettingsTestAccess::View(host);
     std::wstring ready = L"(() => { const node=document.querySelector('#holy-bear-update-status'); "
@@ -231,7 +233,7 @@ void PushAboutUpdate(WebViewSettings& host, const wchar_t* side, const wchar_t* 
     ready += L"'];";
     if (std::wstring_view(status) == L"available")
         ready += L"expected=expected.replace('{version}','" +
-            std::wstring(latest).substr(1) + L"');";
+            std::wstring(latest).substr(1, std::wstring(latest).size() - 10) + L"')+' · 8 MB · '+new Date('2026-11-03T00:00:00Z').toLocaleDateString('" + locale + L"');";
     ready += L"const date = new Date(" + std::to_wstring(timestamp) + L" * 1000); "
         L"const expectedTime = " + std::to_wstring(timestamp) + L" > 0 && !Number.isNaN(date.getTime()) "
         L"? date.toLocaleString('" + locale + L"') : window.NitLinkLocales['" + locale + L"']['update.never']; ";
@@ -743,8 +745,91 @@ void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstri
     }
 }
 
-void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& messages) {
+void TestUpdateFlow(WebViewSettings& host, HWND window, std::vector<std::wstring>& messages,
+                    const std::filesystem::path& captures = {}) {
+    Resize(host, window, 1120, 840, WebViewSettings::Dock::Full);
+    PushState(host, L"Full", L"zh-TW");
     auto* view = WebViewSettingsTestAccess::View(host);
+    const std::wstring prefix = LR"({"state":{"holyBearUpdate":{"current":"1.2.5.3-holybear","latest":"v1.2.5.4-holybear","lastCheckUtc":1793692800,"status":"available","hasNewer":true,"unread":true,"busy":false,"canDownload":true,"packageBytes":8388608,"receivedBytes":4194304,"publishedAt":"2026-11-03T08:00:00Z","notes":"## 更新內容\n\n- **程式內更新**：查看日誌、下載與安裝都在 NitLink 完成。\n- 更新時保留設定、帳號連動及遊戲圖片。\n\n### 操作方式\n\n1. 點選「下載更新」。\n2. 等待下載與驗證完成。\n3. 點選「安裝更新」，完成後自動重新開啟。\n\n```text\nNitLink HolyBear Edition\n```\n\n[版本說明](https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.4-holybear)\n\n<script>window.__updateInjected=true</script><img src='https://blocked.invalid/notes' onerror='window.__updateInjected=true'><button data-action='installHolyBearUpdate'></button><a href='javascript:alert(1)'></a>","transferStatus":")";
+    const auto push = [&](const wchar_t* phase, bool automatic = true) {
+        host.PostMessage(prefix + phase + L"\",\"automatic\":" + (automatic ? L"true" : L"false") + L"}}}");
+        Check(PumpUntil([&] { return Script(view, L"document.querySelector('.about-update').dataset.transfer === '" +
+            std::wstring(phase) + L"'") == L"true"; }), "update transfer state reaches the real native WebView");
+    };
+    push(L"idle");
+    Script(view, L"document.querySelector('.rail-item[data-tab=\"pane-video\"]').click()");
+    host.PostMessage(LR"({"state":{"showHolyBearUpdate":true}})");
+    Check(PumpUntil([&] { return Script(view, L"document.documentElement.dataset.activePane === 'pane-about'") == L"true"; }),
+        "native update notification opens About without visiting a web page");
+    Check(Script(view, LR"JS((() => {
+        const notes=document.getElementById('holy-bear-release-notes');
+        return notes.querySelector('h2').textContent === '更新內容' && notes.querySelectorAll('li').length === 5 &&
+            notes.querySelector('strong').textContent === '程式內更新' && !!notes.querySelector('pre code') &&
+            !!notes.querySelector('a[href="https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.4-holybear"]') &&
+            !notes.querySelector('script,img,button,input,iframe,style,[data-action],[onerror]') &&
+            ![...notes.querySelectorAll('a')].some(a=>a.getAttribute('href')?.startsWith('javascript:')) &&
+            !window.__updateInjected;
+    })())JS") == L"true", "Markdown headings, lists, emphasis, code and links render while active HTML is removed");
+    for (const auto dock : {WebViewSettings::Dock::Full, WebViewSettings::Dock::Left, WebViewSettings::Dock::Right}) {
+        const auto side = dock == WebViewSettings::Dock::Full ? L"Full" : dock == WebViewSettings::Dock::Left ? L"Left" : L"Right";
+        Resize(host, window, 1920, 1080, dock);
+        PushState(host, side, L"zh-TW");
+        Script(view, L"document.querySelector('main').scrollTop = 0");
+        Check(Script(view, LR"JS((() => {
+            const main = document.querySelector('main').getBoundingClientRect();
+            const card = document.querySelector('.about-update').getBoundingClientRect();
+            const full = document.documentElement.dataset.side === 'full';
+            return Math.abs(card.left - main.left - (full ? 22 : 16)) < 1 &&
+                Math.abs(card.top - main.top - (full ? 22 : 10)) < 1;
+        })())JS") == L"true", "update card uses one content inset in Full and both docked layouts");
+    }
+    Resize(host, window, 1120, 840, WebViewSettings::Dock::Full);
+    PushState(host, L"Full", L"zh-TW");
+    Script(view, L"document.querySelector('main').scrollTop = 0");
+    if (!captures.empty()) {
+        std::filesystem::create_directories(captures);
+        Capture(view, captures / L"update-available-native-fixture.png");
+    }
+    auto before = messages.size();
+    Script(view, L"document.getElementById('holy-bear-check-update').click()");
+    Check(PumpUntil([&] { return messages.size() == before + 1; }) &&
+        NitLink::ParseSettingsMessage(messages.back())->action == L"downloadHolyBearUpdate",
+        "Download sends only the native update action, never a URL or a filesystem path");
+    Script(view, L"window.__updateNotesFirst = document.getElementById('holy-bear-release-notes').firstElementChild");
+    push(L"downloading");
+    Check(Script(view, L"document.getElementById('holy-bear-check-update').disabled && "
+        L"document.getElementById('holy-bear-download-progress').value === 50 && "
+        L"!document.getElementById('holy-bear-cancel-download').hidden && "
+        L"window.__updateNotesFirst === document.getElementById('holy-bear-release-notes').firstElementChild") == L"true",
+        "download progress updates without replacing the Markdown or enabling duplicate downloads");
+    if (!captures.empty()) Capture(view, captures / L"update-downloading-native-fixture.png");
+    before = messages.size();
+    Script(view, L"document.getElementById('holy-bear-cancel-download').click()");
+    Check(PumpUntil([&] { return messages.size() == before + 1; }) &&
+        NitLink::ParseSettingsMessage(messages.back())->action == L"cancelHolyBearUpdateDownload", "Cancel reaches the native transfer worker");
+    push(L"cancelled");
+    Check(Script(view, L"!document.getElementById('holy-bear-check-update').disabled && document.getElementById('holy-bear-download-progress').hidden") == L"true",
+        "cancelled download can be started again");
+    push(L"ready");
+    Check(Script(view, L"document.getElementById('holy-bear-check-update').textContent === NitLinkLocales['zh-TW']['update.install'] && "
+        L"!document.getElementById('holy-bear-check-update').disabled && document.getElementById('holy-bear-download-progress').hidden") == L"true",
+        "a verified Ready state becomes Install rather than opening a download folder");
+    if (!captures.empty()) Capture(view, captures / L"update-ready-native-fixture.png");
+    before = messages.size();
+    Script(view, L"document.getElementById('holy-bear-check-update').click()");
+    Check(PumpUntil([&] { return messages.size() == before + 1; }) &&
+        NitLink::ParseSettingsMessage(messages.back())->action == L"installHolyBearUpdate", "Install reaches the native installer operation");
+    push(L"ready", false);
+    Check(Script(view, L"document.getElementById('holy-bear-update-badge').hidden && "
+        L"document.getElementById('toggle-holy-bear-auto-update').getAttribute('aria-checked') === 'false' && "
+        L"document.getElementById('holy-bear-check-update').textContent === NitLinkLocales['zh-TW']['update.install']") == L"true",
+        "automatic opt-out suppresses the notification while explicit installation stays available");
+}
+
+void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& messages,
+               const std::filesystem::path& captures = {}) {
+    auto* view = WebViewSettingsTestAccess::View(host);
+    const bool requireGitHubAvatars = !captures.empty();
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Right);
     Script(view, L"document.querySelector('.rail-item[data-tab=\"pane-video\"]').click()");
     PumpUntil([] { return false; }, 120);
@@ -776,7 +861,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             document.querySelector('#holy-bear-last-check').closest('.about-update') !== null &&
             document.querySelector('#holy-bear-update-status').textContent === window.NitLinkLocales['zh-TW']['update.current'] &&
             document.querySelector('#holy-bear-update-status').hidden === false &&
-            document.querySelector('#holy-bear-release-link').hidden &&
+            document.querySelector('#holy-bear-check-update').textContent === window.NitLinkLocales['zh-TW']['update.check'] &&
             document.querySelector('#holy-bear-update-status').textContent.indexOf('未知') < 0 &&
             !!document.querySelector('.about-links a[href="https://tally.so/r/EkZjNr"]') &&
             !!document.querySelector('.about-links a[href="https://ko-fi.com/klosed89"]');
@@ -871,24 +956,24 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.3-holybear",
         true, true, false, true, validUrl.c_str());
     Check(Script(view, LR"JS((() => {
-        const link = document.querySelector('#holy-bear-release-link'), status = document.querySelector('#holy-bear-update-status');
-        return status.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5.3-holybear') &&
+        const button = document.querySelector('#holy-bear-check-update'), status = document.querySelector('#holy-bear-update-status');
+        return status.textContent.startsWith(window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5.3')) &&
             status.classList.contains('is-new-version') &&
-            !link.hidden && link.href === 'https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.3-holybear' &&
+            button.textContent === window.NitLinkLocales['zh-TW']['update.download'] && !button.disabled &&
             document.querySelector('#holy-bear-update-badge').hidden === false;
-    })())JS") == L"true", "newer release shows a localized message, verified link and unread state");
+    })())JS") == L"true", "newer release shows a localized native download action and unread state");
     for (const auto& badUrl : {L"https://github.com/HolyBearTW/nitlink/releases/tag/v1.2.5.3-holybear",
             L"https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.5.3-holybear",
             L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.3-holybear?next=evil"}) {
         PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.3-holybear",
             true, true, false, true, badUrl);
-        Check(Script(view, L"document.querySelector('#holy-bear-release-link').hidden") == L"true",
-            "untrusted release URL is never shown");
+        Check(Script(view, L"document.querySelector('#holy-bear-check-update').textContent === window.NitLinkLocales['zh-TW']['update.check']") == L"true",
+            "unverifiable release state does not offer a download");
     }
     PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.3-holybear",
         false, true, false, false, validUrl.c_str());
-    Check(Script(view, L"document.querySelector('#holy-bear-release-link').hidden") == L"true",
-        "release link requires a native newer-version result");
+    Check(Script(view, L"document.querySelector('#holy-bear-check-update').textContent === window.NitLinkLocales['zh-TW']['update.check']") == L"true",
+        "native download requires a newer-version result");
 
     PushAboutUpdate(host, L"Right", L"zh-TW", L"available", L"v1.2.5.3-holybear",
         true, true, false, true, validUrl.c_str());
@@ -941,6 +1026,8 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             !text.includes('1.2.5.3-holybear') && !text.includes('v1.2.5.3-holybear') &&
             contributors.includes('CN_115 (@CN115)') && contributors.includes('聖小熊 (@HolyBearTW)') && contributors.includes('Noka123 (@Noka123)') &&
             contributors.includes('i0rph (@i0rph)') &&
+            contributors.includes('nitlink-dev (@nitlink-dev)') && contributors.includes('Tavric (@tavricccc)') &&
+            document.querySelector('#about-contributors-body [data-contributor]').dataset.contributor === 'nitlink-dev' &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/HolyBearTW"]') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/CN115"]') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/Noka123"]') &&
@@ -961,7 +1048,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     Check(Script(view, LR"JS(document.documentElement.lang === 'zh-CN' &&
         document.querySelector('#about-details-summary').textContent === '技术信息' &&
         document.querySelector('#about-contributors-summary').textContent === '贡献者' &&
-        document.querySelector('#holy-bear-check-update').textContent === '检查更新' &&
+        document.querySelector('#holy-bear-check-update').textContent === '下载更新' &&
         document.querySelector('#holy-bear-update-status').textContent.includes('发现新版本'))JS") == L"true",
         "Simplified Chinese updates the About and update controls");
     PushAboutUpdate(host, L"Right", L"en-US", L"available", L"v1.2.5.3-holybear",
@@ -969,7 +1056,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     Check(Script(view, LR"JS(document.documentElement.lang === 'en-US' &&
         document.querySelector('#about-details-summary').textContent === 'Technical Information' &&
         document.querySelector('#about-contributors-summary').textContent === 'Contributors' &&
-        document.querySelector('#holy-bear-check-update').textContent === 'Check for updates' &&
+        document.querySelector('#holy-bear-check-update').textContent === 'Download update' &&
         document.querySelector('#holy-bear-update-status').textContent.includes('New version found'))JS") == L"true",
         "English updates About and update controls");
 
@@ -995,8 +1082,8 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
                   document.querySelector('#about-contributors-summary').textContent === locale['about.contributors'] &&
                   document.querySelector('[data-contributor="Noka123"]').parentElement.innerText.includes('Noka123 (@Noka123)') &&
                   !document.querySelector('[data-i18n="about.noka123Contribution"]') &&
-                  document.querySelector('#holy-bear-update-status').textContent === locale['update.available'].replace('{version}', '1.2.4.1-holybear') &&
-                  document.querySelector('#holy-bear-release-link').href.endsWith('/v1.2.4.1-holybear');
+                  document.querySelector('#holy-bear-update-status').textContent.startsWith(locale['update.available'].replace('{version}', '1.2.4.1')) &&
+                  document.querySelector('#holy-bear-check-update').textContent === locale['update.download'];
           })())JS") == L"true", "Full and both Docked modes stack localized disclosures without clipping at 1080p and 1440p");
           Check(Script(view, L"getComputedStyle(document.getElementById('about-contributors')).borderBottomWidth === '0px' && "
               L"getComputedStyle(document.getElementById('about-technical')).borderBottomWidth === '1px'") == L"true",
@@ -1022,7 +1109,46 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         const auto numeric = NitLink::HolyBear::Version.substr(0, NitLink::HolyBear::Version.size() - 9);
         Check(Script(view, L"document.getElementById('holy-bear-product-title').textContent === 'NitLink " +
             std::wstring(numeric) + L" HolyBear Edition'") == L"true", "About displays the native four-part product version in all languages");
+        Script(view, L"document.querySelector('#about-contributors').scrollIntoView({block:'center'})");
+        PumpUntil([] { return false; }, 100);
+        for (const auto* contributor : {L"nitlink-dev", L"HolyBearTW", L"CN115", L"n810K", L"Noka123", L"i0rph", L"tavricccc"}) {
+            Script(view, L"document.querySelector('[data-contributor=\"" + std::wstring(contributor) + L"\"]').focus({preventScroll:true})");
+            Check(PumpUntil([&] { return Script(view, L"(() => { const requireAvatar = " +
+                std::wstring(requireGitHubAvatars ? L"true" : L"false") + LR"JS(;
+                const avatarIds = {"nitlink-dev":"285324765","HolyBearTW":"50009618","CN115":"68493388",
+                    "n810K":"7424933","Noka123":"82983692","i0rph":"50132390","tavricccc":"177928699"};
+                const card = document.getElementById('contributor-preview');
+                const text = card.querySelector('.contributor-preview-description');
+                const avatar = document.getElementById('contributor-preview-avatar');
+                const link = document.activeElement, bounds = card.getBoundingClientRect();
+                return !card.hidden && link.dataset.contributor && link.querySelector('.about-contributor-logo') &&
+                    document.getElementById('contributor-preview-handle').textContent === '@' + link.dataset.contributor &&
+                    document.getElementById('contributor-preview-open').href === link.href &&
+                    text.dataset.i18n !== 'about.profileDescription' &&
+                    text.textContent === NitLinkLocales[document.documentElement.lang][text.dataset.i18n] &&
+                    text.textContent.length > 0 && (requireAvatar
+                        ? !avatar.hidden && avatar.complete && avatar.naturalWidth > 0 &&
+                            avatar.src === `https://avatars.githubusercontent.com/u/${avatarIds[link.dataset.contributor]}?s=160&v=4` &&
+                            avatar.referrerPolicy === 'no-referrer' && document.getElementById('contributor-preview-fallback').hidden
+                        : avatar.hidden ? !document.getElementById('contributor-preview-fallback').hidden
+                            : avatar.complete && avatar.naturalWidth > 0) &&
+                    bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight;
+            })())JS") == L"true"; }, 10000), "every contributor card shows its localized contribution and original profile link");
+            if (!captures.empty() && std::wstring_view(locale) == L"zh-TW") {
+                std::filesystem::create_directories(captures);
+                Capture(view, captures / (std::wstring(contributor) + L"-contribution-native.png"));
+            }
+            Script(view, L"document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))");
+        }
     }
+
+    Script(view, L"document.querySelector('[data-contributor=\"Noka123\"]').focus({preventScroll:true});"
+        L"document.getElementById('contributor-preview-avatar').src='https://avatars.githubusercontent.com/u/0?s=160&v=4'");
+    Check(PumpUntil([&] {return Script(view, L"document.getElementById('contributor-preview-avatar').hidden && "
+        L"!document.getElementById('contributor-preview-fallback').hidden && "
+        L"document.getElementById('contributor-preview-fallback').textContent.length > 0") == L"true";}),
+        "a failed avatar request leaves a visible initials fallback");
+    Script(view, L"document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))");
 
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Right);
     PushAboutUpdate(host, L"Right", L"zh-TW", L"current", L"v1.2.5.3-holybear",
@@ -1179,6 +1305,9 @@ void TestGameControlsAndPanelResize(WebViewSettings& host,HWND window,std::vecto
 
 int main(int argc, char** argv) {
     const bool captureOnly = argc == 3 && std::string(argv[1]) == "--capture-layout";
+    const bool captureUpdates = argc == 3 && std::string(argv[1]) == "--capture-updates";
+    const bool captureAudio = argc == 3 && std::string(argv[1]) == "--capture-audio";
+    const bool captureContributors = argc == 3 && std::string(argv[1]) == "--capture-contributors";
     const bool visibilityOnly = argc == 2 && std::string(argv[1]) == "--visibility-only";
     const auto profile = std::filesystem::temp_directory_path() /
         (L"NitLink-Settings-layout-test-" + std::to_wstring(GetCurrentProcessId()));
@@ -1217,9 +1346,39 @@ int main(int argc, char** argv) {
         Check(PumpUntil([&] { return Script(view, L"window.__fontsReady") == L"true"; }), "bundled fonts loaded");
         if (visibilityOnly) {TestGameControlsAndPanelResize(host,window,messages);TestF1Visibility(host, window);}
         else if (captureOnly) CaptureLayouts(host, window, std::filesystem::path(argv[2]));
+        else if (captureUpdates) TestUpdateFlow(host, window, messages, std::filesystem::path(argv[2]));
+        else if (captureAudio) {
+            const std::filesystem::path folder(argv[2]);
+            std::filesystem::create_directories(folder);
+            for (const auto side : {L"Full",L"Right"}) {
+                const bool full = std::wstring_view(side) == L"Full";
+                Resize(host,window,full?1100:1920,full?760:1080,
+                    full?WebViewSettings::Dock::Full:WebViewSettings::Dock::Right,500);
+                PushState(host,side,L"zh-TW");
+                Script(view,L"document.querySelector('.rail-item[data-tab=\"pane-audio\"]').click(); "
+                    L"if(!document.getElementById('audio-debug').checked)document.getElementById('audio-debug').click()");
+                host.PostMessage(LR"({"state":{"locale":"zh-TW","panelEffect":"blur",
+                    "audioStreaming":true,"audioPlaybackState":"playing","audioAdaptive":true,"audioDrift":true,
+                    "audioExclusiveActive":false,"audioFillMs":12,"audioQueueMs":11,"audioRenderMs":10,
+                    "audioEffectiveMs":11,"audioAverageMs":12.73,"audioMinMs":12,"audioMaxMs":22,
+                    "audioPeriodUs":10000,"audioPpm":0,"audioEstimatedPpm":0,"audioClockState":3,
+                    "audioClockConfidence":0,"audioUnderrunEvents":0,"audioLocalReprimes":0,"audioReloads":0,
+                    "audioUnderruns":0,"audioOverruns":0,"audioResyncs":1,"audioStartupSilence":1488,
+                    "audioRebufferFrames":0,"audioResetDiscardFrames":0,"audioTraceAvailable":true,
+                    "audioEndpointInfo":"Native shared low-period | native min 10.000000 ms, default 10.000000 ms | actual 10 ms | capture 48000 Hz, 2ch, 32-bit -> stream 48000 Hz, 2ch, 32-bit"}})");
+                Check(PumpUntil([&] {return Script(view,L"document.getElementById('audio-health').textContent.includes('48000 Hz')")==L"true";}),
+                    "audio preview renders the complete synthetic diagnostics");
+                Script(view,L"document.getElementById('audio-health').scrollIntoView({block:'center'})");
+                PumpUntil([] {return false;},150);
+                Capture(view,folder/(full?L"audio-settings-window.png":L"audio-settings-right.png"));
+            }
+        }
+        else if (captureContributors) TestAbout(host, window, messages, std::filesystem::path(argv[2]));
         else {
             TestLayouts(host, window, messages);
             TestAbout(host, window, messages);
+            TestUpdateFlow(host, window, messages);
+            TestAudioDiagnostics(host, messages);
             TestAudioRefresh(host, window, messages);
         }
         host.Shutdown();

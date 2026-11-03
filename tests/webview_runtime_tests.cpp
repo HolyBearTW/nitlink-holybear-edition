@@ -49,6 +49,8 @@ NitLink::WebViewCoreSettingsState RuntimeNativeStateFixture() {
     state.holyBearUpdate.status = L"available";
     state.holyBearUpdate.hasNewer = true;
     state.holyBearUpdate.unread = true;
+    state.holyBearUpdate.canDownload = true;
+    state.holyBearUpdate.transferStatus = L"idle";
     state.holyBearUpdate.url =
         L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear";
     state.manualHdmiSource = L"switch2";
@@ -890,13 +892,13 @@ int main(int argc, char** argv) {
               "production state arrives as valid JSON with exact boolean, number and collection values");
         Check(PumpUntil([&] { return Script(view, LR"JS((() => {
             const update = document.getElementById('holy-bear-update-status');
-            const link = document.getElementById('holy-bear-release-link');
+            const button = document.getElementById('holy-bear-check-update');
             const badge = document.getElementById('holy-bear-update-badge');
             const lastCheck = document.getElementById('holy-bear-last-check');
             return document.documentElement.lang === 'zh-TW' &&
-                update.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5.1-holybear') &&
+                update.textContent === window.NitLinkLocales['zh-TW']['update.available'].replace('{version}', '1.2.5.1') &&
                 update.classList.contains('is-new-version') &&
-                !update.hidden && link.href.endsWith('/v1.2.5.1-holybear') && !link.hidden && !badge.hidden &&
+                !update.hidden && button.textContent === window.NitLinkLocales['zh-TW']['update.download'] && !button.disabled && !badge.hidden &&
                 lastCheck.textContent === new Date(1791730000 * 1000).toLocaleString('zh-TW') &&
                 document.getElementById('toggle-prevent-sleep').classList.contains('on') &&
                 document.getElementById('meta-source').textContent === 'Live Gamer ULTRA S GC553Pro' &&
@@ -981,9 +983,9 @@ int main(int argc, char** argv) {
             const std::wstring state = std::wstring(L"{\"state\":{\"locale\":\"") + locale +
                 L"\",\"holyBearUpdate\":{\"current\":\"1.2.5-holybear\",\"latest\":\"v1.2.5.1-holybear\","
                 L"\"lastCheckUtc\":1791730000,\"automatic\":false,\"busy\":false,\"status\":\"available\","
-                L"\"hasNewer\":true,\"unread\":true,\"url\":\"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear\"}}}";
+                L"\"hasNewer\":true,\"unread\":true,\"canDownload\":true,\"url\":\"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.1-holybear\"}}}";
             host.PostMessage(state);
-            Check(PumpUntil([&] { return Script(view, L"document.getElementById('holy-bear-update-status').textContent === window.NitLinkLocales[document.documentElement.lang]['update.available'].replace('{version}', '1.2.5.1-holybear') && document.getElementById('holy-bear-release-link').href.endsWith('/v1.2.5.1-holybear') && !document.getElementById('holy-bear-update-badge').hidden && !document.getElementById('holy-bear-latest-version') && document.getElementById('holy-bear-last-check').closest('.about-update') !== null") == L"true"; }),
+            Check(PumpUntil([&] { return Script(view, L"document.getElementById('holy-bear-update-status').textContent === window.NitLinkLocales[document.documentElement.lang]['update.available'].replace('{version}', '1.2.5.1') && document.getElementById('holy-bear-check-update').textContent === window.NitLinkLocales[document.documentElement.lang]['update.download'] && document.getElementById('holy-bear-update-badge').hidden && !document.getElementById('holy-bear-latest-version') && document.getElementById('holy-bear-last-check').closest('.about-update') !== null") == L"true"; }),
                   "HolyBear update notification localizes without network or HTML injection");
         }
         host.PostMessage(LR"({"state":{"locale":"zh-CN","languagePreference":"zh-CN"}})");
@@ -1069,21 +1071,29 @@ int main(int argc, char** argv) {
         Check(PumpUntil([&] { return Script(view, L"window.__nativeProbe") == L"true"; }), "state resumes only at exact document");
 
         auto deniedResource = std::make_shared<bool>(false);
+        const auto deniedUri = std::make_shared<std::wstring>();
         EventRegistrationToken resourceToken{};
         Hr(view2->add_WebResourceResponseReceived(Callback<ICoreWebView2WebResourceResponseReceivedEventHandler>(
-            [deniedResource](ICoreWebView2*, ICoreWebView2WebResourceResponseReceivedEventArgs* args) -> HRESULT {
+            [deniedResource, deniedUri](ICoreWebView2*, ICoreWebView2WebResourceResponseReceivedEventArgs* args) -> HRESULT {
                 wil::com_ptr<ICoreWebView2WebResourceRequest> request;
                 wil::unique_cotaskmem_string uri;
                 wil::com_ptr<ICoreWebView2WebResourceResponseView> response;
                 int status = 0;
                 if (SUCCEEDED(args->get_Request(&request)) && SUCCEEDED(request->get_Uri(&uri)) && uri &&
-                    std::wstring_view(uri.get()) == L"https://nitlink.invalid/nitlink.json" &&
+                    std::wstring_view(uri.get()) == *deniedUri &&
                     SUCCEEDED(args->get_Response(&response)) && SUCCEEDED(response->get_StatusCode(&status)))
                     *deniedResource = status == 403;
                 return S_OK;
             }).Get(), &resourceToken));
-        Script(view, L"const probe = new Image(); probe.src='https://nitlink.invalid/nitlink.json'; document.body.append(probe)");
-        Check(PumpUntil([&] { return *deniedResource; }), "unlisted local resource receives native 403");
+        for (const auto uri : {L"https://nitlink.invalid/nitlink.json",
+             L"https://avatars.githubusercontent.com/u/0?s=160&v=4",
+             L"https://avatars.githubusercontent.com/u/50009618?s=160&v=4&extra=1"}) {
+            *deniedResource = false;
+            *deniedUri = uri;
+            const auto probeScript = L"(() => {const probe = new Image(); probe.src='" + *deniedUri + L"'; document.body.append(probe)})()";
+            Script(view, probeScript.c_str());
+            Check(PumpUntil([&] { return *deniedResource; }), "unlisted local or GitHub image resource receives native 403");
+        }
         Hr(view2->remove_WebResourceResponseReceived(resourceToken));
 
         auto navigationCancelled = std::make_shared<bool>(false);

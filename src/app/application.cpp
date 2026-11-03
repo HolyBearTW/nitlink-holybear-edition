@@ -1356,6 +1356,10 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             CycleNoSignalMode();
             return;
         }
+        if (action == L"exportAudioTrace") {
+            ExportAudioTrace();
+            return;
+        }
         if (action == L"chooseNoSignalImage") {
             ChooseNoSignalImage();
             return;
@@ -1383,10 +1387,6 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         }
         if (action == L"cycleNoSignalFit") {
             CycleNoSignalFit();
-            return;
-        }
-        if (action == L"exportAudioTrace") {
-            ExportAudioTrace();
             return;
         }
         if (action == L"cycleNoSignalDimImage") {
@@ -5254,7 +5254,18 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     js << L"\"audioRenderMs\":" << m_config->audioRenderMs << L",";
     js << L"\"audioDrift\":" << (m_config->audioDrift ? L"true" : L"false") << L",";
     js << L"\"audioExclusive\":" << (m_config->audioExclusive ? L"true" : L"false") << L",";
+    js << L"\"audioTraceAvailable\":" << (m_audioRouter ? L"true" : L"false") << L",";
     if (m_audioRouter) {
+        const wchar_t* playbackState = L"waiting";
+        switch (m_audioRouter->PlaybackState()) {
+        case AudioPlaybackState::Waiting: break;
+        case AudioPlaybackState::Priming: playbackState=L"priming"; break;
+        case AudioPlaybackState::Playing: playbackState=L"playing"; break;
+        case AudioPlaybackState::Rebuffering: playbackState=L"rebuffering"; break;
+        case AudioPlaybackState::CaptureStalled: playbackState=L"captureStalled"; break;
+        case AudioPlaybackState::Recovering: playbackState=L"recovering"; break;
+        }
+        js << L"\"audioPlaybackState\":\"" << playbackState << L"\",";
         if (audioRefreshRequest != 0)
             js << L"\"audioRefreshRequest\":" << audioRefreshRequest << L",";
         js << L"\"audioExclusiveActive\":" << (m_audioRouter->ExclusiveActive() ? L"true" : L"false") << L",";
@@ -5270,12 +5281,19 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
         js << L"\"audioPpm\":" << m_audioRouter->DriftPpm() << L",";
         js << L"\"audioEstimatedPpm\":" << m_audioRouter->EstimatedDriftPpm() << L",";
         js << L"\"audioClockValid\":" << (m_audioRouter->ClockEstimateValid() ? L"true" : L"false") << L",";
+        js << L"\"audioClockState\":" << unsigned(m_audioRouter->ClockState()) << L",";
+        js << L"\"audioClockConfidence\":" << m_audioRouter->ClockConfidencePercent() << L",";
+        js << L"\"audioStartupSilence\":" << m_audioRouter->StartupSilenceFrames() << L",";
+        js << L"\"audioRebufferFrames\":" << m_audioRouter->RebufferFrames() << L",";
+        js << L"\"audioResetDiscardFrames\":" << m_audioRouter->ResetDiscardFrames() << L",";
+        js << L"\"audioLocalReprimes\":" << m_audioRouter->LocalReprimes() << L",";
         js << L"\"audioUnderrunEvents\":" << m_audioRouter->UnderrunEvents() << L",";
         js << L"\"audioReloads\":" << m_audioRouter->AutomaticReloads() << L",";
         js << L"\"audioUnderruns\":" << m_audioRouter->Underruns() << L",";
         js << L"\"audioOverruns\":" << m_audioRouter->Overruns() << L",";
         js << L"\"audioResyncs\":" << m_audioRouter->Resyncs() << L",";
         js << L"\"audioAdaptive\":" << (m_audioRouter->AdaptiveSupported() ? L"true" : L"false") << L",";
+        js << L"\"audioSrcBypassed\":" << (m_audioRouter->SrcBypassed() ? L"true" : L"false") << L",";
         js << L"\"audioStreaming\":" << (m_audioRouter->IsStreaming() ? L"true" : L"false") << L",";
     }
     js << L"\"volume\":"            << m_config->audioVolume        << L",";
@@ -5309,18 +5327,7 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
         for (const auto& af : formats) {
             if (af.interlaced) continue;
             if (!firstFormat) js << L",";
-    js << L"\"audioTraceAvailable\":" << (m_audioRouter ? L"true" : L"false") << L",";
             firstFormat = false;
-        const wchar_t* playbackState = L"waiting";
-        switch (m_audioRouter->PlaybackState()) {
-        case AudioPlaybackState::Waiting: break;
-        case AudioPlaybackState::Priming: playbackState=L"priming"; break;
-        case AudioPlaybackState::Playing: playbackState=L"playing"; break;
-        case AudioPlaybackState::Rebuffering: playbackState=L"rebuffering"; break;
-        case AudioPlaybackState::CaptureStalled: playbackState=L"captureStalled"; break;
-        case AudioPlaybackState::Recovering: playbackState=L"recovering"; break;
-        }
-        js << L"\"audioPlaybackState\":\"" << playbackState << L"\",";
             js << L"{\"width\":"   << af.width
                << L",\"height\":" << af.height
                << L",\"fps\":"    << af.fps
@@ -5336,19 +5343,12 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     // storage in m_config->captureFormatOverrides; the JS wire schema
     // stays single-object because the picker only ever shows one
     // device's choices at a time. Switching devices triggers another
-        js << L"\"audioClockState\":" << unsigned(m_audioRouter->ClockState()) << L",";
-        js << L"\"audioClockConfidence\":" << m_audioRouter->ClockConfidencePercent() << L",";
-        js << L"\"audioStartupSilence\":" << m_audioRouter->StartupSilenceFrames() << L",";
-        js << L"\"audioRebufferFrames\":" << m_audioRouter->RebufferFrames() << L",";
-        js << L"\"audioResetDiscardFrames\":" << m_audioRouter->ResetDiscardFrames() << L",";
-        js << L"\"audioLocalReprimes\":" << m_audioRouter->LocalReprimes() << L",";
     // PushSettingsState which emits the new device's saved override.
     //
     // Convention: each numeric field at 0 means Auto for that dimension;
     // empty format string means Auto for format. All-Auto = full automatic
     // negotiation (default). The JS side mirrors this interpretation;
     // no separate "isAuto" flag is needed.
-        js << L"\"audioSrcBypassed\":" << (m_audioRouter->SrcBypassed() ? L"true" : L"false") << L",";
     {
         const CaptureFormatOverride ov =
             m_config->GetOverride(m_currentDeviceInfo.name);

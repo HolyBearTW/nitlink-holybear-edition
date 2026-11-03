@@ -706,6 +706,9 @@ void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstri
         "success feedback returns to the localized idle label");
     Script(view, L"document.getElementById('audio-debug').focus()");
     BrowserKey(view, L"Tab", L"Tab", VK_TAB);
+    Check(Script(view, L"document.activeElement.matches('[data-audio-help=\"audio.countersHelp\"]')") == L"true",
+        "keyboard navigation reaches the new counter explanation before refresh");
+    BrowserKey(view, L"Tab", L"Tab", VK_TAB);
     Check(Script(view, L"document.activeElement === document.getElementById('audio-refresh') && "
         L"getComputedStyle(document.getElementById('audio-refresh')).outlineWidth === '2px'") == L"true", "keyboard navigation retains refresh focus styling");
     auto count = messages.size();

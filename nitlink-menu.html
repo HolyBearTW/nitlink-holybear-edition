@@ -754,6 +754,7 @@
     .hud-metrics-section p { margin-top:12px; color:var(--ink3); font-size:12px; line-height:1.7; }
     #pane-shortcuts :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
     @container shell (max-width:640px) {
+      #pane-audio .audio-note { padding-left:16px; padding-right:16px; }
       .shortcut-row, .shortcut-group>summary, #pane-shortcuts .shortcut-help, #shortcut-status, .hud-metrics-section { padding-left:16px; padding-right:16px; }
     }
     @container shell (min-width:1280px) {
@@ -798,7 +799,6 @@
     </nav>
 
     <div class="content">
-      #pane-audio .audio-note { padding-left:16px; padding-right:16px; }
 
       <header class="topbar">
         <h1 data-i18n="top.settings"></h1>

@@ -241,6 +241,7 @@
     }
     document.getElementById('audio-exclusive')?.addEventListener('change', e => post('setAudioExclusive', e.target.checked));
     document.getElementById('audio-drift')?.addEventListener('change', e => post('setAudioDrift', e.target.checked));
+    document.getElementById('audio-export-trace')?.addEventListener('click', () => post('exportAudioTrace'));
     const audioRefreshButton = document.getElementById('audio-refresh');
     let audioRefreshPending = false, audioRefreshTimeout, audioRefreshFeedback;
     let audioRefreshRequest = 0;
@@ -1741,11 +1742,6 @@
         toast.classList.remove('toast-show');
       }, 3500);
     };
-      const playbackStateKey = {
-        waiting: 'audio.waiting', priming: 'audio.priming', playing: 'audio.running',
-        rebuffering: 'audio.rebuffering', captureStalled: 'audio.captureStalled', recovering: 'audio.recovering'
-      }[s.audioPlaybackState] || (s.audioStreaming ? 'audio.running' : 'audio.waiting');
-      const playbackState = t(playbackStateKey);
 
     const applyState = s => {
       window.NitLinkShortcutEditor?.update(s.shortcuts);
@@ -1780,13 +1776,18 @@
       if (renderInput) renderInput.disabled = s.audioExclusiveActive === true;
       const driftInput = document.getElementById('audio-drift');
       if (driftInput && typeof s.audioDrift === 'boolean') driftInput.checked = s.audioDrift;
+      const playbackStateKey = {
+        waiting: 'audio.waiting', priming: 'audio.priming', playing: 'audio.running',
+        rebuffering: 'audio.rebuffering', captureStalled: 'audio.captureStalled', recovering: 'audio.recovering'
+      }[s.audioPlaybackState] || (s.audioStreaming ? 'audio.running' : 'audio.waiting');
+      const playbackState = t(playbackStateKey);
       setText('audio-status', s.audioStreaming
         ? `${playbackState} · ${t(s.audioExclusiveActive ? 'audio.exclusiveMode' : 'audio.sharedMode')}`
         : playbackState);
       const traceExport = document.getElementById('audio-export-trace');
       if (traceExport && typeof s.audioTraceAvailable === 'boolean') traceExport.disabled = !s.audioTraceAvailable;
       const health = document.getElementById('audio-health');
-      if (health && Number.isFinite(s.audioFillMs)) {
+      if (health && typeof s.audioFillMs === 'number') {
         const ms = value => Number.isFinite(value) ? value.toFixed(2) : '--';
         const clockState = Number.isInteger(s.audioClockState) ? s.audioClockState : (s.audioClockValid ? 1 : 0);
         const clockPpm = Number.isFinite(s.audioEstimatedPpm) ? `${s.audioEstimatedPpm} ppm` : '--';

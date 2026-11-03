@@ -54,6 +54,14 @@ void CheckPackagedScripts() {
 int main() {
     CheckPackagedScripts();
     using NitLink::ParseSettingsMessage;
+    Expect(ParseSettingsMessage(LR"({"action":"exportAudioTrace"})").has_value(), "audio trace opens native save dialog without web path");
+    for (auto invalid : {
+        LR"({"action":"exportAudioTrace","value":"C:\\trace.csv"})",
+        LR"({"action":"exportAudioTrace","value":{"path":"C:\\trace.csv"}})",
+        LR"({"action":"exportAudioTrace","value":true})",
+        LR"({"action":"exportAudioTrace","path":"C:\\trace.csv"})",
+        LR"({"action":"exportAudioTrace","value":null})"})
+        Expect(!ParseSettingsMessage(invalid), "audio trace rejects arbitrary web filenames and values");
     {
         auto bindings=NitLink::DefaultShortcutBindings;
         const auto settings=static_cast<size_t>(NitLink::ShortcutAction::toggle_settings);
@@ -130,7 +138,8 @@ int main() {
          L"toast.settingsProfile", L"toast.settingsRuntime", L"toast.settingsStartFailed",
          L"toast.settingsFiles", L"toast.settingsSecurity", L"toast.settingsMemory",
          L"toast.settingsResources", L"toast.settingsNavigation", L"toast.settingsProcessFailed",
-         L"toast.settingsTimeout", L"toast.settingsStarting", L"toast.settingsRetry"}) {
+         L"toast.settingsTimeout", L"toast.settingsStarting", L"toast.settingsRetry",
+         L"dialog.exportAudioTrace", L"dialog.audioTraceFilter", L"toast.audioTraceSaved", L"toast.audioTraceFailed"}) {
         localization.SetPreference("en-US");
         const auto english = localization.Get(key);
         localization.SetPreference("zh-TW");

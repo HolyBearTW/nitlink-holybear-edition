@@ -1,5 +1,12 @@
 # Third-Party Software Used in NitLink
 
+## Release-note Markdown rendering
+
+- Marked 18.1.3, MIT: [source](https://github.com/markedjs/marked/tree/v18.1.3). License: `assets/menu/vendor/marked-LICENSE.txt`.
+- DOMPurify 3.4.17, Apache-2.0 option: [source](https://github.com/cure53/DOMPurify/tree/3.4.17). License: `assets/menu/vendor/DOMPurify-LICENSE.txt`.
+
+Both browser builds are bundled locally. No runtime CDN access is required.
+
 HolyBear Edition additionally incorporates CN_115's MIT-licensed audio and
 Simplified Chinese source from `CN115/nitlink-lowlatency` v0.1.2. Original
 commit authorship and MIT notice are preserved in `docs/cn115` and `LICENSE`.

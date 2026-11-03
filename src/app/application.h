@@ -285,9 +285,14 @@ private:
     std::wstring ConfigWarning() const;
     void DrawStatusNotice(bool takingScreenshot);
     bool m_settingsOpenPending = false;
+    bool m_settingsUpdatePending = false;
     bool m_settingsVisible = false;
     std::unique_ptr<Config>           m_config;
     std::unique_ptr<HolyBear::UpdateChecker> m_updateChecker;
+    std::unique_ptr<HolyBear::UpdateInstaller> m_updateInstaller;
+    HolyBear::UpdateResult m_updateRelease;
+    HolyBear::TransferState m_updateTransfer;
+    bool m_updateNotification = false;
     HolyBear::UpdateStatus m_updateStatus = HolyBear::UpdateStatus::Never;
     bool m_audioTraceExporting = false;
     std::unique_ptr<DiscordRPC>       m_discord;

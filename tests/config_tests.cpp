@@ -29,7 +29,7 @@ int main()
 
     NitLink::Config defaults;
     if(defaults.panelSide!="window"||defaults.panelWidth!=500||defaults.panelOpacity!=1.0f||defaults.panelBlurStrength!=0.0f)return 24;
-    if (defaults.holyBearAutoUpdateCheck || defaults.holyBearUpdateLastCheckUtc) return 20;
+    if (!defaults.holyBearAutoUpdateCheck || defaults.holyBearUpdateLastCheckUtc) return 20;
     if (!defaults.Save(path.string())) return 3;
     NitLink::Config defaultLoaded;
     if (!defaultLoaded.Load(path.string())) return 4;

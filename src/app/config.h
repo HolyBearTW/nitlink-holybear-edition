@@ -64,7 +64,7 @@ struct Config {
     std::string  language = "system";
     // Optional HolyBear GitHub checks. Attempts (including failures) count
     // toward the 24-hour interval. These fields share the atomic Config save.
-    bool holyBearAutoUpdateCheck = false;
+    bool holyBearAutoUpdateCheck = true;
     uint64_t holyBearUpdateLastCheckUtc = 0;
     std::string holyBearUpdateLatestTag;
     std::string holyBearUpdateSeenTag;

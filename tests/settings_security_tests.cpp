@@ -432,6 +432,11 @@ int main() {
     Expect(ParseSettingsMessage(LR"({"action":"getAccountCovers","value":{"key":"nintendo-BEE-0400000000000001","shape":"landscape","page":0,"request":7,"provider":"all","officialQuery":"Example"}})").has_value(),"unmapped platform games can request public cover candidates");
     Expect(!ParseSettingsMessage(LR"({"action":"getAccountCovers","value":{"key":"nintendo-BEE-0400000000000001","shape":"all","page":0,"request":7,"provider":"all","officialQuery":"Example","url":"https://evil.test"}})"),"account gallery accepts IDs and queries, never arbitrary image URLs");
     Expect(ParseSettingsMessage(LR"({"action":"checkHolyBearUpdate"})").has_value(), "manual update check schema");
+    for (const auto* action : {L"downloadHolyBearUpdate", L"cancelHolyBearUpdateDownload", L"installHolyBearUpdate"}) {
+        Expect(ParseSettingsMessage(L"{\"action\":\"" + std::wstring(action) + L"\"}").has_value(), "native update operation schema");
+        Expect(!ParseSettingsMessage(L"{\"action\":\"" + std::wstring(action) + L"\",\"value\":\"C:\\\\untrusted.exe\"}"),
+            "update operations cannot carry a caller-supplied executable path or URL");
+    }
     Expect(ParseSettingsMessage(LR"({"action":"setHolyBearAutoUpdateCheck","value":false})").has_value(), "opt-out schema");
     Expect(!ParseSettingsMessage(LR"({"action":"setHolyBearAutoUpdateCheck","value":"true"})"), "update option requires boolean");
     Expect(!ParseSettingsMessage(LR"({"action":"checkHolyBearUpdate","value":"https://evil"})"), "caller cannot supply URL");

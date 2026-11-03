@@ -43,6 +43,7 @@ public:
         std::array<std::wstring,3> hud{L"Standard HUD",L"Detailed HUD",L"Compact HUD"};
         std::wstring settings=L"Settings",hidden=L"Hidden",minimize=L"Minimize",maximize=L"Maximize",restore=L"Restore",close=L"Close";
         std::wstring fontFamily=L"Archivo";
+        std::wstring updateAvailable=L"New version available";
         bool operator==(const ChromeLabels&) const = default;
     };
 
@@ -94,7 +95,7 @@ public:
     HWND GetHWND() const { return m_hwnd; }
     HWND GetRenderHWND() const { return m_videoWindow; }
     RECT GetContentBounds() const;
-    void SetChromeState(unsigned hudMode, bool hudVisible, bool settingsVisible);
+    void SetChromeState(unsigned hudMode, bool hudVisible, bool settingsVisible, bool updateAvailable = false);
     void SetChromeLabels(ChromeLabels labels);
     void SetGlassEffect(bool enabled, float strength);
     void SetPanelBackdrop(RECT bounds);
@@ -173,6 +174,7 @@ private:
     std::optional<GlassStatus> m_glassStatus;
     unsigned   m_hudMode = 0;
     bool       m_hudVisible = false, m_settingsVisible = false;
+    bool       m_updateAvailable = false;
     int        m_captionHover = -1, m_captionPressed = -1;
     ChromeLabels m_chromeLabels;
     std::array<std::wstring,5> m_captionTooltips;

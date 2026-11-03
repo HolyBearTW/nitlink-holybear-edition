@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <vector>       // FrameLevels histograms (HDR levels readout)
 #include <cstdint>      // fixed-width pixel-code types
+#include <cwchar>
 #include <cassert>      // assert: frame-buffer teardown invariant (worker joined)
 #include <debugapi.h>
 #include <shlobj.h>
@@ -496,7 +497,10 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
     m_showOverlay = startupOverlayOk && m_config->showOverlay;
     m_overlay->SetHudMode(m_config->hudMode);
     Window::InputCallbacks overlayInput{};
-    overlayInput.onSettings=[this](){ToggleSettings();};
+    overlayInput.onSettings=[this](){
+        m_settingsUpdatePending = m_updateNotification;
+        ToggleSettings();
+    };
     overlayInput.onCycleHud=[this](){
         if(!m_config||!m_overlay)return;
         if(m_showOverlay)m_config->hudMode=(m_config->hudMode+1)%3;
@@ -1302,6 +1306,30 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             return;
         }
         if (action == L"checkHolyBearUpdate") { CheckHolyBearUpdate(false); return; }
+        if (action == L"downloadHolyBearUpdate") {
+            if (m_updateInstaller && m_updateRelease.status == HolyBear::UpdateStatus::Available &&
+                m_updateRelease.installer && !m_updateChecker->Busy()) {
+                m_updateInstaller->Start(*m_updateRelease.installer);
+                ConsumeHolyBearUpdate();
+            }
+            return;
+        }
+        if (action == L"cancelHolyBearUpdateDownload") {
+            if (m_updateInstaller) m_updateInstaller->Cancel();
+            return;
+        }
+        if (action == L"installHolyBearUpdate") {
+            if (m_updateInstaller && m_updateRelease.status == HolyBear::UpdateStatus::Available &&
+                m_updateTransfer.tag == m_updateRelease.tag && !m_updateChecker->Busy()) {
+                wchar_t executable[32768]{};
+                const auto length = GetModuleFileNameW(nullptr, executable, static_cast<DWORD>(std::size(executable)));
+                if (length && length < std::size(executable) &&
+                    m_updateInstaller->Install(std::filesystem::path(executable).parent_path()))
+                    PostMessageW(m_window->GetHWND(), WM_CLOSE, 0, 0);
+                ConsumeHolyBearUpdate();
+            }
+            return;
+        }
         if (action == L"setHolyBearAutoUpdateCheck" && m_config) {
             m_config->holyBearAutoUpdateCheck = message->number != 0;
             if (!m_config->holyBearAutoUpdateCheck && m_updateChecker) {
@@ -1318,6 +1346,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
                 m_config->holyBearUpdateSeenTag = m_config->holyBearUpdateLatestTag;
                 m_config->Save("nitlink.json");
             }
+            if (m_config->holyBearAutoUpdateCheck && m_updateRelease.tag.empty() &&
+                !m_config->holyBearUpdateLatestTag.empty()) CheckHolyBearUpdate(false);
             PushSettingsState();
             return;
         }
@@ -1871,6 +1901,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     m_running = true;
     m_updateChecker = std::make_unique<HolyBear::UpdateChecker>();
+    m_updateInstaller = std::make_unique<HolyBear::UpdateInstaller>();
     CheckHolyBearUpdate(true);
     return true;
 }
@@ -2562,7 +2593,7 @@ void Application::Run()
             m_config->panelSide!="window" &&
             m_webviewSettings->GetDock() == WebViewSettings::Dock::Full &&
             m_config->panelEffect=="classic" && m_config->panelOpacity==1.0f;
-        m_window->SetChromeState(m_config->hudMode,m_showOverlay,m_settingsVisible);
+        m_window->SetChromeState(m_config->hudMode,m_showOverlay,m_settingsVisible,m_updateNotification);
         RECT panelGlass{};
         if(m_settingsVisible&&m_webviewSettings&&m_webviewSettings->IsVisible()&&
             m_config->panelSide!="window" && m_config->panelEffect=="blur"){
@@ -3299,6 +3330,7 @@ void Application::Shutdown()
     }
     m_4kxPoller.Stop();
     m_updateChecker.reset();
+    m_updateInstaller.reset();
     m_gameService.reset();
     m_accountService.reset();
 
@@ -3512,11 +3544,13 @@ void Application::ToggleSettings()
         m_settingsVisible = false;
         if (m_webviewSettings && m_webviewSettings->IsStarting()) {
             m_settingsOpenPending = !m_settingsOpenPending;
+            if (!m_settingsOpenPending) m_settingsUpdatePending = false;
             if (m_settingsOpenPending) ShowToast(Tr(L"toast.settingsStarting"), std::chrono::milliseconds(4000));
             else if (m_toastText == Tr(L"toast.settingsStarting")) m_toastText.clear();
             return;
         }
         const auto reason = m_webviewSettings ? m_webviewSettings->InitializationError() : std::wstring{};
+        m_settingsUpdatePending = false;
         auto text = Tr(reason.empty() ? L"toast.settingsStartFailed" : reason.c_str());
         ShowToast(text, std::chrono::milliseconds(15000));
         return;
@@ -3525,6 +3559,7 @@ void Application::ToggleSettings()
     const bool restore=independent&&IsIconic(m_settingsWindow->GetHWND());
     const bool visible=independent&&IsWindowVisible(m_settingsWindow->GetHWND());
     if(visible&&!restore){
+        m_settingsUpdatePending = false;
         SendMessageW(m_settingsWindow->GetHWND(),WM_SYSCOMMAND,SC_CLOSE,0);
         return;
     }
@@ -3547,7 +3582,10 @@ void Application::ToggleSettings()
         // (Alt+H for HDR, Ctrl+G for game cycle).
         if (m_settingsVisible) {
             PushSettingsState();
+            if (m_settingsUpdatePending)
+                m_webviewSettings->PostMessage(L"{\"state\":{\"showHolyBearUpdate\":true}}");
         }
+        m_settingsUpdatePending = false;
     }
 }
 
@@ -5142,7 +5180,7 @@ const wchar_t* FormatGuidToString(const GUID& g)
 
 void Application::CheckHolyBearUpdate(bool automatic)
 {
-    if (!m_config || !m_updateChecker || m_updateChecker->Busy()) return;
+    if (!m_config || !m_updateChecker || m_updateChecker->Busy() || (m_updateInstaller && m_updateInstaller->Busy())) return;
     const auto utc = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     const uint64_t now = utc > 0 ? static_cast<uint64_t>(utc) : 0;
@@ -5158,16 +5196,21 @@ void Application::CheckHolyBearUpdate(bool automatic)
 void Application::ConsumeHolyBearUpdate()
 {
     if (!m_updateChecker) return;
-    const auto result = m_updateChecker->TakeResult();
-    if (!result || result->status == HolyBear::UpdateStatus::Cancelled) return;
-    m_updateStatus = result->status;
-    if (!result->tag.empty()) {
-        m_config->holyBearUpdateLatestTag.clear();
-        for (auto c : result->tag) m_config->holyBearUpdateLatestTag.push_back(static_cast<char>(c));
-        m_config->Save("nitlink.json");
+    bool changed = false;
+    if (auto result = m_updateChecker->TakeResult(); result && result->status != HolyBear::UpdateStatus::Cancelled) {
+        m_updateStatus = result->status;
+        if (!result->tag.empty()) {
+            m_config->holyBearUpdateLatestTag.clear();
+            for (auto c : result->tag) m_config->holyBearUpdateLatestTag.push_back(static_cast<char>(c));
+            m_config->Save("nitlink.json");
+            m_updateRelease = std::move(*result);
+        }
+        changed = true;
     }
-    // No toast, modal, file download or automatic launch; F1 owns notification UI.
-    PushSettingsState();
+    if (m_updateInstaller) if (auto state = m_updateInstaller->TakeState()) {
+        m_updateTransfer = std::move(*state); changed = true;
+    }
+    if (changed) PushSettingsState();
 }
 
 void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRefreshRequest)
@@ -5209,9 +5252,18 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
     coreState.holyBearUpdate.busy = m_updateChecker && m_updateChecker->Busy();
     coreState.holyBearUpdate.status = HolyBear::StatusKey(status);
     coreState.holyBearUpdate.hasNewer = newer;
-    coreState.holyBearUpdate.unread = newer &&
+    coreState.holyBearUpdate.unread = newer && m_config->holyBearAutoUpdateCheck &&
         m_config->holyBearUpdateSeenTag != m_config->holyBearUpdateLatestTag;
     coreState.holyBearUpdate.url = newer ? latestReleaseUrl : L"";
+    m_updateNotification = newer && m_config->holyBearAutoUpdateCheck;
+    if (m_updateRelease.tag == latest) {
+        coreState.holyBearUpdate.notes = m_updateRelease.notes;
+        coreState.holyBearUpdate.publishedAt = m_updateRelease.publishedAt;
+        coreState.holyBearUpdate.canDownload = newer && m_updateRelease.installer.has_value();
+        if (m_updateRelease.installer) coreState.holyBearUpdate.packageBytes = m_updateRelease.installer->bytes;
+    }
+    coreState.holyBearUpdate.transferStatus = m_updateTransfer.tag == latest ? HolyBear::StatusKey(m_updateTransfer.status) : L"idle";
+    coreState.holyBearUpdate.receivedBytes = m_updateTransfer.tag == latest ? m_updateTransfer.received : 0;
     coreState.manualHdmiSource = Utf8ToWide(
         std::string(NormalizeManualHdmiSource(m_config->manualHdmiSource)));
     coreState.manualHdmiSourceCustom = Utf8ToWide(m_config->manualHdmiSourceCustom);
@@ -6225,7 +6277,7 @@ void Application::UpdateWindowTitle(bool refreshDiscord)
     if (!m_window) return;
     const Window::ChromeLabels chrome{{Tr(L"window.hud0"),Tr(L"window.hud1"),Tr(L"window.hud2")},
         Tr(L"window.settings"),Tr(L"window.hidden"),Tr(L"window.minimize"),Tr(L"window.maximize"),Tr(L"window.restore"),Tr(L"window.close"),
-        Localization::Instance().UiFontFamily(L"Archivo")};
+        Localization::Instance().UiFontFamily(L"Archivo"),Tr(L"window.updateAvailable")};
     m_window->SetChromeLabels(chrome);
     if(m_settingsWindow){m_settingsWindow->SetChromeLabels(chrome);m_settingsWindow->SetTitle(L"NitLink - "+Tr(L"window.settings"));}
     RefreshGameArtworkContext();

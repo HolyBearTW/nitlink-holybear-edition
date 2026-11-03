@@ -5,11 +5,13 @@
 #include <iostream>
 #include <thread>
 #include <utility>
+#include <filesystem>
+#include <fstream>
 using namespace NitLink::HolyBear;
 int main(int argc, char** argv) {
     std::cout << std::unitbuf;
     // Explicit post-publication probe; CTest always uses offline mock responses.
-    if (argc == 2 && std::string_view(argv[1]) == "--live-release") {
+    if (argc == 2 && (std::string_view(argv[1]) == "--live-release" || std::string_view(argv[1]) == "--live-download")) {
         UpdateChecker live;
         if (!live.Start()) return 1;
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
@@ -18,6 +20,25 @@ int main(int argc, char** argv) {
         const auto result = live.TakeResult();
         if (!result) return 1;
         std::wcout << L"Live HolyBear Release: " << StatusKey(result->status) << L"; " << result->tag << L'\n';
+        if (std::string_view(argv[1]) == "--live-download") {
+            if (!result->installer) return 1;
+            const auto directory = std::filesystem::temp_directory_path() /
+                ("NitLink-Live-Update-" + std::to_string(GetCurrentProcessId()) + "-" + std::to_string(GetTickCount64()));
+            UpdateInstaller download(directory);
+            if (!download.Start(*result->installer)) return 1;
+            const auto until = std::chrono::steady_clock::now() + std::chrono::minutes(11);
+            while (download.Busy() && std::chrono::steady_clock::now() < until)
+                std::this_thread::sleep_for(std::chrono::milliseconds(25));
+            if (download.Busy()) { download.Cancel(); return 1; }
+            const auto state = download.TakeState();
+            std::wcout << L"Live installer transfer: " << (state ? StatusKey(state->status) : L"missing") << L"; "
+                << (state ? state->received : 0) << L" bytes; installer NOT launched\n";
+            std::error_code ignored;
+            std::filesystem::remove(directory / result->installer->name, ignored);
+            std::filesystem::remove(directory / (result->installer->name + L".partial"), ignored);
+            std::filesystem::remove(directory, ignored);
+            return state && state->status == TransferStatus::Ready ? 0 : 1;
+        }
         return result->status == UpdateStatus::Current && result->tag == L"v" + std::wstring(Version) ? 0 : 1;
     }
     unsigned checks = 0, failures = 0;
@@ -106,7 +127,7 @@ int main(int argc, char** argv) {
         std::wstring_view(StatusKey(UpdateStatus::NotFound)) == L"notFound" &&
         std::wstring_view(StatusKey(UpdateStatus::ServerUnavailable)) == L"serverUnavailable",
         "HTTP categories map to localized UI states");
-    check(!AutoCheckDue(false, false, 200000, 0), "automatic default off");
+    check(!AutoCheckDue(false, false, 200000, 0), "automatic opt-out disables checks");
     check(AutoCheckDue(true, false, 200000, 0), "first enabled check");
     check(!AutoCheckDue(true, true, 200000, 0), "busy request deduplication");
     check(!AutoCheckDue(true, false, 186399, 100000), "under 24 hours");
@@ -140,6 +161,88 @@ int main(int argc, char** argv) {
     result = worker.TakeResult();
     check(result && result->status == UpdateStatus::Available && requests == 2, "mock transport completion");
     check(!worker.TakeResult(), "one completion, no repeated notification");
+
+    auto package = response("v1.2.6-holybear");
+    const std::string installerJson = R"({"name":"NitLink-1.2.6-HolyBear-Setup-x64.exe","browser_download_url":"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/download/v1.2.6-holybear/NitLink-1.2.6-HolyBear-Setup-x64.exe","digest":"sha256:f089e8d04ebe5b72423d1f2fea0d10894129f21ba8c78434d9518de4a58087d3","size":22})";
+    package.body.replace(package.body.find("\"assets\":[]"), 11, "\"assets\":[" + installerJson + "]");
+    package.body.replace(package.body.find("\"body\":null"), 11, R"("body":"# Changes\n\n**A fix**","published_at":"2026-11-03T00:00:00Z")");
+    const auto parsedPackage = ClassifyReply(package);
+    check(parsedPackage.installer && parsedPackage.installer->bytes == 22 &&
+        parsedPackage.notes == L"# Changes\n\n**A fix**" && parsedPackage.publishedAt == L"2026-11-03T00:00:00Z",
+        "release notes, date and canonical SHA-256 installer are parsed together");
+    for (const auto& [field, replacement] : std::initializer_list<std::pair<std::string, std::string>>{
+        {"sha256:f089", "sha256:X089"}, {"\"size\":22", "\"size\":0"}, {"\"size\":22", "\"size\":22.5"},
+        {"/releases/download/", "/releases/tag/"}, {"/NitLink-1.2.6-HolyBear-Setup-x64.exe", "/other.exe"}}) {
+        auto bad = package;
+        bad.body.replace(bad.body.find(field), field.size(), replacement);
+        check(ClassifyReply(bad).status == UpdateStatus::Invalid, "unverifiable or mismatched installer metadata is rejected");
+    }
+    check(IsUpdateDownloadRedirect(L"https://release-assets.githubusercontent.com/release-asset/file?signature=fixture"), "GitHub asset CDN redirect is accepted");
+    for (const auto* url : {L"http://release-assets.githubusercontent.com/file", L"https://github.com.evil.test/file",
+            L"https://user:password@github.com/file", L"https://release-assets.githubusercontent.com:8443/file",
+            L"https://evil.test/file", L"file:///setup.exe", L"https://github.com/file#fragment"})
+        check(!IsUpdateDownloadRedirect(url), "download redirects cannot escape the HTTPS GitHub hosts");
+    if (parsedPackage.installer) {
+        const auto directory = std::filesystem::temp_directory_path() /
+            ("NitLink-Updater-Test-" + std::to_string(GetCurrentProcessId()) + "-" + std::to_string(GetTickCount64()));
+        const auto asset = *parsedPackage.installer;
+        const std::string payload = "nitlink-update-fixture";
+        auto wait = [&](UpdateInstaller& updater) {
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+            while (updater.Busy() && std::chrono::steady_clock::now() < until) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            check(!updater.Busy(), "download worker completes without a UI-thread wait");
+            return updater.TakeState().value_or(TransferState{});
+        };
+        bool launchSucceeds = false;
+        unsigned launches = 0;
+        {
+            UpdateInstaller updater(directory, [&](const InstallerAsset&, std::stop_token, const UpdateInstaller::Sink& sink) {
+                return sink(std::string_view(payload).substr(0, 5)) && sink(std::string_view(payload).substr(5)) ? 0u : static_cast<uint32_t>(ERROR_WRITE_FAULT);
+            }, [&](const std::filesystem::path& setup, const std::filesystem::path& target) {
+                ++launches;
+                check(setup == directory / asset.name && target == directory / L"installed app", "install launches only the verified native cache path with the selected application directory");
+                return launchSucceeds;
+            });
+            check(!updater.Install(directory), "installer cannot launch before a verified download");
+            check(updater.Start(asset), "native download starts");
+            auto state = wait(updater);
+            check(state.status == TransferStatus::Ready && state.received == 22 && state.tag == asset.tag &&
+                std::filesystem::file_size(directory / asset.name) == 22 && !launches,
+                "download writes, hashes and publishes Ready without automatically executing anything");
+            check(!updater.Install(directory / L"installed app") && updater.TakeState()->status == TransferStatus::LaunchError,
+                "a cancelled or failed installer launch leaves the app running and offers retry");
+            launchSucceeds = true;
+            check(updater.Install(directory / L"installed app") && !updater.Install(directory) && launches == 2,
+                "explicit install retries successfully and cannot launch the same installer twice");
+        }
+        for (const std::string data : {"nitlink-update-fixturE", "short"}) {
+            UpdateInstaller bad(directory, [&](const InstallerAsset&, std::stop_token, const UpdateInstaller::Sink& sink) {
+                return sink(data) ? 0u : static_cast<uint32_t>(ERROR_WRITE_FAULT);
+            });
+            check(bad.Start(asset) && wait(bad).status == TransferStatus::Corrupt && !bad.Install(directory),
+                "damaged or truncated bytes never become an installable package");
+            check(!std::filesystem::exists(directory / (asset.name + L".partial")), "failed partial downloads are removed");
+        }
+        {
+            UpdateInstaller cancelled(directory, [&](const InstallerAsset&, std::stop_token stop, const UpdateInstaller::Sink&) {
+                while (!stop.stop_requested()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                return static_cast<uint32_t>(ERROR_WINHTTP_OPERATION_CANCELLED);
+            });
+            check(cancelled.Start(asset) && !cancelled.Start(asset), "a second download request does not create a second worker");
+            cancelled.Cancel();
+            check(wait(cancelled).status == TransferStatus::Cancelled && !cancelled.Install(directory), "download cancellation prevents installation");
+        }
+        {
+            UpdateInstaller offline(directory, [](const InstallerAsset&, std::stop_token, const UpdateInstaller::Sink&) {
+                return static_cast<uint32_t>(ERROR_WINHTTP_TIMEOUT);
+            });
+            check(offline.Start(asset) && wait(offline).status == TransferStatus::NetworkError, "network timeouts are reported as retryable download errors");
+        }
+        std::error_code ignored;
+        std::filesystem::remove(directory / asset.name, ignored);
+        std::filesystem::remove(directory / (asset.name + L".partial"), ignored);
+        std::filesystem::remove(directory, ignored);
+    }
     std::cout << checks - failures << '/' << checks << " HolyBear update checks passed (mock responses; no network)\n";
     return failures ? 1 : 0;
 }

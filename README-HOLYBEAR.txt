@@ -55,11 +55,13 @@ requests the sound device's supported minimum period; it falls back to shared
 on focus loss and returns after stable foreground. Changes can briefly
 restart audio. Buffer targets and diagnostics are not measured end-to-end latency.
 
-F1 About includes Software Updates. Automatic checks are OFF by default.
-Enable them to allow one background GitHub check per 24 hours, or check manually.
+F1 About includes in-app updates. Automatic checks are ON by default for new settings;
+an existing saved off preference stays off. Checks run at most once per 24 hours, or manually.
 Only HolyBearTW/nitlink-holybear-edition's formal Releases are queried; no token, personal settings,
-device IDs or game information is sent. View/Download opens the release webpage;
-there is no automatic download or installation. See docs/HOLYBEAR-UPDATES.md.
+device IDs or game information is sent. About renders the Markdown release notes,
+downloads and verifies the installer, then offers Install Update. The installer
+retains settings and reopens NitLink. Downloads and installation require your click;
+turning automatic checks off also hides update notifications. See docs/HOLYBEAR-UPDATES.md.
 
 To link Xbox, choose Open sign-in page and sign in with your personal
 Microsoft account in the system browser. NitLink receives the result and

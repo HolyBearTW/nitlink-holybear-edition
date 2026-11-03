@@ -133,9 +133,10 @@ and launch-after-install are optional and initially unchecked. Upgrades replace
 only packaged files; uninstall retains settings/screenshots/VRR_CAP and other
 user-created files. No original installation is migrated or modified.
 
-The opt-in native update checker accepts only this fork's formal Releases.
-See [network behavior and tests](HOLYBEAR-UPDATES.md). Background checks default
-off. No updater downloads or runs an installer.
+The native updater accepts only this fork's formal Releases.
+See [network behavior and tests](HOLYBEAR-UPDATES.md). Background version checks
+default on for new settings; disabling them suppresses update notifications.
+Download and installation require explicit in-app actions and a verified package.
 
 After Windows validation, one protected Windows signing/publication job creates three mandatory
 GPG detached signatures over the final ZIP, Setup and outer SHA256SUMS.txt.

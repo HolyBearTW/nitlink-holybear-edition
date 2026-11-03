@@ -20,6 +20,9 @@ struct HolyBearUpdateSettingsState {
     bool hasNewer = false;
     bool unread = false;
     std::wstring url;
+    std::wstring notes, publishedAt, transferStatus;
+    uint64_t packageBytes = 0, receivedBytes = 0;
+    bool canDownload = false;
 };
 
 struct ManualHdmiSourceOptionState {

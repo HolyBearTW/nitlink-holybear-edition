@@ -3,8 +3,15 @@
 #include <winhttp.h>
 #include <roapi.h>
 #include <winrt/Windows.Data.Json.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <chrono>
 #include <charconv>
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <bcrypt.h>
+#include <shlobj.h>
+#include <shellapi.h>
 
 namespace NitLink::HolyBear {
 bool AutoCheckDue(bool enabled, bool busy, uint64_t now, uint64_t last) {
@@ -37,6 +44,7 @@ const wchar_t* StatusKey(UpdateStatus status) {
 }
 UpdateResult ClassifyReply(const HttpReply& reply, std::wstring_view current) {
     if (reply.error == ERROR_WINHTTP_OPERATION_CANCELLED) return {UpdateStatus::Cancelled, {}};
+    if (reply.error == ERROR_FILE_TOO_LARGE) return {};
     if (reply.error || !reply.status) return {UpdateStatus::Offline, {}};
     if (reply.status == 403)
         return {reply.rateLimitRemaining == 0 ? UpdateStatus::RateLimited : UpdateStatus::ApiUnavailable, {}};
@@ -75,7 +83,34 @@ UpdateResult ClassifyReply(const HttpReply& reply, std::wstring_view current) {
         const std::wstring url(json.GetNamedString(L"html_url"));
         const auto version = ParseVersion(tag);
         if (!version || !tag.starts_with(L"v") || url != std::wstring(ReleasePrefix) + tag) return {};
-        return {*version > *ParseVersion(current) ? UpdateStatus::Available : UpdateStatus::Current, tag};
+        UpdateResult result{*version > *ParseVersion(current) ? UpdateStatus::Available : UpdateStatus::Current, tag};
+        const auto notes = json.GetNamedValue(L"body", JsonValue::CreateNullValue());
+        if (notes.ValueType() == JsonValueType::String) result.notes = std::wstring(notes.GetString()).substr(0, 65536);
+        else if (notes.ValueType() != JsonValueType::Null) return {};
+        const auto published = json.GetNamedValue(L"published_at", JsonValue::CreateNullValue());
+        if (published.ValueType() == JsonValueType::String) result.publishedAt = std::wstring(published.GetString()).substr(0, 64);
+        const auto assets = json.GetNamedValue(L"assets", JsonValue::CreateNullValue());
+        const auto numeric = tag.substr(1, tag.size() - 10);
+        const std::wstring name = L"NitLink-" + numeric + L"-HolyBear-Setup-x64.exe";
+        if (assets.ValueType() == JsonValueType::Array) for (const auto& item : assets.GetArray()) {
+            if (item.ValueType() != JsonValueType::Object) continue;
+            const auto asset = item.GetObject();
+            const auto assetName = asset.GetNamedValue(L"name", JsonValue::CreateNullValue());
+            if (assetName.ValueType() != JsonValueType::String || assetName.GetString() != name) continue;
+            const auto url = asset.GetNamedValue(L"browser_download_url");
+            const auto digest = asset.GetNamedValue(L"digest");
+            const auto size = asset.GetNamedValue(L"size");
+            if (url.ValueType() != JsonValueType::String || digest.ValueType() != JsonValueType::String ||
+                size.ValueType() != JsonValueType::Number) return {};
+            const std::wstring expected = L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/download/" + tag + L"/" + name;
+            const std::wstring hash(digest.GetString());
+            const double bytes = size.GetNumber();
+            if (url.GetString() != expected || !hash.starts_with(L"sha256:") || hash.size() != 71 ||
+                !std::all_of(hash.begin() + 7, hash.end(), [](wchar_t c) { return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f'); }) ||
+                !std::isfinite(bytes) || bytes < 1 || bytes > 200 * 1024 * 1024 || std::floor(bytes) != bytes || result.installer) return {};
+            result.installer = InstallerAsset{tag, name, expected, std::string(hash.begin() + 7, hash.end()), static_cast<uint64_t>(bytes)};
+        }
+        return result;
     } catch (...) { return {}; }
 }
 
@@ -137,19 +172,29 @@ std::optional<uint32_t> ReadRateLimitRemaining(HINTERNET request) {
     }
     return ParseRateLimitRemaining(value);
 }
-HttpReply FetchRelease(std::stop_token stop) {
+HttpReply FetchHttp(std::wstring url, std::stop_token stop, uint64_t limit,
+                    std::chrono::seconds budget, bool redirects, const UpdateInstaller::Sink& sink) {
     HttpReply reply;
-    const auto deadline = Clock::now() + std::chrono::seconds(15);
-    Progress progress;
-    if (!progress.event || !progress.closed) { reply.error = ERROR_NOT_ENOUGH_MEMORY; return reply; }
+    const auto deadline = Clock::now() + budget;
     HttpHandle session{WinHttpOpen(L"NitLink-HolyBear-UpdateCheck/1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, WINHTTP_FLAG_ASYNC)};
     if (!session.value) { reply.error = GetLastError(); return reply; }
     if (!WinHttpSetTimeouts(session.value, 3000, 3000, 3000, 5000)) { reply.error = GetLastError(); return reply; }
-    HttpHandle connection{WinHttpConnect(session.value, L"api.github.com", INTERNET_DEFAULT_HTTPS_PORT, 0)};
+    for (unsigned hop = 0; hop < 6; ++hop) {
+    URL_COMPONENTS parts{sizeof(parts)};
+    parts.dwHostNameLength = parts.dwUrlPathLength = parts.dwExtraInfoLength = static_cast<DWORD>(-1);
+    if (!WinHttpCrackUrl(url.c_str(), static_cast<DWORD>(url.size()), 0, &parts) || parts.nScheme != INTERNET_SCHEME_HTTPS) {
+        reply.error = ERROR_WINHTTP_INVALID_URL; return reply;
+    }
+    const std::wstring host(parts.lpszHostName, parts.dwHostNameLength);
+    const std::wstring path = std::wstring(parts.lpszUrlPath, parts.dwUrlPathLength) +
+        (parts.dwExtraInfoLength ? std::wstring(parts.lpszExtraInfo, parts.dwExtraInfoLength) : L"");
+    Progress progress;
+    if (!progress.event || !progress.closed) { reply.error = ERROR_NOT_ENOUGH_MEMORY; return reply; }
+    HttpHandle connection{WinHttpConnect(session.value, host.c_str(), parts.nPort, 0)};
     if (!connection.value) { reply.error = GetLastError(); return reply; }
     AsyncRequest request{WinHttpOpenRequest(connection.value, L"GET",
-        ReleaseApiPath.data(), nullptr, WINHTTP_NO_REFERER,
+        path.c_str(), nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE), progress};
     if (!request.value) { reply.error = GetLastError(); return reply; }
     DWORD disabled = WINHTTP_DISABLE_REDIRECTS;
@@ -186,24 +231,180 @@ HttpReply FetchRelease(std::stop_token stop) {
         reply.error = GetLastError(); return reply;
     }
     if (reply.status == 403) reply.rateLimitRemaining = ReadRateLimitRemaining(request.value);
+    if (reply.status == 301 || reply.status == 302 || reply.status == 303 || reply.status == 307 || reply.status == 308) {
+        wchar_t location[8192]{};
+        DWORD length = sizeof(location);
+        if (!redirects || !WinHttpQueryHeaders(request.value, WINHTTP_QUERY_LOCATION, WINHTTP_HEADER_NAME_BY_INDEX,
+                location, &length, WINHTTP_NO_HEADER_INDEX) || !IsUpdateDownloadRedirect(location)) {
+            reply.error = ERROR_WINHTTP_REDIRECT_FAILED; return reply;
+        }
+        url = location;
+        continue;
+    }
     if (reply.status != 200) return reply;
-    char buffer[4096];
+    uint64_t received = 0;
+    char buffer[65536];
     while (!stop.stop_requested()) {
         progress.bytes = 0;
         if (!WinHttpReadData(request.value, buffer, sizeof(buffer), nullptr) || !await()) {
             if (!reply.error) reply.error = GetLastError(); return reply;
         }
         if (!progress.bytes) return reply;
-        if (progress.bytes > MaxResponseBytes - reply.body.size()) {
-            // Oversized responses are malformed, not successful releases.
-            reply.body.clear(); return reply;
+        if (progress.bytes > limit - received) {
+            reply.error = ERROR_FILE_TOO_LARGE; return reply;
         }
-        reply.body.append(buffer, progress.bytes);
+        if (!sink(std::string_view(buffer, progress.bytes))) { reply.error = ERROR_WRITE_FAULT; return reply; }
+        received += progress.bytes;
     }
     reply.error = ERROR_WINHTTP_OPERATION_CANCELLED;
     return reply;
+    }
+    reply.error = ERROR_WINHTTP_REDIRECT_FAILED;
+    return reply;
+}
+HttpReply FetchRelease(std::stop_token stop) {
+    std::string body;
+    auto reply = FetchHttp(L"https://api.github.com" + std::wstring(ReleaseApiPath), stop,
+        MaxResponseBytes, std::chrono::seconds(15), false,
+        [&](std::string_view bytes) { body.append(bytes); return true; });
+    reply.body = std::move(body);
+    return reply;
 }
 } // namespace
+
+bool IsUpdateDownloadRedirect(std::wstring_view url) {
+    URL_COMPONENTS parts{sizeof(parts)};
+    parts.dwHostNameLength = parts.dwUserNameLength = parts.dwPasswordLength = static_cast<DWORD>(-1);
+    if (url.size() > 8192 || url.find(L'#') != url.npos ||
+        !WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.size()), 0, &parts) ||
+        parts.nScheme != INTERNET_SCHEME_HTTPS || parts.nPort != INTERNET_DEFAULT_HTTPS_PORT ||
+        parts.dwUserNameLength || parts.dwPasswordLength) return false;
+    const std::wstring_view host(parts.lpszHostName, parts.dwHostNameLength);
+    return host == L"github.com" || host == L"api.github.com" ||
+        host == L"release-assets.githubusercontent.com" || host == L"objects.githubusercontent.com";
+}
+
+const wchar_t* StatusKey(TransferStatus status) {
+    switch (status) {
+    case TransferStatus::Downloading: return L"downloading";
+    case TransferStatus::Verifying: return L"verifying";
+    case TransferStatus::Ready: return L"ready";
+    case TransferStatus::Installing: return L"installing";
+    case TransferStatus::Cancelled: return L"cancelled";
+    case TransferStatus::NetworkError: return L"downloadError";
+    case TransferStatus::DiskError: return L"diskError";
+    case TransferStatus::Corrupt: return L"corrupt";
+    case TransferStatus::LaunchError: return L"launchError";
+    default: return L"idle";
+    }
+}
+
+UpdateInstaller::UpdateInstaller(std::filesystem::path directory, Transport transport, Launcher launcher)
+    : m_directory(std::move(directory)), m_transport(std::move(transport)), m_launcher(std::move(launcher)) {
+    if (m_directory.empty()) {
+        PWSTR local = nullptr;
+        if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &local))) {
+            m_directory = std::filesystem::path(local) / L"NitLink" / L"Updates";
+            CoTaskMemFree(local);
+        }
+    }
+    if (!m_transport) m_transport = [](const InstallerAsset& asset, std::stop_token stop, const Sink& sink) {
+        const auto reply = FetchHttp(asset.url, stop, asset.bytes, std::chrono::seconds(600), true, sink);
+        return reply.error ? reply.error : reply.status == 200 ? 0u : static_cast<uint32_t>(ERROR_WINHTTP_INVALID_SERVER_RESPONSE);
+    };
+    if (!m_launcher) m_launcher = [](const std::filesystem::path& setup, const std::filesystem::path& target) {
+        const std::wstring arguments = L"--auto-update /WAITPID=" + std::to_wstring(GetCurrentProcessId()) + L" /D=" + target.wstring();
+        SHELLEXECUTEINFOW launch{sizeof(launch)};
+        launch.fMask = SEE_MASK_NOCLOSEPROCESS;
+        launch.lpVerb = L"open";
+        launch.lpFile = setup.c_str();
+        launch.lpParameters = arguments.c_str();
+        const auto directory = setup.parent_path().wstring();
+        launch.lpDirectory = directory.c_str();
+        launch.nShow = SW_SHOWNORMAL;
+        const bool started = ShellExecuteExW(&launch) != FALSE;
+        if (launch.hProcess) CloseHandle(launch.hProcess);
+        return started;
+    };
+}
+UpdateInstaller::~UpdateInstaller() { Cancel(); if (m_worker.joinable()) m_worker.join(); }
+void UpdateInstaller::Cancel() { if (m_worker.joinable()) m_worker.request_stop(); }
+void UpdateInstaller::Publish(TransferStatus status, uint64_t received) {
+    { std::lock_guard lock(m_mutex); m_state.status = status; m_state.received = received; }
+    m_changed = true;
+}
+std::optional<TransferState> UpdateInstaller::TakeState() {
+    if (!m_changed.exchange(false)) return {};
+    std::lock_guard lock(m_mutex);
+    return m_state;
+}
+bool UpdateInstaller::Start(const InstallerAsset& asset) {
+    if (m_busy.exchange(true)) return false;
+    if (m_worker.joinable()) m_worker.join();
+    { std::lock_guard lock(m_mutex); m_state = {TransferStatus::Downloading, asset.tag, 0, asset.bytes}; m_readyPath.clear(); }
+    m_changed = true;
+    if (m_directory.empty()) { Publish(TransferStatus::DiskError); m_busy = false; return false; }
+    m_worker = std::jthread([this, asset](std::stop_token stop) {
+        const auto target = m_directory / asset.name;
+        const auto partial = std::filesystem::path(target.wstring() + L".partial");
+        TransferStatus outcome = TransferStatus::DiskError;
+        uint64_t received = 0;
+        try {
+            std::error_code error;
+            std::filesystem::create_directories(m_directory, error);
+            std::ofstream output;
+            if (!error) output.open(partial, std::ios::binary | std::ios::trunc);
+            struct Hash { BCRYPT_HASH_HANDLE value = nullptr; ~Hash() { if (value) BCryptDestroyHash(value); } } hash;
+            if (output && BCryptCreateHash(BCRYPT_SHA256_ALG_HANDLE, &hash.value, nullptr, 0, nullptr, 0, 0) >= 0) {
+                auto notified = Clock::now();
+                const auto failure = m_transport(asset, stop, [&](std::string_view bytes) {
+                    if (bytes.size() > asset.bytes - received) { outcome = TransferStatus::Corrupt; return false; }
+                    output.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+                    if (!output || BCryptHashData(hash.value, reinterpret_cast<PUCHAR>(const_cast<char*>(bytes.data())), static_cast<ULONG>(bytes.size()), 0) < 0) return false;
+                    received += bytes.size();
+                    if (received == asset.bytes || Clock::now() - notified >= std::chrono::milliseconds(200)) {
+                        notified = Clock::now(); Publish(TransferStatus::Downloading, received);
+                    }
+                    return !stop.stop_requested();
+                });
+                output.close();
+                if (stop.stop_requested()) outcome = TransferStatus::Cancelled;
+                else if (failure) {
+                    if (failure == ERROR_FILE_TOO_LARGE) outcome = TransferStatus::Corrupt;
+                    else if (failure != ERROR_WRITE_FAULT && outcome != TransferStatus::Corrupt) outcome = TransferStatus::NetworkError;
+                } else if (output) {
+                    Publish(TransferStatus::Verifying, received);
+                    unsigned char digest[32]{};
+                    std::string actual;
+                    if (BCryptFinishHash(hash.value, digest, sizeof(digest), 0) >= 0) {
+                        constexpr char hex[] = "0123456789abcdef";
+                        for (const auto byte : digest) { actual += hex[byte >> 4]; actual += hex[byte & 15]; }
+                    }
+                    if (received != asset.bytes || actual != asset.sha256) outcome = TransferStatus::Corrupt;
+                    else if (MoveFileExW(partial.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+                        { std::lock_guard lock(m_mutex); m_readyPath = target; }
+                        outcome = TransferStatus::Ready;
+                    }
+                }
+            }
+        } catch (const std::exception&) { outcome = TransferStatus::DiskError; }
+        std::error_code ignored;
+        std::filesystem::remove(partial, ignored);
+        Publish(outcome, received);
+        m_busy = false;
+    });
+    return true;
+}
+bool UpdateInstaller::Install(const std::filesystem::path& applicationDirectory) {
+    std::filesystem::path setup;
+    { std::lock_guard lock(m_mutex);
+      if (m_state.status != TransferStatus::Ready && m_state.status != TransferStatus::LaunchError) return false;
+      setup = m_readyPath; m_state.status = TransferStatus::Installing; }
+    m_changed = true;
+    if (m_launcher(setup, applicationDirectory)) return true;
+    Publish(TransferStatus::LaunchError);
+    return false;
+}
 
 UpdateChecker::UpdateChecker(Transport transport) : m_transport(transport ? std::move(transport) : FetchRelease) {}
 UpdateChecker::~UpdateChecker() { Cancel(); if (m_worker.joinable()) m_worker.join(); }

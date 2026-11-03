@@ -45,7 +45,7 @@ $setupInputs = @('installer', 'VERSION', 'LICENSE', 'README-HOLYBEAR.txt',
     'scripts/validate-package.ps1', 'scripts/verify-installer.ps1',
     # Get-HolyBearVersion verifies these application identity declarations.
     'CMakeLists.txt', 'src/app.rc', 'src/app/holybear_version.h',
-    'src/overlay/overlay.cpp', 'nitlink-menu.html', 'assets/menu/menu.js')
+    'src/overlay/overlay.cpp', 'nitlink-menu.html', 'assets/menu/menu.js', 'assets/menu/updates.js')
 & git -C $HolyBearRoot archive --format=zip "--output=$setupSource" HEAD -- @setupInputs
 if ($LASTEXITCODE -ne 0) { throw 'Installer corresponding source archive failed.' }
 $notes = Get-Content -LiteralPath $info.Notes -Raw

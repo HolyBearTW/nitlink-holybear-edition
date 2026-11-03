@@ -10,6 +10,8 @@ $required = @(
     'locales/ko-KR.js', 'locales/ja-JP.js',
     'assets/menu/menu.js', 'assets/menu/artwork-editor.js', 'assets/menu/preview-host.js', 'assets/menu/account-library.js',
     'assets/menu/shortcut-editor.js',
+    'assets/menu/updates.js', 'assets/menu/vendor/marked.umd.js', 'assets/menu/vendor/purify.min.js',
+    'assets/menu/vendor/marked-LICENSE.txt', 'assets/menu/vendor/DOMPurify-LICENSE.txt', 'assets/menu/vendor/README.md',
     'assets/menu/platforms/nintendo-switch.svg', 'assets/menu/platforms/playstation.svg', 'assets/menu/platforms/xbox.svg',
     'assets/menu/platforms/ATTRIBUTION.md', 'assets/menu/platforms/BOOTSTRAP-ICONS-LICENSE.txt',
     'assets/nitlink.svg', 'assets/nitlink-mono.svg', 'game-search-expansions.json', 'official-artwork.json', 'unavailable-artwork.json',

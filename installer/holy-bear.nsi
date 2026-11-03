@@ -23,6 +23,7 @@ InstallDirRegKey HKCU "${REGKEY}" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 SetOverwrite on
+Var AutoUpdateArg
 ShowInstDetails show
 ShowUninstDetails show
 ManifestDPIAware true
@@ -120,6 +121,27 @@ Function .onInit
   SetRegView 64
   !insertmacro DetectInstallerLanguage
   ${GetParameters} $0
+  StrCpy $AutoUpdateArg ""
+  ClearErrors
+  ${GetOptions} $0 "--auto-update" $1
+  ${IfNot} ${Errors}
+    StrCpy $AutoUpdateArg "--auto-update"
+    ClearErrors
+    ${GetOptions} $0 "/WAITPID=" $1
+    ${IfNot} ${Errors}
+      ${If} $1 > 0
+        System::Call 'kernel32::OpenProcess(i 0x100000, i 0, i $1) p.r2'
+        ${If} $2 P<> 0
+          System::Call 'kernel32::WaitForSingleObject(p r2, i 30000) i.r3'
+          System::Call 'kernel32::CloseHandle(p r2)'
+          ${If} $3 == 258
+            SetErrorLevel 1
+            Abort
+          ${EndIf}
+        ${EndIf}
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
   ${GetOptions} $0 "/LANG=" $1
   ${If} $1 == 1033
   ${OrIf} $1 == 1028
@@ -147,14 +169,24 @@ Function .onInit
     InitPluginsDir
     File /oname=$PLUGINSDIR\NitLinkSetupUi.exe "${WINUI_SETUP}"
     ClearErrors
-    ExecWait '"$PLUGINSDIR\NitLinkSetupUi.exe" --engine "$EXEPATH" --directory "$INSTDIR" --language "$LANGUAGE"' $1
+    ExecWait '"$PLUGINSDIR\NitLinkSetupUi.exe" --engine "$EXEPATH" --directory "$INSTDIR" --language "$LANGUAGE" $AutoUpdateArg' $1
     IfErrors classic_install
     ${If} $1 == 0
       Quit
     ${EndIf}
   ${EndIf}
   classic_install:
-  !insertmacro MUI_LANGDLL_DISPLAY
+  ${If} $AutoUpdateArg != ""
+    SetSilent silent
+  ${Else}
+    !insertmacro MUI_LANGDLL_DISPLAY
+  ${EndIf}
+FunctionEnd
+
+Function .onInstSuccess
+  ${If} $AutoUpdateArg != ""
+    Call LaunchNitLink
+  ${EndIf}
 FunctionEnd
 
 Function LaunchNitLink

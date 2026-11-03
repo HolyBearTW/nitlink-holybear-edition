@@ -52,7 +52,7 @@ class TagSecurityTests(unittest.TestCase):
         cls.base.mkdir()
         cls.run_tool(["git", "init", "-b", "holybear/integrated", str(cls.base)])
         for name in ("VERSION", "CMakeLists.txt", "README-HOLYBEAR.txt", "src/app.rc", "src/app/holybear_version.h",
-                     "src/overlay/overlay.cpp", "nitlink-menu.html", "assets/menu/menu.js",
+                     "src/overlay/overlay.cpp", "nitlink-menu.html", "assets/menu/menu.js", "assets/menu/updates.js",
                      "scripts/holy-bear-common.ps1", "scripts/verify-holybear-tag.py", "scripts/release-signing.py",
                      "scripts/holybear_repository.py", "scripts/publish-holybear.ps1", "scripts/holy-bear-release-notes.ps1"):
             destination = cls.base / name

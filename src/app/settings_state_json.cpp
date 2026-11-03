@@ -80,7 +80,13 @@ std::wstring SerializeWebViewCoreSettingsProperties(const WebViewCoreSettingsSta
     json << L"\"status\":\"" << JsonEscapeWide(update.status) << L"\",";
     json << L"\"hasNewer\":" << (update.hasNewer ? L"true" : L"false") << L",";
     json << L"\"unread\":" << (update.unread ? L"true" : L"false") << L",";
-    json << L"\"url\":\"" << JsonEscapeWide(update.url) << L"\"}";
+    json << L"\"url\":\"" << JsonEscapeWide(update.url) << L"\",";
+    json << L"\"notes\":\"" << JsonEscapeWide(update.notes) << L"\",";
+    json << L"\"publishedAt\":\"" << JsonEscapeWide(update.publishedAt) << L"\",";
+    json << L"\"transferStatus\":\"" << JsonEscapeWide(update.transferStatus) << L"\",";
+    json << L"\"packageBytes\":" << update.packageBytes << L",";
+    json << L"\"receivedBytes\":" << update.receivedBytes << L",";
+    json << L"\"canDownload\":" << (update.canDownload ? L"true" : L"false") << L"}";
 
     stringProperty(L"manualHdmiSource", state.manualHdmiSource);
     stringProperty(L"manualHdmiSourceCustom", state.manualHdmiSourceCustom);

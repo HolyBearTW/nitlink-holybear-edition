@@ -375,6 +375,7 @@ void Window::UpdateCaptionTooltips()
 {
     m_captionTooltips={m_chromeLabels.hud[m_hudMode]+(m_hudVisible?L"":L" ("+m_chromeLabels.hidden+L")"),m_chromeLabels.settings,
         m_chromeLabels.minimize,IsZoomed(m_hwnd)?m_chromeLabels.restore:m_chromeLabels.maximize,m_chromeLabels.close};
+    if (m_updateAvailable) m_captionTooltips[1] += L" · " + m_chromeLabels.updateAvailable;
     if(!m_captionTooltip)return;
     for(int i=m_isSettingsWindow?2:0;i<5;++i){TOOLINFOW tool{sizeof(tool)};tool.hwnd=m_hwnd;tool.uId=i+1;
         tool.lpszText=m_captionTooltips[i].data();tool.rect=CaptionButtonRect(i);
@@ -382,10 +383,11 @@ void Window::UpdateCaptionTooltips()
         SendMessageW(m_captionTooltip,TTM_NEWTOOLRECTW,0,reinterpret_cast<LPARAM>(&tool));}
 }
 
-void Window::SetChromeState(unsigned hudMode,bool hudVisible,bool settingsVisible)
+void Window::SetChromeState(unsigned hudMode,bool hudVisible,bool settingsVisible,bool updateAvailable)
 {
-    if(m_hudMode==hudMode&&m_hudVisible==hudVisible&&m_settingsVisible==settingsVisible)return;
+    if(m_hudMode==hudMode&&m_hudVisible==hudVisible&&m_settingsVisible==settingsVisible&&m_updateAvailable==updateAvailable)return;
     m_hudMode=hudMode;m_hudVisible=hudVisible;m_settingsVisible=settingsVisible;
+    m_updateAvailable=updateAvailable;
     UpdateCaptionTooltips();RefreshCaption();
 }
 
@@ -577,6 +579,12 @@ void Window::PaintCaption(HDC dc)
                 points[vertex]={cx+std::cos(angle)*radius,cy+std::sin(angle)*radius};
             }
             graphics.DrawPolygon(&line,points,24);graphics.DrawEllipse(&line,cx-2*scale,cy-2*scale,4*scale,4*scale);
+            if (m_updateAvailable) {
+                SolidBrush badge(Color(255,117,180,241));
+                Pen border(Color(255,30,30,34),1.5f*scale);
+                graphics.FillEllipse(&badge,cx+4*scale,cy-11*scale,7*scale,7*scale);
+                graphics.DrawEllipse(&border,cx+4*scale,cy-11*scale,7*scale,7*scale);
+            }
         }else if(i==2)graphics.DrawLine(&line,cx-14.f/3*scale,cy,cx+14.f/3*scale,cy);
         else if(i==3){
             if(IsZoomed(m_hwnd)){

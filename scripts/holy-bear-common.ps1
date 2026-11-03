@@ -61,12 +61,16 @@ function Get-HolyBearVersion {
     }
     $menu = Get-Content -LiteralPath (Join-Path $HolyBearRoot 'nitlink-menu.html') -Raw
     $menuScript = Get-Content -LiteralPath (Join-Path $HolyBearRoot 'assets/menu/menu.js') -Raw
+    $updateScript = Get-Content -LiteralPath (Join-Path $HolyBearRoot 'assets/menu/updates.js') -Raw
     $overlay = Get-Content -LiteralPath (Join-Path $HolyBearRoot 'src/overlay/overlay.cpp') -Raw
     $native = Get-Content -LiteralPath (Join-Path $HolyBearRoot 'src/app/holybear_version.h') -Raw
     if (-not $menu.Contains(('name="nitlink-version" content="{0}"' -f $value)) -or
         -not $menu.Contains('id="holy-bear-product-title"') -or
         -not $menu.Contains('id="holy-bear-last-check"') -or
-        -not $menuScript.Contains("const currentTag = typeof s.current") -or
+        -not $menu.Contains('src="assets/menu/updates.js"') -or
+        -not $menuScript.Contains('window.NitLinkUpdates.create') -or
+        -not $updateScript.Contains("const version = (state.current || '')") -or
+        -not $updateScript.Contains("document.getElementById('holy-bear-product-title').textContent") -or
         -not $overlay.Contains(('L"{0}"' -f $value)) -or
         -not $native.Contains(('L"{0}"' -f $value))) { throw 'About/HUD/native update version mismatch.' }
     if (-not $resource.Contains(('VALUE "ProductName", "{0}"' -f $title)) -or

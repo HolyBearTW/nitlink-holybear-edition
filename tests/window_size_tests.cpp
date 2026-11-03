@@ -42,6 +42,13 @@ static void CheckClose(CloseState state, const std::filesystem::path& configPath
         desc.width = 640;
         desc.height = 360;
         Require(window.Create(instance, desc), "Window creates");
+        RECT initial{}; MONITORINFO primary{sizeof(primary)};
+        Require(GetWindowRect(window.GetHWND(), &initial) &&
+                    GetMonitorInfoW(MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY), &primary),
+                "Initial window and primary work area are available");
+        Require(std::abs(initial.left + initial.right - primary.rcWork.left - primary.rcWork.right) <= 1 &&
+                    std::abs(initial.top + initial.bottom - primary.rcWork.top - primary.rcWork.bottom) <= 1,
+                "A window without saved coordinates starts at the center of the work area");
         Require(window.GetClientSize() == std::pair<uint32_t, uint32_t>{640, 360},
                 "The reserved custom caption does not consume picture dimensions");
         window.AcknowledgeDisplayChange();

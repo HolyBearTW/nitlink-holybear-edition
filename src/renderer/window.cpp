@@ -115,6 +115,12 @@ bool Window::Create(HINSTANCE hInstance, const Desc& desc)
                 y = std::clamp(y, monitor.rcWork.top, std::max(monitor.rcWork.top, monitor.rcWork.bottom - rc.bottom));
             }
         }
+    } else {
+        MONITORINFO monitor{sizeof(monitor)};
+        if (GetMonitorInfoW(MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY), &monitor)) {
+            x = monitor.rcWork.left + (monitor.rcWork.right - monitor.rcWork.left - rc.right) / 2;
+            y = monitor.rcWork.top + (monitor.rcWork.bottom - monitor.rcWork.top - rc.bottom) / 2;
+        }
     }
 
     m_hwnd = CreateWindowExW(

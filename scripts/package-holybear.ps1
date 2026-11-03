@@ -62,6 +62,7 @@ $identity = @(
     "upstream_commit=$($sources.upstream.commit)", "pr31_commit=$($sources.pr31.commit)",
     "pr23_commit=$($sources.pr23.commit)", "audio_version=$($sources.audio.tag)",
     "audio_commit=$($sources.audio.commit)", "audio_author=$($sources.audio.author)",
+    "audio_reliability_commit=$($sources.audio.reliability.commits[-1])",
     "built_utc=$([DateTime]::UtcNow.ToString('o'))", "ctest=$($summary.passed)/$($summary.tests)",
     "known_baseline_failures=$($summary.failures)"
 )
@@ -71,6 +72,7 @@ if (-not (Test-Path -LiteralPath $crt)) { throw 'Licensed release VC143 CRT dire
 # Copy the runtime import closure from the redistributable directory, never System32/debug.
 $pending = [Collections.Generic.Queue[string]]::new()
 $pending.Enqueue((Join-Path $stage 'NitLink.exe'))
+$pending.Enqueue((Join-Path $stage 'NitLinkAudioReplay.exe'))
 $copied = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 while ($pending.Count) {
     $imports = & dumpbin /DEPENDENTS $pending.Dequeue()

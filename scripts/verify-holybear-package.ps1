@@ -46,7 +46,8 @@ if ($env:GITHUB_ACTIONS -ceq 'true') {
 if ($RequireTag -and $buildInfo.tag_source_verified -ne 'true') { throw 'Package was not built from the required source tag.' }
 $source = Get-Content -LiteralPath (Join-Path $HolyBearRoot 'HOLYBEAR-SOURCES.json') -Raw | ConvertFrom-Json
 if ($buildInfo.upstream_commit -ne $source.upstream.commit -or $buildInfo.pr31_commit -ne $source.pr31.commit -or
-    $buildInfo.pr23_commit -ne $source.pr23.commit -or $buildInfo.audio_commit -ne $source.audio.commit) { throw 'Integration source mismatch.' }
+    $buildInfo.pr23_commit -ne $source.pr23.commit -or $buildInfo.audio_commit -ne $source.audio.commit -or
+    $buildInfo.audio_reliability_commit -ne $source.audio.reliability.commits[-1]) { throw 'Integration source mismatch.' }
 Assert-HolyBearExecutable (Join-Path $fresh 'NitLink.exe')
 foreach ($file in $files) {
     if ($file.Extension -in @('.txt', '.md', '.json', '.tsv', '.html', '.js')) {
@@ -58,7 +59,7 @@ foreach ($file in $files) {
 }
 if ($BuildDirectory) {
     $buildPath = [IO.Path]::GetFullPath((Join-Path $HolyBearRoot $BuildDirectory))
-    $matches = @('NitLink.exe', 'nitlink-menu.html', 'assets/menu/menu.js', 'locales/en-US.js',
+    $matches = @('NitLink.exe', 'NitLinkAudioReplay.exe', 'nitlink-menu.html', 'assets/menu/menu.js', 'locales/en-US.js',
         'locales/zh-TW.js', 'locales/zh-CN.js', 'locales/de-DE.js', 'locales/ko-KR.js', 'locales/ja-JP.js', 'assets/menu/Archivo-400.ttf',
         'assets/menu/Archivo-500.ttf', 'assets/menu/Archivo-600.ttf', 'third_party/nis/NIS_Scaler.h')
     foreach ($relative in $matches) {

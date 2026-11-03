@@ -5,6 +5,7 @@ if ((Get-Item -LiteralPath $packageRoot).Attributes -band [IO.FileAttributes]::R
     throw 'Package root cannot be a reparse point.'
 }
 $required = @(
+    'NitLinkAudioReplay.exe', 'docs/audio-diagnostics.md',
     'NitLink.exe', 'nitlink-menu.html', 'locales/en-US.js', 'locales/zh-TW.js', 'locales/de-DE.js',
     'locales/ko-KR.js', 'locales/ja-JP.js',
     'assets/menu/menu.js', 'assets/menu/artwork-editor.js', 'assets/menu/preview-host.js', 'assets/menu/account-library.js',

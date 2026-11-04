@@ -149,6 +149,38 @@ static void CheckGlassWindows()
         Window::Desc settingsDesc;settingsDesc.width=700;settingsDesc.height=500;settingsDesc.settingsWindow=true;
         Require(main.Create(instance,mainDesc)&&settings.Create(instance,settingsDesc),
             "Main and independent settings windows create together");
+        for(const bool glass:{false,true}){
+            settings.SetGlassEffect(glass,0.0f);
+            RECT client{};GetClientRect(settings.GetHWND(),&client);
+            const auto content=settings.GetContentBounds();
+            const int inset=MulDiv(8,GetDpiForWindow(settings.GetHWND()),96);
+            Require(content.left==inset&&content.right==client.right-inset&&content.bottom==client.bottom-inset,
+                "Settings content reserves native resize grips in glass and classic modes");
+            const auto browser=CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_VISIBLE,
+                content.left,content.top,content.right-content.left,content.bottom-content.top,
+                settings.GetHWND(),nullptr,instance,nullptr);
+            Require(browser!=nullptr,"Browser-sized child covers the complete settings content");
+            // Use the visible edge beside the 20-DIP rounded corner, inside
+            // the native 24-DIP corner grip rather than its clipped pixels.
+            const int corner=MulDiv(20,GetDpiForWindow(settings.GetHWND()),96);
+            for(const auto [x,expected]:std::vector<std::pair<LONG,LRESULT>>{
+                    {corner,HTBOTTOMLEFT},{client.right/2,HTBOTTOM},{client.right-corner,HTBOTTOMRIGHT}}){
+                POINT point{x,client.bottom-inset/2};
+                const auto hitWindow=ChildWindowFromPointEx(settings.GetHWND(),point,CWP_SKIPINVISIBLE);
+                if(hitWindow!=settings.GetHWND()){
+                    wchar_t name[128]{};GetClassNameW(hitWindow,name,128);
+                    RECT child{};GetWindowRect(hitWindow,&child);MapWindowPoints(nullptr,settings.GetHWND(),reinterpret_cast<POINT*>(&child),2);
+                    std::wcerr<<L"Resize grip covered by "<<name<<L" at "<<child.left<<L","<<child.top<<L"-"<<child.right<<L","<<child.bottom
+                        <<L"; point="<<point.x<<L","<<point.y<<L"; content="<<content.left<<L","<<content.top<<L"-"<<content.right<<L","<<content.bottom<<L'\n';
+                }
+                Require(hitWindow==settings.GetHWND(),
+                    "Bottom-left, bottom and bottom-right grips are not covered by content child windows");
+                ClientToScreen(settings.GetHWND(),&point);
+                Require(SendMessageW(settings.GetHWND(),WM_NCHITTEST,0,MAKELPARAM(point.x,point.y))==expected,
+                    "All three bottom grips reach the native resize operation");
+            }
+            DestroyWindow(browser);
+        }
         for(const auto hwnd:{main.GetHWND(),settings.GetHWND()}){
             Require(GetWindow(hwnd,GW_OWNER)==nullptr,"Both content windows remain unowned taskbar windows");
             Require((GetWindowLongW(hwnd,GWL_EXSTYLE)&WS_EX_APPWINDOW)!=0,
@@ -228,6 +260,9 @@ static void CheckGlassWindows()
 
 int main()
 {
+    // Match NitLink's per-monitor-aware startup so native hit tests and
+    // window regions use the same physical coordinates at display scaling.
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
     // Fullscreen and PiP transitions run on an inactive desktop so checks never cover the user's screen.
     // The test process retains the active desktop handle until process exit releases it.
     const std::wstring name = L"NitLinkWindowSizeTests-" + std::to_wstring(GetCurrentProcessId());

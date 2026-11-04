@@ -344,6 +344,12 @@ RECT Window::GetContentBounds() const
 {
     auto bounds=LayoutBounds();
     bounds.top=std::min(bounds.bottom,bounds.top+CaptionHeight());
+    if(m_isSettingsWindow&&!IsZoomed(m_hwnd)){
+        // WebView owns its child HWNDs and consumes mouse input inside its
+        // bounds. Keep native side/bottom resize grips outside that content.
+        const int edge=MulDiv(8,GetDpiForWindow(m_hwnd),96);
+        bounds.left+=edge;bounds.right-=edge;bounds.bottom-=edge;
+    }
     return bounds;
 }
 
@@ -988,8 +994,16 @@ LRESULT CALLBACK Window::VideoWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lP
     if(self){
         if(msg==WM_NCHITTEST&&self->CaptionHeight()){
             const auto hit=SendMessageW(self->m_hwnd,msg,wParam,lParam);
+            // The video child reaches the host's bottom resize border. Return
+            // resize hits directly so Windows sends the initiating click here;
+            // VideoWndProc forwards that click to the top-level host below.
+            if(hit==HTLEFT||hit==HTRIGHT||hit==HTTOP||hit==HTBOTTOM||
+                hit==HTTOPLEFT||hit==HTTOPRIGHT||hit==HTBOTTOMLEFT||hit==HTBOTTOMRIGHT)return hit;
             if(hit!=HTCLIENT)return HTTRANSPARENT;
         }
+        if(msg==WM_NCLBUTTONDOWN&&(wParam==HTLEFT||wParam==HTRIGHT||wParam==HTTOP||wParam==HTBOTTOM||
+            wParam==HTTOPLEFT||wParam==HTTOPRIGHT||wParam==HTBOTTOMLEFT||wParam==HTBOTTOMRIGHT))
+            return SendMessageW(self->m_hwnd,msg,wParam,lParam);
         if(msg==WM_MOUSEMOVE||msg==WM_LBUTTONDOWN||msg==WM_LBUTTONUP){
             POINT point{static_cast<short>(LOWORD(lParam)),static_cast<short>(HIWORD(lParam))};
             MapWindowPoints(hwnd,self->m_hwnd,&point,1);

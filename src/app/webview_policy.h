@@ -85,6 +85,7 @@ inline const Resource* FindResource(std::wstring_view uri) {
 inline constexpr std::wstring_view ExternalLinks[] = {
     L"https://tally.so/r/EkZjNr", L"https://ko-fi.com/klosed89",
     L"https://nitlink.app/", L"https://holybear.tw/", L"https://buymeacoffee.com/holybear",
+    L"https://github.com/HolyBearTW/nitlink-holybear-edition/issues",
     L"https://github.com/HolyBearTW", L"https://github.com/CN115", L"https://github.com/n810K",
     L"https://github.com/Noka123", L"https://github.com/i0rph", L"https://github.com/nitlink-dev",
     L"https://github.com/tavricccc", L"https://github.com/nitlink-dev/nitlink",

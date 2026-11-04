@@ -864,7 +864,12 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             document.querySelector('#holy-bear-check-update').textContent === window.NitLinkLocales['zh-TW']['update.check'] &&
             document.querySelector('#holy-bear-update-status').textContent.indexOf('未知') < 0 &&
             !!document.querySelector('.about-links a[href="https://tally.so/r/EkZjNr"]') &&
-            !!document.querySelector('.about-links a[href="https://ko-fi.com/klosed89"]');
+            !!document.querySelector('.about-links a[href="https://ko-fi.com/klosed89"]') &&
+            document.querySelector('.topbar-actions [data-i18n="top.feedback"]').getAttribute('href') === 'https://github.com/HolyBearTW/nitlink-holybear-edition/issues' &&
+            document.querySelector('.topbar-actions [data-i18n="top.feedback"]').textContent === '提供意見' &&
+            document.querySelector('.topbar-actions [data-i18n="top.support"]').textContent === '支持聖小熊' &&
+            document.querySelector('.topbar-actions [data-i18n="top.support"]').closest('a').getAttribute('href') === 'https://buymeacoffee.com/holybear' &&
+            document.querySelector('.about-links [data-i18n="about.feedback"]').textContent === '提供意見給原作者';
     })())JS") == L"true", "About has two independently accessible default-open disclosures and centralized update information");
     Check(Script(view, LR"JS((() => {
         const main = document.querySelector('main');

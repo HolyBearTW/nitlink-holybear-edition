@@ -472,6 +472,7 @@ int main() {
     }
     for (auto target : {L"https://tally.so/r/EkZjNr", L"https://ko-fi.com/klosed89", L"https://github.com/HolyBearTW",
         L"https://nitlink.app/",L"https://holybear.tw/",L"https://buymeacoffee.com/holybear",
+        L"https://github.com/HolyBearTW/nitlink-holybear-edition/issues",
         L"https://github.com/markedjs/marked/tree/v18.1.3",L"https://aka.ms/webview2-sdk-license"}) {
         Expect(CanOpenExternal(MenuUri, target, true), "user activated menu link");
         Expect(!CanOpenExternal(MenuUri, target, false), "script popup");

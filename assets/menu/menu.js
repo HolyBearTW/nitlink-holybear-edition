@@ -344,6 +344,59 @@
       document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); });
     })();
 
+    // The native document host supplies glass, window movement and animations.
+    (() => {
+      const dialog = document.getElementById('about-document-dialog');
+      const title = document.getElementById('about-document-title');
+      const content = document.getElementById('about-document-content');
+      const documents = JSON.parse(document.getElementById('about-document-data').textContent);
+      let renderedMarkdown, renderedDocument;
+      document.querySelectorAll('.about-document-link').forEach(trigger => {
+        trigger.addEventListener('click', () => post('openAboutDocument', trigger.dataset.aboutDocument));
+      });
+      window.NitLinkAboutDocuments = state => {
+        applyTranslations(state.locale);
+        document.documentElement.dataset.documentWindow = 'true';
+        document.documentElement.dataset.panelEffect = state.panelEffect;
+        dialog.hidden = false;
+        title.textContent = t(`about.${state.id}`);
+        document.title = `NitLink · ${title.textContent}`;
+        document.getElementById('about-document-status').textContent = t(`about.document.${state.status || 'offline'}`);
+        const source = state.markdown || documents[state.id];
+        if (renderedDocument !== state.id || renderedMarkdown !== source) {
+          const localDocuments = { LICENSE: 'projectLicense', 'LICENSES.md': 'licenseNotices', 'ACKNOWLEDGMENTS.md': 'acknowledgments' };
+          const markdown = marked.parse(source, { gfm: true, breaks: false })
+            .replace(/href="(LICENSE|LICENSES\.md|ACKNOWLEDGMENTS\.md)"/g, (_, path) => `href="#${localDocuments[path]}"`)
+            .replace('href="docs/4ks-hdr-tonemap.md"', 'href="https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/docs/4ks-hdr-tonemap.md"');
+          const fragment = DOMPurify.sanitize(markdown, {
+            ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','ul','ol','li','strong','em','del','code','pre','blockquote','a','hr','br','table','thead','tbody','tr','th','td'],
+            ALLOWED_ATTR: ['href','title','start'], ALLOW_DATA_ATTR: false,
+            ALLOWED_URI_REGEXP: /^(?:https:\/\/|#(?:projectLicense|licenseNotices|acknowledgments)$)/i, RETURN_DOM_FRAGMENT: true
+          });
+          fragment.querySelectorAll('a').forEach(link => {
+            if (link.getAttribute('href')?.startsWith('#')) {
+              link.addEventListener('click', event => { event.preventDefault(); post('openAboutDocument', link.getAttribute('href').slice(1)); });
+            } else {
+              link.target = '_blank'; link.rel = 'noopener noreferrer';
+            }
+          });
+          content.replaceChildren(fragment);
+          content.dataset.document = state.id;
+          renderedDocument = state.id;
+          renderedMarkdown = source;
+          content.scrollTop = 0;
+        }
+        if (state.reveal) document.fonts.ready.then(() => post('aboutDocumentReady'));
+      };
+      const close = () => post('closeAboutDocument');
+      document.addEventListener('keydown', event => {
+        if (document.documentElement.dataset.documentWindow && event.key === 'Escape') {
+          event.preventDefault(); close();
+        }
+      });
+      document.getElementById('about-document-close').addEventListener('click', close);
+    })();
+
     // Contextual help supports pointer hover, keyboard focus and touch/click.
     // A fixed tooltip stays inside the viewport even in the narrow side panel.
     (() => {
@@ -1887,6 +1940,7 @@
       window.chrome.webview.addEventListener('message', evt => {
         let msg = evt.data;
         if (typeof msg === 'string') try { msg = JSON.parse(msg); } catch { return; }
+        if (msg && msg.aboutDocument) { window.NitLinkAboutDocuments(msg.aboutDocument); return; }
         if (msg && msg.state) {
           try {
             applyState(msg.state);

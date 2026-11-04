@@ -1223,6 +1223,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         const std::wstring& action = message->action;
 
         AppLog(L"WebView2 msg: " + action);
+        if(action==L"openAboutDocument"){OpenAboutDocument(message->text);return;}
         if(action==L"cycleHudMode"){
             if(!m_showOverlay){m_showOverlay=true;m_config->hudMode=0;}
             else if(m_config->hudMode==2)m_showOverlay=false;
@@ -1300,6 +1301,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
                 }
                 m_config->Save("nitlink.json");
                 UpdateWindowTitle();
+                PushAboutDocument();
                 UpdateDiscordForCurrentGame(/*preserveStartTime=*/ true);
                 PushSettingsState();
             }
@@ -1931,6 +1933,15 @@ void Application::Run()
         ConsumeHolyBearUpdate();
         ConsumeGameResults();
         ConsumeAccountResults();
+        if (m_aboutDocumentLoader) {
+            if (auto result = m_aboutDocumentLoader->TakeResult(); result && result->document == m_aboutDocument) {
+                m_aboutDocumentMarkdown = std::move(result->markdown);
+                m_aboutDocumentStatus = m_aboutDocumentMarkdown.empty() ? L"offline" : L"online";
+                PushAboutDocument();
+            }
+            if (m_aboutDocumentNeedsSync && m_aboutDocumentLoader->Start(*m_aboutDocumentSource))
+                m_aboutDocumentNeedsSync = false;
+        }
         while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) {
                 m_running = false;
@@ -1945,6 +1956,7 @@ void Application::Run()
             m_webviewSettings->CheckHealth();
             m_webviewSettings->DispatchPendingMessages();
         }
+        if (m_aboutDocumentView) m_aboutDocumentView->CheckHealth();
 
         m_hotkeyManager->Poll(m_settingsVisible?m_shortcutInputContext:ShortcutInputContext::Normal);
 
@@ -3331,6 +3343,7 @@ void Application::Shutdown()
     m_4kxPoller.Stop();
     m_updateChecker.reset();
     m_updateInstaller.reset();
+    m_aboutDocumentLoader.reset();
     m_gameService.reset();
     m_accountService.reset();
 
@@ -3388,6 +3401,7 @@ void Application::Shutdown()
     }
 
     // Tear down GPU resources before the window goes away
+    if (m_aboutDocumentView) { m_aboutDocumentView->Shutdown(); m_aboutDocumentView.reset(); }
     if (m_webviewSettings) { m_webviewSettings->Shutdown(); m_webviewSettings.reset(); }
     if (m_overlay)       { m_overlay->Shutdown();       m_overlay.reset(); }
     if (m_nisStartup.valid()) (void)m_nisStartup.get();
@@ -3395,6 +3409,7 @@ void Application::Shutdown()
     if (m_frameDiffer)   { m_frameDiffer->Shutdown();   m_frameDiffer.reset(); }
     if (m_renderer) m_renderer.reset();
     if (m_settingsWindow) m_settingsWindow.reset();
+    if (m_aboutDocumentWindow) m_aboutDocumentWindow.reset();
     if (m_window)   m_window.reset();
 }
 
@@ -4740,6 +4755,96 @@ void Application::CycleNoSignalDimImage()
     if (m_settingsVisible) PushSettingsState();
 }
 
+void Application::OpenAboutDocument(const std::wstring& document)
+{
+    m_aboutDocument=document;
+    m_aboutDocumentOpenPending=true;
+    if (!m_aboutDocumentLoader) m_aboutDocumentLoader = std::make_unique<HolyBear::AboutDocumentLoader>();
+    m_aboutDocumentLoader->Cancel();
+    m_aboutDocumentSource = &*std::find_if(std::begin(HolyBear::AboutDocumentSources), std::end(HolyBear::AboutDocumentSources),
+        [&](const auto& source) { return source.id == document; });
+    m_aboutDocumentMarkdown.clear();
+    m_aboutDocumentStatus = L"loading";
+    m_aboutDocumentNeedsSync = true;
+    if(!m_aboutDocumentWindow){
+        const HWND owner=m_webviewSettings->GetParentWindow();
+        const int dpi=static_cast<int>(GetDpiForWindow(owner));
+        MONITORINFO monitor{sizeof(monitor)};
+        GetMonitorInfoW(MonitorFromWindow(owner,MONITOR_DEFAULTTONEAREST),&monitor);
+        Window::Desc desc;desc.settingsWindow=true;
+        desc.width=std::min<LONG>(MulDiv(740,dpi,96),monitor.rcWork.right-monitor.rcWork.left-40);
+        desc.height=std::min<LONG>(MulDiv(680,dpi,96),monitor.rcWork.bottom-monitor.rcWork.top-MulDiv(36,dpi,96)-40);
+        desc.position=std::pair<int,int>{
+            monitor.rcWork.left+(monitor.rcWork.right-monitor.rcWork.left-desc.width)/2,
+            monitor.rcWork.top+(monitor.rcWork.bottom-monitor.rcWork.top-desc.height-MulDiv(36,dpi,96))/2};
+        auto host=std::make_unique<Window>();
+        if(!host->Create(GetModuleHandleW(nullptr),desc)){
+            m_aboutDocumentOpenPending=false;ShowToast(Tr(L"toast.settingsStartFailed"));return;
+        }
+        m_aboutDocumentWindow=std::move(host);
+        m_aboutDocumentView=std::make_unique<WebViewSettings>();
+        const auto layout=[this](){
+            if(!m_aboutDocumentView)return;
+            auto bounds=m_aboutDocumentWindow->GetContentBounds();
+            m_aboutDocumentWindow->SetPanelBackdrop(bounds);
+            m_aboutDocumentView->SetContentBounds(bounds);
+        };
+        m_aboutDocumentWindow->SetMoveCallback(layout);
+        m_aboutDocumentWindow->SetCloseCallback([this](){
+            m_aboutDocumentOpenPending=false;m_aboutDocumentView->Show(false);
+            m_aboutDocumentNeedsSync=false;m_aboutDocumentLoader->Cancel();
+        });
+        m_aboutDocumentView->SetFailureHandler([this](const std::wstring& reason){
+            m_aboutDocumentOpenPending=false;
+            m_aboutDocumentNeedsSync=false;m_aboutDocumentLoader->Cancel();
+            ShowWindow(m_aboutDocumentWindow->GetHWND(),SW_HIDE);
+            ShowToast(Tr(reason.c_str()));
+        });
+        m_aboutDocumentView->SetMessageHandler([this](const std::wstring& json){
+            const auto message=ParseSettingsMessage(json);
+            if(!message)return;
+            if(message->action==L"ready")PushAboutDocument();
+            else if(message->action==L"openAboutDocument")OpenAboutDocument(message->text);
+            else if(message->action==L"closeAboutDocument")
+                SendMessageW(m_aboutDocumentWindow->GetHWND(),WM_SYSCOMMAND,SC_CLOSE,0);
+            else if(message->action==L"aboutDocumentReady"&&m_aboutDocumentOpenPending){
+                m_aboutDocumentOpenPending=false;
+                m_aboutDocumentView->Show(true);
+                const auto window=m_aboutDocumentWindow->GetHWND();
+                if(IsIconic(window))SendMessageW(window,WM_SYSCOMMAND,SC_RESTORE,0);
+                else if(!IsWindowVisible(window))m_aboutDocumentWindow->Show(SW_SHOWNORMAL);
+                SetForegroundWindow(window);
+            }else if(message->action==L"javascriptException"){
+                m_aboutDocumentOpenPending=false;
+                AppLog(L"About document: "+message->text);
+                ShowToast(Tr(L"toast.settingsStartFailed"));
+            }
+        });
+        const auto bounds=m_aboutDocumentWindow->GetContentBounds();
+        if(!m_aboutDocumentView->Initialize(m_aboutDocumentWindow->GetHWND(),bounds.right,bounds.bottom)){
+            m_aboutDocumentView.reset();m_aboutDocumentWindow.reset();m_aboutDocumentOpenPending=false;return;
+        }
+        layout();
+        const bool glass=m_config->panelEffect=="blur";
+        m_aboutDocumentWindow->SetGlassEffect(glass,m_config->panelBlurStrength);
+        m_aboutDocumentView->SetTransparentBackground(glass);
+        m_aboutDocumentView->NavigateToMenu();
+    }
+    UpdateWindowTitle(false);
+    PushAboutDocument();
+}
+
+void Application::PushAboutDocument()
+{
+    if(!m_aboutDocumentView||!m_aboutDocumentView->IsReady())return;
+    std::wostringstream json;
+    json<<L"{\"aboutDocument\":{\"id\":\""<<m_aboutDocument<<L"\",\"locale\":\""<<Localization::Instance().LocaleName()
+        <<L"\",\"panelEffect\":\""<<Utf8ToWide(m_config->panelEffect)<<L"\",\"reveal\":"
+        <<(m_aboutDocumentOpenPending?L"true":L"false")<<L",\"status\":\""<<m_aboutDocumentStatus
+        <<L"\",\"markdown\":\""<<JsonEscapeWide(m_aboutDocumentMarkdown)<<L"\"}}";
+    m_aboutDocumentView->PostMessage(json.str());
+}
+
 std::wstring Application::ApplyPanelLayout()
 {
     std::string side = m_config ? m_config->panelSide : std::string("window");
@@ -4785,6 +4890,11 @@ std::wstring Application::ApplyPanelLayout()
     if(m_settingsWindow){
         m_settingsWindow->SetGlassEffect(glass,m_config->panelBlurStrength);
         m_settingsWindow->SetPanelBackdrop(m_settingsWindow->GetContentBounds());
+    }
+    if(m_aboutDocumentWindow){
+        m_aboutDocumentWindow->SetGlassEffect(glass,m_config->panelBlurStrength);
+        m_aboutDocumentView->SetTransparentBackground(glass);
+        PushAboutDocument();
     }
     if (m_webviewSettings) {
         const bool moved=m_webviewSettings->GetParentWindow()!=host->GetHWND();
@@ -6281,6 +6391,10 @@ void Application::UpdateWindowTitle(bool refreshDiscord)
         Localization::Instance().UiFontFamily(L"Archivo"),Tr(L"window.updateAvailable")};
     m_window->SetChromeLabels(chrome);
     if(m_settingsWindow){m_settingsWindow->SetChromeLabels(chrome);m_settingsWindow->SetTitle(L"NitLink - "+Tr(L"window.settings"));}
+    if(m_aboutDocumentWindow){
+        m_aboutDocumentWindow->SetChromeLabels(chrome);
+        m_aboutDocumentWindow->SetTitle(L"NitLink - "+Tr((L"about."+m_aboutDocument).c_str()));
+    }
     RefreshGameArtworkContext();
 
     m_lastHdmiDisplayRange = GetConfirmedHdmiRange();

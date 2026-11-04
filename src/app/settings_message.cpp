@@ -178,7 +178,10 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
     SettingsMessage result;
     result.action = actionIt->second.text;
     const auto& action = result.action;
-    if(action==L"cycleHudMode"){
+    if(action==L"openAboutDocument"){
+        if(!value||!Text(*value,32)||!OneOf(value->text,{L"projectLicense",L"licenseNotices",L"acknowledgments"}))return std::nullopt;
+        result.text=value->text;
+    }else if(action==L"cycleHudMode"){
         if(value)return std::nullopt;
     }else if(action==L"setCompactHudMetrics"){
         if(!value||value->kind!=Value::Kind::Number||value->number<1||value->number>15||std::trunc(value->number)!=value->number)return std::nullopt;
@@ -240,7 +243,7 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
         L"clearGame", L"resetGameSettings", L"saveGameSettings", L"getDeviceList", L"refreshDevices",
         L"openScreenshotFolder", L"exportAudioTrace", L"checkHolyBearUpdate", L"markHolyBearUpdateSeen",
         L"downloadHolyBearUpdate", L"cancelHolyBearUpdateDownload", L"installHolyBearUpdate",
-        L"getAccountLibrary",L"openPsnCookie"})) {
+        L"getAccountLibrary",L"openPsnCookie",L"aboutDocumentReady",L"closeAboutDocument"})) {
         if (value) return std::nullopt;
     } else if (action == L"restoreAutoCover" || action == L"cancelGameSearch") {
         if (value) return std::nullopt;

@@ -1033,10 +1033,10 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             !!document.querySelector('#about-contributors-body a[href="https://github.com/Noka123"]') &&
             !!document.querySelector('#about-contributors-body a[href="https://github.com/i0rph"]') &&
             !!document.querySelector('#about-details-body a[href="https://github.com/nitlink-dev/nitlink"]') &&
-            !!document.querySelector('#about-details-body a[href="https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE"]') &&
-            !!document.querySelector('#about-details-body a[href="https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md"]') &&
-            !!document.querySelector('#about-details-body a[href="https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/ACKNOWLEDGMENTS.md"]');
-    })())JS") == L"true", "separate sections preserve technical text, all license links and original contributor names and handles");
+            !!document.querySelector('#about-details-body button[data-about-document="projectLicense"][aria-haspopup="dialog"]') &&
+            !!document.querySelector('#about-details-body button[data-about-document="licenseNotices"][aria-haspopup="dialog"]') &&
+            !!document.querySelector('#about-details-body button[data-about-document="acknowledgments"][aria-haspopup="dialog"]');
+    })())JS") == L"true", "separate sections preserve technical text, all document actions and original contributor names and handles");
     Check(Script(view, LR"JS((() => {
         const main = document.querySelector('main');
         return document.documentElement.scrollWidth <= innerWidth && main.scrollWidth <= main.clientWidth &&
@@ -1303,6 +1303,67 @@ void TestGameControlsAndPanelResize(WebViewSettings& host,HWND window,std::vecto
     host.Show(false);
 }
 
+void TestAboutDocumentWindow(WebViewSettings& host, HWND window, std::vector<std::wstring>& messages) {
+    Resize(host,window,740,680,WebViewSettings::Dock::Full,740);
+    PushState(host,L"Full",L"zh-TW");
+    auto* view=WebViewSettingsTestAccess::View(host);
+    host.SetMessageHandler([&messages](const std::wstring& json){messages.push_back(json);});
+    const auto countAction=[&](std::wstring_view action){
+        return std::count_if(messages.begin(),messages.end(),[&](const std::wstring& json){
+            const auto message=NitLink::ParseSettingsMessage(json);return message&&message->action==action;
+        });
+    };
+    const auto opened=countAction(L"openAboutDocument");
+    Script(view,L"document.querySelector('[data-about-document=projectLicense]').click()");
+    Check(PumpUntil([&]{return countAction(L"openAboutDocument")==opened+1;}),"license button requests a native document window");
+    Check(Script(view,L"!document.documentElement.dataset.documentWindow && document.getElementById('about-document-dialog').hidden")==L"true",
+        "opening a document leaves the parent page and its composition unchanged");
+    host.SetTransparentBackground(true);
+    auto colorController=wil::com_ptr<ICoreWebView2Controller>(WebViewSettingsTestAccess::Controller(host)).try_query<ICoreWebView2Controller2>();
+    COREWEBVIEW2_COLOR background{};
+    Check(colorController&&SUCCEEDED(colorController->get_DefaultBackgroundColor(&background))&&background.A==0,
+        "native document browser permits the desktop glass to show through");
+    for(const auto id:{L"projectLicense",L"licenseNotices",L"acknowledgments"}){
+        const auto ready=countAction(L"aboutDocumentReady");
+        host.PostMessage(L"{\"aboutDocument\":{\"id\":\""+std::wstring(id)+L"\",\"locale\":\"zh-TW\",\"panelEffect\":\"blur\",\"reveal\":true}}");
+        Check(PumpUntil([&]{return countAction(L"aboutDocumentReady")==ready+1;}),"native document waits for rendered text and fonts before reveal");
+        Check(Script(view,L"(() => {const panel=document.getElementById('about-document-dialog');const style=getComputedStyle(panel);return !panel.hidden && getComputedStyle(document.querySelector('.app')).display==='none' && style.backgroundColor==='rgba(0, 0, 0, 0)' && style.backdropFilter==='none' && getComputedStyle(panel).fontFamily.includes('Microsoft JhengHei') && document.getElementById('about-document-content').textContent.length>500;})()")==L"true",
+            "all three document surfaces expose the native glass with localized fonts and no HTML modal filter");
+    }
+    const auto syncedReady=countAction(L"aboutDocumentReady");
+    for(const auto id:{L"projectLicense",L"licenseNotices",L"acknowledgments"}){
+        host.PostMessage(L"{\"aboutDocument\":{\"id\":\""+std::wstring(id)+L"\",\"locale\":\"zh-TW\",\"panelEffect\":\"blur\",\"reveal\":false,\"status\":\"online\",\"markdown\":\"# Live document\\n\\n**GitHub revision**\"}}");
+        Check(PumpUntil([&]{return Script(view,L"document.querySelector('#about-document-content strong')?.textContent==='GitHub revision' && document.getElementById('about-document-status').textContent==='已同步 GitHub 最新文件'")==L"true";}),
+            "all document types replace the bundled fallback with live Markdown");
+    }
+    host.PostMessage(LR"JSON({"aboutDocument":{"id":"acknowledgments","locale":"zh-TW","panelEffect":"blur","reveal":false,"status":"online","markdown":"# New revision\n\n<script>window.aboutDocumentInjected=true</script>\n\n![tracking](https://other.invalid/pixel.png)\n\n<a href=\"javascript:alert(1)\">unsafe link</a>"}})JSON");
+    Check(PumpUntil([&]{return Script(view,L"document.querySelector('#about-document-content h1')?.textContent==='New revision'")==L"true";}),
+        "new live content rerenders even when the document ID is unchanged");
+    Check(Script(view,L"!window.aboutDocumentInjected && !document.querySelector('#about-document-content script, #about-document-content img, #about-document-content a[href^=javascript]')")==L"true",
+        "remote Markdown cannot execute scripts or load tracking images");
+    Check(countAction(L"aboutDocumentReady")==syncedReady,"background sync does not request foreground activation");
+    host.PostMessage(LR"({"aboutDocument":{"id":"acknowledgments","locale":"zh-TW","panelEffect":"blur","reveal":false,"status":"offline","markdown":""}})");
+    Check(PumpUntil([&]{return Script(view,L"document.getElementById('about-document-content').textContent.length>500 && document.getElementById('about-document-status').textContent==='無法同步 GitHub，顯示內建文件'")==L"true";}),
+        "failed synchronization retains a readable bundled document and identifies its source");
+    host.PostMessage(LR"({"aboutDocument":{"id":"licenseNotices","locale":"en-US","panelEffect":"blur","reveal":false}})");
+    Check(PumpUntil([&]{return Script(view,L"!!document.querySelector('#about-document-content a[href=\"#acknowledgments\"]')")==L"true";}),
+        "embedded license references link to the other bundled document");
+    const auto linked=countAction(L"openAboutDocument");
+    Script(view,L"document.querySelector('#about-document-content a[href=\"#acknowledgments\"]').click()");
+    Check(PumpUntil([&]{return countAction(L"openAboutDocument")==linked+1;}),"local document link uses the native document command");
+    const auto ready=countAction(L"aboutDocumentReady");
+    host.SetTransparentBackground(false);
+    host.PostMessage(LR"({"aboutDocument":{"id":"acknowledgments","locale":"zh-TW","panelEffect":"classic","reveal":false}})");
+    Check(PumpUntil([&]{return Script(view,L"getComputedStyle(document.getElementById('about-document-dialog')).backgroundColor!=='rgba(0, 0, 0, 0)'")==L"true";}),
+        "classic documents use an opaque background");
+    Check(countAction(L"aboutDocumentReady")==ready,"appearance updates do not request foreground activation");
+    const auto closed=countAction(L"closeAboutDocument");
+    Script(view,L"document.getElementById('about-document-close').click()");
+    Check(PumpUntil([&]{return countAction(L"closeAboutDocument")==closed+1;}),"document header close button delegates to native close animation");
+    BrowserKey(view,L"Escape",L"Escape",VK_ESCAPE);
+    Check(PumpUntil([&]{return countAction(L"closeAboutDocument")==closed+2;}),"Escape uses the same native document close command");
+}
+
 int main(int argc, char** argv) {
     const bool captureOnly = argc == 3 && std::string(argv[1]) == "--capture-layout";
     const bool captureUpdates = argc == 3 && std::string(argv[1]) == "--capture-updates";
@@ -1380,6 +1441,7 @@ int main(int argc, char** argv) {
             TestUpdateFlow(host, window, messages);
             TestAudioDiagnostics(host, messages);
             TestAudioRefresh(host, window, messages);
+            TestAboutDocumentWindow(host, window, messages);
         }
         host.Shutdown();
     } catch (const std::exception& error) {

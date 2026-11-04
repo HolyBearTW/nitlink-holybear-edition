@@ -452,14 +452,36 @@ int main() {
          L"https://nitlink.invalid/locales/../../nitlink.json", L"https://fonts.googleapis.com/",
          L"https://nitlink.invalid/assets/menu/menu.js?x", L"file:///C:/secret.txt"})
         Expect(!FindResource(bad), "unlisted resource");
-    for (auto target : {L"https://tally.so/r/EkZjNr", L"https://ko-fi.com/klosed89", L"https://github.com/HolyBearTW"}) {
+    for (auto document : {L"projectLicense", L"licenseNotices", L"acknowledgments"}) {
+        const std::wstring json=L"{\"action\":\"openAboutDocument\",\"value\":\""+std::wstring(document)+L"\"}";
+        const auto message=ParseSettingsMessage(json);
+        Expect(message&&message->text==document,"bundled document selection crosses the bridge");
+    }
+    for (auto json : {LR"({"action":"openAboutDocument","value":"../../nitlink.json"})",
+        LR"({"action":"openAboutDocument","value":"https://other.invalid/"})",
+        LR"({"action":"openAboutDocument"})", LR"({"action":"aboutDocumentReady","value":true})",
+        LR"({"action":"closeAboutDocument","value":"file:///C:/secret"})"})
+        Expect(!ParseSettingsMessage(json),"document commands reject caller paths and extra payloads");
+    Expect(ParseSettingsMessage(LR"({"action":"aboutDocumentReady"})").has_value(),"document render acknowledgement");
+    Expect(ParseSettingsMessage(LR"({"action":"closeAboutDocument"})").has_value(),"document close command");
+    for (const auto& source : NitLink::HolyBear::AboutDocumentSources) {
+        Expect(CanOpenExternal(MenuUri, source.url, true), "each live document source is allowlisted");
+        Expect(!CanOpenExternal(MenuUri, source.url, false), "live document link needs a user click");
+        Expect(!CanOpenExternal(L"about:blank", source.url, true), "live document link needs the trusted menu");
+        Expect(!CanOpenExternal(MenuUri, std::wstring(source.url) + L"?redirect=elsewhere", true), "live document source is an exact URL");
+    }
+    for (auto target : {L"https://tally.so/r/EkZjNr", L"https://ko-fi.com/klosed89", L"https://github.com/HolyBearTW",
+        L"https://nitlink.app/",L"https://holybear.tw/",L"https://buymeacoffee.com/holybear",
+        L"https://github.com/markedjs/marked/tree/v18.1.3",L"https://aka.ms/webview2-sdk-license"}) {
         Expect(CanOpenExternal(MenuUri, target, true), "user activated menu link");
         Expect(!CanOpenExternal(MenuUri, target, false), "script popup");
         Expect(!CanOpenExternal(L"about:blank", target, true), "link from untrusted document");
     }
     for (auto target : {L"file:///C:/run.exe", L"ms-settings:display", L"javascript:alert(1)",
          L"http://ko-fi.com/klosed89", L"https://ko-fi.com/klosed89?redirect=elsewhere",
-         L"https://ko-fi.com@other.invalid/klosed89", L"https://other.invalid/"})
+         L"https://ko-fi.com@other.invalid/klosed89", L"https://other.invalid/",
+         L"https://nitlink.app.evil.invalid/",L"https://holybear.tw/?redirect=elsewhere",
+         L"https://buymeacoffee.com/holybear/other",L"http://nitlink.app/"})
         Expect(!CanOpenExternal(MenuUri, target, true), "unlisted shell target");
     Expect(IsLocalScreenshotPath(L"C:\\Users\\測試\\Pictures\\NitLink\\nitlink_1.png"), "local screenshot");
     for (auto path : {L"", L"\\\\server\\share\\file.png", L"\\\\?\\C:\\file.png", L"C:file.png",

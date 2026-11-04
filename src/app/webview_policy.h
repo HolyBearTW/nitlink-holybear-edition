@@ -3,6 +3,7 @@
 #include <string_view>
 #include "holybear_version.h"
 #include "game_identity.h"
+#include "update_checker.h"
 
 namespace NitLink::WebViewPolicy {
 
@@ -80,19 +81,45 @@ inline const Resource* FindResource(std::wstring_view uri) {
     }
     return nullptr;
 }
+// Fixed destinations displayed by About and the bundled license documents.
+inline constexpr std::wstring_view ExternalLinks[] = {
+    L"https://tally.so/r/EkZjNr", L"https://ko-fi.com/klosed89",
+    L"https://nitlink.app/", L"https://holybear.tw/", L"https://buymeacoffee.com/holybear",
+    L"https://github.com/HolyBearTW", L"https://github.com/CN115", L"https://github.com/n810K",
+    L"https://github.com/Noka123", L"https://github.com/i0rph", L"https://github.com/nitlink-dev",
+    L"https://github.com/tavricccc", L"https://github.com/nitlink-dev/nitlink",
+    L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE",
+    L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md",
+    L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/ACKNOWLEDGMENTS.md",
+    L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/docs/4ks-hdr-tonemap.md",
+    L"https://github.com/markedjs/marked/tree/v18.1.3",
+    L"https://github.com/cure53/DOMPurify/tree/3.4.17",
+    L"https://fonts.google.com/specimen/Archivo", L"https://github.com/Omnibus-Type/Archivo",
+    L"https://storage.ko-fi.com/cdn/cup-border.png",
+    L"https://help.ko-fi.com/hc/en-us/articles/360007169493-Can-I-use-the-Ko-fi-logo-to-promote-my-page",
+    L"https://github.com/NVIDIAGameWorks/NVIDIAImageScaling",
+    L"https://gist.github.com/TheRealMJP/c83b8c0f46b63f3a88a5986f4fa982b1",
+    L"https://github.com/microsoft/wil", L"https://www.nuget.org/packages/Microsoft.Web.WebView2",
+    L"https://aka.ms/webview2-sdk-license", L"https://github.com/elgatosf/capture-device-support",
+    L"https://discord.com/developers/docs/topics/rpc", L"https://nsis.sourceforge.io/",
+    L"https://github.com/CN115/nitlink-lowlatency/tree/v0.1.2",
+    L"https://github.com/CN115/nitlink-lowlatency/tree/6829db62d5a37d7abc05f073065221566267e1ce",
+    L"https://github.com/tavricccc/harbor",
+    L"https://github.com/tavricccc/harbor/tree/2c243bbbaa1bba4f412b6082964ba03eca64b84a/src/HarborSetup",
+    L"https://github.com/primer/octicons", L"https://github.com/primer/octicons/blob/main/icons/mark-github-16.svg",
+    L"https://github.com/13bm/elgato4k-linux",
+    L"https://github.com/nitlink-dev/nitlink/pull/5", L"https://github.com/nitlink-dev/nitlink/pull/9",
+    L"https://github.com/nitlink-dev/nitlink/pull/11", L"https://github.com/nitlink-dev/nitlink/pull/12",
+    L"https://github.com/nitlink-dev/nitlink/pull/14", L"https://github.com/nitlink-dev/nitlink/pull/16",
+    L"https://github.com/nitlink-dev/nitlink/pull/19", L"https://github.com/nitlink-dev/nitlink/pull/20",
+    L"https://github.com/nitlink-dev/nitlink/pull/21", L"https://github.com/nitlink-dev/nitlink/pull/35",
+    L"https://github.com/nitlink-dev/nitlink/pull/37"
+};
 inline bool CanOpenExternal(std::wstring_view current, std::wstring_view target, bool userInitiated) {
-    return userInitiated && IsTrustedDocument(current) &&
-        (target == L"https://tally.so/r/EkZjNr" ||
-         target == L"https://ko-fi.com/klosed89" ||
-         target == L"https://github.com/HolyBearTW" || target == L"https://github.com/CN115" ||
-         target == L"https://github.com/n810K" || target == L"https://github.com/Noka123" ||
-         target == L"https://github.com/i0rph" ||
-         target == L"https://github.com/nitlink-dev" || target == L"https://github.com/tavricccc" ||
-         target == L"https://github.com/nitlink-dev/nitlink" ||
-         target == L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE" ||
-         target == L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md" ||
-         target == L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/ACKNOWLEDGMENTS.md" ||
-         HolyBear::IsReleaseUrl(target));
+    if (!userInitiated || !IsTrustedDocument(current)) return false;
+    for (const auto link : ExternalLinks) if (target == link) return true;
+    for (const auto& source : HolyBear::AboutDocumentSources) if (target == source.url) return true;
+    return HolyBear::IsReleaseUrl(target);
 }
 inline bool IsLocalScreenshotPath(std::wstring_view path) {
     if (path.size() < 8 || path.size() > 32767 || path[1] != L':' || path[2] != L'\\' ||

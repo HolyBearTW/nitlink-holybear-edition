@@ -203,6 +203,8 @@ private:
     // WebView2 host and returns the label shown in the panel.
     std::wstring ApplyPanelLayout();
     void CyclePanelSide();
+    void OpenAboutDocument(const std::wstring& document);
+    void PushAboutDocument();
 
     // Steps present pacing through refresh -> captured -> unique
     // and reports the new mode in the log and a toast.
@@ -269,6 +271,7 @@ private:
     // Core components
     std::unique_ptr<Window>           m_window;
     std::unique_ptr<Window>           m_settingsWindow;
+    std::unique_ptr<Window>           m_aboutDocumentWindow;
     std::unique_ptr<DX11Renderer>     m_renderer;
     std::unique_ptr<CaptureDevice>    m_captureDevice;
     std::unique_ptr<FrameBuffer>      m_frameBuffer;
@@ -280,6 +283,13 @@ private:
     std::future<std::unique_ptr<NisUpscaler>> m_nisStartup;
     std::unique_ptr<FrameDiffer>       m_frameDiffer;
     std::unique_ptr<WebViewSettings>   m_webviewSettings;
+    std::unique_ptr<WebViewSettings>   m_aboutDocumentView;
+    std::wstring m_aboutDocument;
+    bool m_aboutDocumentOpenPending = false;
+    std::unique_ptr<HolyBear::AboutDocumentLoader> m_aboutDocumentLoader;
+    const HolyBear::AboutDocumentSource* m_aboutDocumentSource = nullptr;
+    std::wstring m_aboutDocumentMarkdown, m_aboutDocumentStatus;
+    bool m_aboutDocumentNeedsSync = false;
     std::wstring m_failedNoSignalPath;
     std::wstring m_failedNoSignalReason;
     std::wstring ConfigWarning() const;

@@ -173,7 +173,8 @@ std::optional<uint32_t> ReadRateLimitRemaining(HINTERNET request) {
     return ParseRateLimitRemaining(value);
 }
 HttpReply FetchHttp(std::wstring url, std::stop_token stop, uint64_t limit,
-                    std::chrono::seconds budget, bool redirects, const UpdateInstaller::Sink& sink) {
+                    std::chrono::seconds budget, bool redirects, const UpdateInstaller::Sink& sink,
+                    const wchar_t* headers = L"Accept: application/vnd.github+json\r\n") {
     HttpReply reply;
     const auto deadline = Clock::now() + budget;
     HttpHandle session{WinHttpOpen(L"NitLink-HolyBear-UpdateCheck/1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
@@ -220,7 +221,7 @@ HttpReply FetchHttp(std::wstring url, std::stop_token stop, uint64_t limit,
         return false;
     };
     if (stop.stop_requested()) { reply.error = ERROR_WINHTTP_OPERATION_CANCELLED; return reply; }
-    if (!WinHttpSendRequest(request.value, L"Accept: application/vnd.github+json\r\n", -1,
+    if (!WinHttpSendRequest(request.value, headers, -1,
             WINHTTP_NO_REQUEST_DATA, 0, 0, context) || !await() ||
         !WinHttpReceiveResponse(request.value, nullptr) || !await()) {
         if (!reply.error) reply.error = GetLastError(); return reply;
@@ -271,6 +272,48 @@ HttpReply FetchRelease(std::stop_token stop) {
     return reply;
 }
 } // namespace
+
+AboutDocumentLoader::AboutDocumentLoader(Transport transport) : m_transport(std::move(transport)) {
+    if (!m_transport) m_transport = [](const AboutDocumentSource& source, std::stop_token stop) {
+        std::string body;
+        auto reply = FetchHttp(std::wstring(source.url), stop, MaxResponseBytes, std::chrono::seconds(15), false,
+            [&](std::string_view bytes) { body.append(bytes); return true; },
+            L"Accept: text/plain\r\nCache-Control: no-cache\r\n");
+        reply.body = std::move(body);
+        return reply;
+    };
+}
+AboutDocumentLoader::~AboutDocumentLoader() { Cancel(); if (m_worker.joinable()) m_worker.join(); }
+bool AboutDocumentLoader::Start(const AboutDocumentSource& source) {
+    if (m_busy.exchange(true)) return false;
+    if (m_worker.joinable()) m_worker.join();
+    m_ready = false;
+    m_worker = std::jthread([this, source](std::stop_token stop) {
+        AboutDocumentResult result{std::wstring(source.id), {}};
+        const auto reply = m_transport(source, stop);
+        if (!reply.error && reply.status == 200 && !reply.body.empty() && reply.body.size() <= MaxResponseBytes) {
+            const auto length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reply.body.data(),
+                static_cast<int>(reply.body.size()), nullptr, 0);
+            if (length) {
+                result.markdown.resize(length);
+                MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reply.body.data(),
+                    static_cast<int>(reply.body.size()), result.markdown.data(), length);
+            }
+        }
+        if (!stop.stop_requested()) {
+            { std::lock_guard lock(m_mutex); m_result = std::move(result); }
+            m_ready = true;
+        }
+        m_busy = false;
+    });
+    return true;
+}
+void AboutDocumentLoader::Cancel() { if (m_worker.joinable()) m_worker.request_stop(); }
+std::optional<AboutDocumentResult> AboutDocumentLoader::TakeResult() {
+    if (!m_ready.load(std::memory_order_relaxed) || !m_ready.exchange(false)) return {};
+    std::lock_guard lock(m_mutex);
+    return m_result;
+}
 
 bool IsUpdateDownloadRedirect(std::wstring_view url) {
     URL_COMPONENTS parts{sizeof(parts)};

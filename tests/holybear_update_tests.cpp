@@ -10,6 +10,19 @@
 using namespace NitLink::HolyBear;
 int main(int argc, char** argv) {
     std::cout << std::unitbuf;
+    if (argc == 2 && std::string_view(argv[1]) == "--live-documents") {
+        AboutDocumentLoader loader;
+        for (const auto& source : AboutDocumentSources) {
+            if (!loader.Start(source)) return 1;
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+            while (loader.Busy() && std::chrono::steady_clock::now() < deadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            const auto result = loader.TakeResult();
+            if (!result || result->markdown.empty()) return 1;
+            std::wcout << L"Live document: " << result->document << L"; characters=" << result->markdown.size() << L'\n';
+        }
+        return 0;
+    }
     // Explicit post-publication probe; CTest always uses offline mock responses.
     if (argc == 2 && (std::string_view(argv[1]) == "--live-release" || std::string_view(argv[1]) == "--live-download")) {
         UpdateChecker live;
@@ -43,6 +56,45 @@ int main(int argc, char** argv) {
     }
     unsigned checks = 0, failures = 0;
     auto check = [&](bool ok, const char* name) { ++checks; if (!ok) ++failures; std::cout << (ok ? "PASS " : "FAIL ") << name << '\n'; };
+    const auto waitDocument = [&](AboutDocumentLoader& loader) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (loader.Busy() && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        check(!loader.Busy(), "document worker completes without blocking the UI");
+        return loader.TakeResult();
+    };
+    for (const auto& source : AboutDocumentSources) {
+        AboutDocumentLoader loader([](const AboutDocumentSource&, std::stop_token) {
+            return HttpReply{200, 0, "# 最新文件\n\n**GitHub revision**"};
+        });
+        check(loader.Start(source), "each allowlisted document can synchronize");
+        const auto result = waitDocument(loader);
+        check(result && result->document == source.id && result->markdown == L"# 最新文件\n\n**GitHub revision**",
+            "live UTF-8 Markdown preserves its document identity and text");
+        check(!loader.TakeResult(), "one document completion is consumed once");
+    }
+    for (const auto& reply : {HttpReply{0, ERROR_WINHTTP_TIMEOUT, {}}, HttpReply{404, 0, "Not found"},
+            HttpReply{500, 0, "Service unavailable"}, HttpReply{200, 0, {}},
+            HttpReply{200, 0, std::string(1, static_cast<char>(0xff))},
+            HttpReply{200, 0, std::string(MaxResponseBytes + 1, 'x')}}) {
+        AboutDocumentLoader loader([reply](const AboutDocumentSource&, std::stop_token) { return reply; });
+        loader.Start(AboutDocumentSources[0]);
+        const auto result = waitDocument(loader);
+        check(result && result->markdown.empty(), "failed or invalid remote documents select the bundled fallback");
+    }
+    std::atomic<bool> documentEntered{false};
+    AboutDocumentLoader cancelledDocument([&](const AboutDocumentSource&, std::stop_token stop) {
+        documentEntered = true;
+        while (!stop.stop_requested()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        return HttpReply{200, 0, "cancelled document"};
+    });
+    cancelledDocument.Start(AboutDocumentSources[0]);
+    const auto documentDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!documentEntered && std::chrono::steady_clock::now() < documentDeadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    check(documentEntered && !cancelledDocument.Start(AboutDocumentSources[1]), "switching documents does not start concurrent downloads");
+    cancelledDocument.Cancel();
+    check(!waitDocument(cancelledDocument), "closing or switching cancels pending content without publishing it");
     check(ParseVersion(L"v1.2.4-holybear") == ParseVersion(L"1.2.4.0-holybear"), "three/four part equality");
     check(ParseVersion(L"v1.2.4.1-holybear") > ParseVersion(L"1.2.4-holybear"), "1.2.4.1 update from published 1.2.4");
     check(ParseVersion(L"v1.2.4.2-holybear") > ParseVersion(L"v1.2.4.1-holybear"), "numeric revision");

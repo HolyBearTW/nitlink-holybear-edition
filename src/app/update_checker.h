@@ -24,6 +24,34 @@ struct HttpReply {
     std::string body;
     std::optional<uint32_t> rateLimitRemaining;
 };
+struct AboutDocumentSource {
+    std::wstring_view id, url;
+};
+inline constexpr AboutDocumentSource AboutDocumentSources[] = {
+    {L"projectLicense", L"https://raw.githubusercontent.com/HolyBearTW/nitlink-holybear-edition/refs/heads/holybear/integrated/LICENSE"},
+    {L"licenseNotices", L"https://raw.githubusercontent.com/HolyBearTW/nitlink-holybear-edition/refs/heads/holybear/integrated/LICENSES.md"},
+    {L"acknowledgments", L"https://raw.githubusercontent.com/HolyBearTW/nitlink-holybear-edition/refs/heads/holybear/integrated/ACKNOWLEDGMENTS.md"}
+};
+struct AboutDocumentResult {
+    std::wstring document, markdown;
+};
+// Uses the same bounded, cancellable native transport as release notes.
+class AboutDocumentLoader {
+public:
+    using Transport = std::function<HttpReply(const AboutDocumentSource&, std::stop_token)>;
+    explicit AboutDocumentLoader(Transport transport = {});
+    ~AboutDocumentLoader();
+    bool Start(const AboutDocumentSource& source);
+    void Cancel();
+    bool Busy() const { return m_busy.load(); }
+    std::optional<AboutDocumentResult> TakeResult();
+private:
+    Transport m_transport;
+    std::jthread m_worker;
+    std::atomic<bool> m_busy{false}, m_ready{false};
+    std::mutex m_mutex;
+    AboutDocumentResult m_result;
+};
 std::optional<uint32_t> ParseRateLimitRemaining(std::string_view value);
 struct InstallerAsset {
     std::wstring tag, name, url;

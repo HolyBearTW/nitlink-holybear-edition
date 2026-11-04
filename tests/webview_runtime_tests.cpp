@@ -838,7 +838,12 @@ int main(int argc, char** argv) {
             Script(view,L"document.querySelector('[data-tab=\"pane-games\"]').click();document.getElementById('game-query').focus()");
             Check(PumpUntil([&]{return !shortcutContexts.empty()&&shortcutContexts.back()==1;}), "text focus reports the typing context through the native bridge");
             Script(view,L"document.querySelector('[data-tab=\"pane-video\"]').click();document.querySelector('[data-tab=\"pane-video\"]').focus()");
-            Check(PumpUntil([&]{return !shortcutContexts.empty()&&shortcutContexts.back()==0;}), "leaving text restores the normal shortcut context");
+            const bool normalContext=PumpUntil([&]{return !shortcutContexts.empty()&&shortcutContexts.back()==0;});
+            if(!normalContext){
+                std::wcerr<<L"Shortcut focus: "<<Script(view,LR"JS(JSON.stringify({active:document.activeElement?.outerHTML,pane:document.documentElement.dataset.activePane,focused:document.hasFocus()}))JS")<<L'\n';
+                std::cerr<<"Native shortcut contexts:";for(const auto context:shortcutContexts)std::cerr<<' '<<context;std::cerr<<'\n';
+            }
+            Check(normalContext, "leaving text restores the normal shortcut context");
             host.Show(false);
         }
         Check(Script(view, L"document.getElementById('game-built-in') === null && "

@@ -17,8 +17,8 @@ IDR_CAPTION_LOCKUP RCDATA "../assets/nitlink-lockup.png"
 IDR_CAPTION_ARCHIVO RCDATA "../assets/menu/Archivo-400.ttf"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,5,3
- PRODUCTVERSION 1,2,5,3
+ FILEVERSION 1,2,5,4
+ PRODUCTVERSION 1,2,5,4
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
  FILEFLAGS 0x0L
  FILEOS VOS_NT_WINDOWS32
@@ -30,12 +30,12 @@ BEGIN
         BLOCK "040904B0"
         BEGIN
             VALUE "FileDescription", "NitLink (HolyBear Edition)"
-            VALUE "FileVersion", "1.2.5.3-holybear"
+            VALUE "FileVersion", "1.2.5.4-holybear"
             VALUE "InternalName", "NitLink"
             VALUE "LegalCopyright", "Copyright (c) 2026 NitLink Contributors"
             VALUE "OriginalFilename", "NitLink.exe"
-            VALUE "ProductName", "NitLink 1.2.5.3 HolyBear Edition"
-            VALUE "ProductVersion", "1.2.5.3-holybear"
+            VALUE "ProductName", "NitLink 1.2.5.4 HolyBear Edition"
+            VALUE "ProductVersion", "1.2.5.4-holybear"
         END
     END
     BLOCK "VarFileInfo"

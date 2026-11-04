@@ -18,7 +18,7 @@
     <EnableWinAppRunSupport>false</EnableWinAppRunSupport>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version Condition="'$(Version)' == ''">1.2.5.3</Version>
+    <Version Condition="'$(Version)' == ''">1.2.5.4</Version>
     <Product>NitLink HolyBear Edition Setup</Product>
     <Title>NitLink Setup</Title>
     <Copyright>Copyright (c) Harbor contributors and NitLink Contributors</Copyright>

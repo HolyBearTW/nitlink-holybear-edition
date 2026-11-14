@@ -304,8 +304,51 @@ void Window::SetPreventSleep(bool enabled)
 
 void Window::SetVideoAvailable(bool available)
 {
+    const bool changed = m_videoAvailable != available;
     m_videoAvailable = available;
     UpdatePlaybackPower();
+    if (changed) RefreshGameplayCursor();
+}
+
+void Window::SetHidePcCursorDuringGameplay(bool enabled)
+{
+    if (m_hidePcCursorDuringGameplay == enabled) return;
+    m_hidePcCursorDuringGameplay = enabled;
+    RefreshGameplayCursor();
+}
+
+void Window::SetGameplaySettingsVisible(bool visible)
+{
+    if (m_gameplaySettingsVisible == visible) return;
+    m_gameplaySettingsVisible = visible;
+    RefreshGameplayCursor();
+}
+
+bool Window::RefreshGameplayCursor(bool reapply)
+{
+    if (!m_hwnd || (!m_hidePcCursorDuringGameplay && !m_gameplayCursorHidden)) return false;
+    POINT point{};
+    RECT client{};
+    if (!GetCursorPos(&point)) return false;
+    const HWND target = WindowFromPoint(point);
+    const HWND capture = GetCapture();
+    const bool inClient = (target == m_hwnd || target == m_videoWindow) && ScreenToClient(m_hwnd, &point) &&
+        GetClientRect(m_hwnd, &client) && PtInRect(&client, point);
+    const RECT content = GetContentBounds();
+    const bool hide = m_hidePcCursorDuringGameplay && m_videoAvailable &&
+        !m_gameplaySettingsVisible && !m_isPiP && !m_pipResizeEdges &&
+        m_gameplayCursorActive && GetForegroundWindow() == m_hwnd &&
+        IsWindowVisible(m_hwnd) && !IsIconic(m_hwnd) && !capture && inClient && PtInRect(&content, point);
+    if (hide) {
+        if (!m_gameplayCursorHidden || reapply) SetCursor(nullptr);
+        m_gameplayCursorHidden = true;
+        return true;
+    }
+    // Only the gameplay window restores its own hidden pointer; other windows select theirs.
+    if (m_gameplayCursorHidden && (inClient || capture == m_hwnd) && !GetCursor())
+        SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+    m_gameplayCursorHidden = false;
+    return false;
 }
 
 void Window::UpdatePlaybackPower()
@@ -692,6 +735,7 @@ void Window::SetPiP(bool enabled, uint32_t width, uint32_t height, float opacity
     EndPiPResize();
     m_pipScaleAspect = 0.0;
     m_isPiP = enabled;
+    RefreshGameplayCursor();
 
     // Ensure there is a valid windowed rect to restore to
     if (m_windowedRect.right - m_windowedRect.left < 100) {
@@ -1093,6 +1137,9 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         if(self&&self->m_captionHover!=-1){self->m_captionHover=-1;self->RefreshCaption();}
         return 0;
     case WM_SETCURSOR:
+        if (self && LOWORD(lParam) == HTCLIENT &&
+            self->RefreshGameplayCursor(true)) return TRUE;
+        if (self) self->m_gameplayCursorHidden = false;
         if (self && (LOWORD(lParam) == HTCLIENT || self->m_pipResizeEdges)) {
             POINT point{};
             if (!GetCursorPos(&point)) break;
@@ -1113,12 +1160,20 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         break;
 
     case WM_CAPTURECHANGED:
-        if (self) {self->m_pipResizeEdges = 0;self->m_captionPressed=-1;self->RefreshCaption();}
+        if (self) {
+            self->m_pipResizeEdges = 0;
+            self->m_captionPressed = -1;
+            self->RefreshCaption();
+            self->RefreshGameplayCursor();
+        }
         break;
 
     case WM_CANCELMODE:
     case WM_KILLFOCUS:
-        if (self) self->EndPiPResize();
+        if (self) {
+            self->EndPiPResize();
+            self->RefreshGameplayCursor();
+        }
         break;
 
     case WM_SIZE:
@@ -1221,7 +1276,10 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         break;
 
     case WM_WINDOWPOSCHANGED:
-        if(self&&!IsIconic(hwnd))self->UpdateGlassPosition();
+        if (self) {
+            if (!IsIconic(hwnd)) self->UpdateGlassPosition();
+            self->RefreshGameplayCursor();
+        }
         break;
 
     case WM_MOVE:
@@ -1251,7 +1309,12 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         return 0;
 
     case WM_ACTIVATE:
-        if(self){self->RefreshCaption();if(LOWORD(wParam)!=WA_INACTIVE)self->UpdateGlassPosition();}
+        if (self) {
+            self->RefreshCaption();
+            if (LOWORD(wParam) != WA_INACTIVE) self->UpdateGlassPosition();
+            self->m_gameplayCursorActive = LOWORD(wParam) != WA_INACTIVE;
+            self->RefreshGameplayCursor();
+        }
         // Reconcile child-controller position when activation returns.
         if (self && self->m_onMove && LOWORD(wParam) != WA_INACTIVE) {
             self->m_onMove();
@@ -1317,6 +1380,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             int y = (short)HIWORD(lParam)-bounds.top;
             // Capture the mouse so drags keep working when cursor leaves the window
             SetCapture(hwnd);
+            self->RefreshGameplayCursor();
             self->m_inputCb.onMouseDown(x, y);
         }
         return 0;
@@ -1356,6 +1420,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
     case WM_CLOSE:
         if(self){
+            self->SetVideoAvailable(false);
             self->EndGlide();self->m_fade.active=false;KillTimer(hwnd,kWindowMotionTimer);
             if(self->m_composition)self->m_composition->HideGlass();
         }

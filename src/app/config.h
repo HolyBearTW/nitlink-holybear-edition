@@ -74,6 +74,7 @@ struct Config {
     uint32_t windowHeight = 1080;
     std::optional<std::pair<int32_t, int32_t>> windowPosition;
     bool preventSleep = true;
+    bool hidePcCursorDuringGameplay = false;
     
     // PiP mode
     uint32_t pipWidth   = 480;

@@ -294,7 +294,7 @@ std::optional<SettingsMessage> ParseSettingsMessage(std::wstring_view json) {
             !result.gameId || !Uint(*value, L"coverId", 0xffffffffu, result.coverId) || !result.coverId)
             return std::nullopt;
     } else if (OneOf(action, {L"toggleHDR", L"toggleColorExpansion", L"toggleNIS",
-        L"toggleMute", L"toggleVSync", L"toggleLowLatency", L"togglePreventSleep"})) {
+        L"toggleMute", L"toggleVSync", L"toggleLowLatency", L"togglePreventSleep", L"toggleHidePcCursor"})) {
         // Existing controls send the next visual state; native toggles remain authoritative.
         if (value && value->kind != Value::Kind::Boolean) return std::nullopt;
     } else if (action == L"refreshAudioDiagnostics") {

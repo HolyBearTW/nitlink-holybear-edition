@@ -709,6 +709,7 @@ LanguagePreference Localization::ParsePreference(const std::string& value)
     if (value == "de-DE") return LanguagePreference::German;
     if (value == "ko-KR") return LanguagePreference::Korean;
     if (value == "ja-JP") return LanguagePreference::Japanese;
+    if (value == "tr-TR") return LanguagePreference::Turkish;
     return LanguagePreference::System;
 }
 
@@ -744,6 +745,10 @@ void Localization::SetPreference(LanguagePreference preference)
     case LanguagePreference::Japanese:
         m_preferenceName = "ja-JP";
         m_localeName = L"ja-JP";
+        break;
+    case LanguagePreference::Turkish:
+        m_preferenceName = "tr-TR";
+        m_localeName = L"tr-TR";
         break;
     case LanguagePreference::System:
     default: {
@@ -793,13 +798,20 @@ bool Localization::IsJapaneseLocale(const std::wstring& locale)
     return locale == L"ja" || locale.starts_with(L"ja-");
 }
 
+// Turkish menu resources use English for native toasts and HUD text.
+bool Localization::IsTurkishLocale(const std::wstring& locale)
+{
+    return locale == L"tr" || locale.starts_with(L"tr-");
+}
+
 std::wstring Localization::ResolveSystemLocale(const std::wstring& locale)
 {
     return IsSimplifiedChineseLocale(locale) ? L"zh-CN"
         : IsTraditionalChineseLocale(locale) ? L"zh-TW"
         : IsGermanLocale(locale) ? L"de-DE"
         : IsKoreanLocale(locale) ? L"ko-KR"
-        : IsJapaneseLocale(locale) ? L"ja-JP" : L"en-US";
+        : IsJapaneseLocale(locale) ? L"ja-JP"
+        : IsTurkishLocale(locale) ? L"tr-TR" : L"en-US";
 }
 
 std::wstring Localization::Get(const wchar_t* key) const

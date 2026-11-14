@@ -1,6 +1,7 @@
 // Japanese localization for NitLink HolyBear Edition.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['ja-JP'] = {
+  'language.turkish': 'Türkçe',
   "audio.priming": "再生を開始中",
   "audio.rebuffering": "バッファを再充填中",
   "audio.captureStalled": "キャプチャーデータを待機中",

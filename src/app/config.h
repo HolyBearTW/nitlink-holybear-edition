@@ -59,7 +59,7 @@ enum PresentPacing {
 };
 
 struct Config {
-    // UI language preference: system, en-US, zh-TW, zh-CN, de-DE, ko-KR, or ja-JP. The effective locale
+    // UI language preference: system, en-US, zh-TW, zh-CN, de-DE, ko-KR, ja-JP, or tr-TR. The effective locale
     // is resolved by Localization; unsupported system locales use en-US.
     std::string  language = "system";
     // Optional HolyBear GitHub checks. Attempts (including failures) count

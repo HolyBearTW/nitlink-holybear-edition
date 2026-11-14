@@ -31,6 +31,7 @@ inline constexpr Resource Resources[] = {
     {L"https://nitlink.invalid/locales/de-DE.js", L"locales/de-DE.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/locales/ko-KR.js", L"locales/ko-KR.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/locales/ja-JP.js", L"locales/ja-JP.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
+    {L"https://nitlink.invalid/locales/tr-TR.js", L"locales/tr-TR.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/menu.js", L"assets/menu/menu.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/updates.js", L"assets/menu/updates.js", L"text/javascript; charset=utf-8", ResourceKind::Script},
     {L"https://nitlink.invalid/assets/menu/vendor/marked.umd.js", L"assets/menu/vendor/marked.umd.js", L"text/javascript; charset=utf-8", ResourceKind::Script},

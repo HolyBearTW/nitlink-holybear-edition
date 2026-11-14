@@ -1,6 +1,7 @@
 // NitLink Simplified Chinese UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['zh-CN'] = {
+  'language.turkish': 'Türkçe',
   "audio.priming": "正在启动播放",
   "audio.rebuffering": "正在重新填充",
   "audio.captureStalled": "等待采集数据",

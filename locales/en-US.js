@@ -2,6 +2,7 @@
 // language for every locale and for every missing individual translation.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['en-US'] = {
+  'language.turkish': 'Türkçe',
   "audio.priming": "Starting playback",
   "audio.rebuffering": "Refilling buffer",
   "audio.captureStalled": "Waiting for capture packets",

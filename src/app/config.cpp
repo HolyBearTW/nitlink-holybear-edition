@@ -443,7 +443,7 @@ bool Config::Load(const std::string& path)
             }
         }
         if (key == "language") {
-            if (val == "system" || val == "en-US" || val == "zh-TW" || val == "zh-CN" || val == "de-DE" || val == "ko-KR" || val == "ja-JP") language = val;
+            if (val == "system" || val == "en-US" || val == "zh-TW" || val == "zh-CN" || val == "de-DE" || val == "ko-KR" || val == "ja-JP" || val == "tr-TR") language = val;
         }
         if (key == "manual_hdmi_source")
             manualHdmiSource = NormalizeManualHdmiSource(val);
@@ -664,7 +664,7 @@ bool Config::Save(const std::string& path)
     file << "# NitLink Configuration\n";
     file << "# https://github.com/nitlink-dev/nitlink\n\n";
 
-    file << "# Interface language: system | en-US | zh-TW | zh-CN | de-DE | ko-KR | ja-JP\n";
+    file << "# Interface language: system | en-US | zh-TW | zh-CN | de-DE | ko-KR | ja-JP | tr-TR\n";
     file << "language = " << language << "\n\n";
     file << "# Keyboard shortcuts: edit in Settings > Shortcuts\n";
     file << "shortcut_bindings = " << SerializeShortcutBindings(shortcutBindings) << "\n\n";

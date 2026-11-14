@@ -16,6 +16,7 @@
         if (tag === 'de' || tag.startsWith('de-')) return 'de-DE';
         if (tag === 'ko' || tag.startsWith('ko-')) return 'ko-KR';
         if (tag === 'ja' || tag.startsWith('ja-')) return 'ja-JP';
+        if (tag === 'tr' || tag.startsWith('tr-')) return 'tr-TR';
       }
       return 'en-US';
     };
@@ -24,7 +25,7 @@
       if (hasWebViewHost()) return 'system';
       try {
         const saved = window.localStorage.getItem(standaloneLanguageKey);
-        return ['system', 'en-US', 'zh-TW', 'zh-CN', 'de-DE', 'ko-KR', 'ja-JP'].includes(saved) ? saved : 'system';
+        return ['system', 'en-US', 'zh-TW', 'zh-CN', 'de-DE', 'ko-KR', 'ja-JP', 'tr-TR'].includes(saved) ? saved : 'system';
       } catch (_) {
         return 'system';
       }
@@ -89,7 +90,7 @@
       const h1 = document.querySelector('.topbar h1');
       if (h1 && titleKey) h1.textContent = t(titleKey);
       const language = document.getElementById('language-select');
-      if (language && !['system', 'en-US', 'zh-TW', 'zh-CN', 'de-DE', 'ko-KR', 'ja-JP'].includes(language.value)) {
+      if (language && !['system', 'en-US', 'zh-TW', 'zh-CN', 'de-DE', 'ko-KR', 'ja-JP', 'tr-TR'].includes(language.value)) {
         language.value = 'system';
       }
       renderHolyBearUpdate();

@@ -17,6 +17,7 @@ enum class LanguagePreference {
     German,
     Korean,
     Japanese,
+    Turkish,
 };
 
 class Localization {
@@ -58,6 +59,7 @@ private:
     static bool IsGermanLocale(const std::wstring& locale);
     static bool IsKoreanLocale(const std::wstring& locale);
     static bool IsJapaneseLocale(const std::wstring& locale);
+    static bool IsTurkishLocale(const std::wstring& locale);
 
     LanguagePreference m_preference = LanguagePreference::System;
     std::string m_preferenceName = "system";

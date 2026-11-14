@@ -1,6 +1,7 @@
 // NitLink German (Germany) UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['de-DE'] = {
+  'language.turkish': 'Türkçe',
   "audio.priming": "Wiedergabe startet",
   "audio.rebuffering": "Puffer wird gefüllt",
   "audio.captureStalled": "Warten auf Aufnahmepakete",

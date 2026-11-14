@@ -39,7 +39,7 @@ static void ConfigTests(const std::filesystem::path& dir) {
     Config germanReload;
     Check(germanReload.Load(path.string()) && germanReload.language == "de-DE",
           "German preference survives restart");
-    for(const auto* locale:{"ko-KR","ja-JP"}){
+    for(const auto* locale:{"ko-KR","ja-JP","tr-TR"}){
         Write(path,std::string("language = ")+locale+"\n");
         Check(config.Load(path.string())&&config.language==locale,"new language preference loads");
         Check(config.Save(path.string()),"new language preference saves");

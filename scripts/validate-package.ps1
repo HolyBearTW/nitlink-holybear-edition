@@ -7,7 +7,7 @@ if ((Get-Item -LiteralPath $packageRoot).Attributes -band [IO.FileAttributes]::R
 $required = @(
     'NitLinkAudioReplay.exe', 'docs/audio-diagnostics.md',
     'NitLink.exe', 'nitlink-menu.html', 'locales/en-US.js', 'locales/zh-TW.js', 'locales/de-DE.js',
-    'locales/ko-KR.js', 'locales/ja-JP.js',
+    'locales/ko-KR.js', 'locales/ja-JP.js', 'locales/tr-TR.js',
     'assets/menu/menu.js', 'assets/menu/artwork-editor.js', 'assets/menu/preview-host.js', 'assets/menu/account-library.js',
     'assets/menu/shortcut-editor.js',
     'assets/menu/updates.js', 'assets/menu/vendor/marked.umd.js', 'assets/menu/vendor/purify.min.js',

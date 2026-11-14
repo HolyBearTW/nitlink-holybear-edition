@@ -85,6 +85,10 @@ project authorship or maintainership.
 - **Japanese (ja-JP):** HolyBear Edition — new interface, game and Discord
   localization.
 
+- **Turkish (tr-TR):** @karsiyakali1912 contributed the settings menu in
+  [upstream PR #48](https://github.com/nitlink-dev/nitlink/pull/48). HolyBear-specific
+  additions and native text use English.
+
 ## About contributor cards
 
 - Contributor cards fetch the public GitHub avatars of @nitlink-dev,

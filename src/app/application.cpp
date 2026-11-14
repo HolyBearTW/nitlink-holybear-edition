@@ -1285,13 +1285,14 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
         }
         if (action == L"setLanguage" && m_config) {
             const std::wstring requested = message->text;
-            if (requested == L"system" || requested == L"en-US" || requested == L"zh-TW" || requested == L"zh-CN" || requested == L"de-DE" || requested == L"ko-KR" || requested == L"ja-JP") {
+            if (requested == L"system" || requested == L"en-US" || requested == L"zh-TW" || requested == L"zh-CN" || requested == L"de-DE" || requested == L"ko-KR" || requested == L"ja-JP" || requested == L"tr-TR") {
                 m_config->language = requested == L"en-US" ? "en-US"
                     : requested == L"zh-TW" ? "zh-TW"
                     : requested == L"zh-CN" ? "zh-CN"
                     : requested == L"de-DE" ? "de-DE"
                     : requested == L"ko-KR" ? "ko-KR"
-                    : requested == L"ja-JP" ? "ja-JP" : "system";
+                    : requested == L"ja-JP" ? "ja-JP"
+                    : requested == L"tr-TR" ? "tr-TR" : "system";
                 Localization::Instance().SetPreference(m_config->language);
                 if(m_accountService){std::set<Accounts::Provider> providers;for(const auto& game:m_accountService->Games())providers.insert(game.provider);
                     for(const auto provider:providers)m_accountService->Submit({Accounts::Operation::Sync,provider,{},Localization::Instance().LocaleName()});}

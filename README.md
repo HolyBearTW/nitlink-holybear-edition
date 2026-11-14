@@ -223,7 +223,7 @@ cmake -B build -G "Visual Studio 18 2026" -A x64
 cmake --build build --config Release
 ```
 
-Output at `out/build/x64-Release/NitLink.exe` (VS) or `build/Release/NitLink.exe` (CLI). The build copies `nitlink-menu.html`, the complete `locales` folder (en-US, zh-TW, zh-CN, de-DE, ko-KR, and ja-JP), the complete `assets/menu` folder and `third_party/nis/NIS_Scaler.h` beside the `.exe`, preserving their subfolders (all are needed at runtime).
+Output at `out/build/x64-Release/NitLink.exe` (VS) or `build/Release/NitLink.exe` (CLI). The build copies `nitlink-menu.html`, the complete `locales` folder (en-US, zh-TW, zh-CN, de-DE, ko-KR, ja-JP, and tr-TR), the complete `assets/menu` folder and `third_party/nis/NIS_Scaler.h` beside the `.exe`, preserving their subfolders (all are needed at runtime).
 
 ---
 
@@ -360,6 +360,7 @@ MIT. See `LICENSE`. Third-party licenses (NIS, WebView2, WIL, MJP's Catmull-Rom)
 - **German (de-DE) localization**: [Noka123](https://github.com/Noka123), contributed in [upstream PR #35](https://github.com/nitlink-dev/nitlink/pull/35).
 - **Korean (ko-KR) localization**: @i0rph contributed the upstream interface in [PR #37](https://github.com/nitlink-dev/nitlink/pull/37); HolyBear Edition adds its game, artwork, Discord and update translations.
 - **Japanese (ja-JP) localization**: New HolyBear Edition interface, game and Discord translations.
+- **Turkish (tr-TR) localization**: @karsiyakali1912 contributed the upstream settings menu in [PR #48](https://github.com/nitlink-dev/nitlink/pull/48); HolyBear-specific additions and native text use English.
 
 ---
 

@@ -47,12 +47,23 @@ internal static class Installer
     {
         try
         {
-            using var config = JsonDocument.Parse(File.ReadAllText(Path.Combine(InstallDir, "nitlink.json")));
-            if (config.RootElement.TryGetProperty("language", out var value) && value.GetString() is { } language)
+            var text = File.ReadAllText(Path.Combine(InstallDir, "nitlink.json"));
+            string? language = null;
+            if (text.AsSpan().TrimStart().StartsWith("{"))
             {
-                if (language == "system") return "";
-                if (Strings.SupportedLanguages.Contains(language)) return language;
+                using var config = JsonDocument.Parse(text);
+                if (config.RootElement.TryGetProperty("language", out var value) && value.ValueKind == JsonValueKind.String)
+                    language = value.GetString();
             }
+            else
+                foreach (var line in text.Split('\n'))
+                {
+                    var separator = line.IndexOf('=');
+                    if (separator >= 0 && line[..separator].Trim() == "language")
+                        language = line[(separator + 1)..].Trim();
+                }
+            if (language == "system") return "";
+            if (language is not null && Strings.SupportedLanguages.Contains(language)) return language;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { }
         return requestedLanguage switch

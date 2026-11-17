@@ -38,6 +38,8 @@ try
     {
         File.WriteAllText(Path.Combine(target, "nitlink.json"), JsonSerializer.Serialize(new { language }));
         Require(Installer.LanguagePreference() == language, "saved language " + language);
+        File.WriteAllText(Path.Combine(target, "nitlink.json"), "# NitLink Configuration\r\nlanguage = " + language + "\r\n");
+        Require(Installer.LanguagePreference() == language, "native application's saved language " + language);
         Strings.Initialize(language, []);
         Require(Strings.Get("Installer.Directory").Length > 0 && Strings.Get("Installer.Browse").Length > 0 && Strings.Get("Installer.InvalidDirectory").Length > 0, "directory controls are localized in " + language);
         Require(Strings.Format("Installer.UpgradeDetail", target).Contains(target), "update path is visible in " + language);
@@ -45,6 +47,8 @@ try
     }
     File.WriteAllText(Path.Combine(target, "nitlink.json"), "{\"language\":\"system\"}");
     Require(Installer.LanguagePreference() == "", "system preference uses effective UI language");
+    File.WriteAllText(Path.Combine(target, "nitlink.json"), "# NitLink Configuration\nlanguage = system\n");
+    Require(Installer.LanguagePreference() == "", "native application's system preference uses effective UI language");
     Strings.Initialize("", ["zh-Hant-HK"]);
     Require(Strings.Language == "zh-TW", "Hong Kong system language resolves to Traditional Chinese");
     Strings.Initialize("", ["ja"]);

@@ -208,7 +208,7 @@ If you have a different card and want official support, open an issue with: card
 
 ## Build
 
-CMake and Visual Studio 2022 or later with the Desktop C++ workload. Also install the C++ ATL for x86 and x64 component matching the selected MSVC toolset (Visual Studio Installer > Individual components); GC553Pro source detection uses its headers. Tested with Visual Studio 2022 / 2026 Insiders.
+CMake 4.2 or later and Visual Studio 2026 with the Desktop C++ workload. Also install the C++ ATL for x86 and x64 component matching the selected MSVC toolset (Visual Studio Installer > Individual components); GC553Pro source detection uses its headers. Tested with Visual Studio 2026 Insiders.
 
 ```
 git clone https://github.com/nitlink-dev/nitlink
@@ -219,7 +219,7 @@ In Visual Studio: `File → Open → CMake...`, pick `CMakeLists.txt`, select `x
 
 Or CLI (Developer Command Prompt):
 ```
-cmake -B build -G "Visual Studio 17 2022" -A x64
+cmake -B build -G "Visual Studio 18 2026" -A x64
 cmake --build build --config Release
 ```
 

@@ -19,7 +19,7 @@ if (Test-Path -LiteralPath $output) { throw 'Output directory already exists; re
 $summary = Get-Content -LiteralPath (Join-Path $build 'test-summary.json') -Raw | ConvertFrom-Json
 if ($summary.skipped -ne 0 -or $summary.tests -lt 1 -or $summary.failures -ne 0 -or
     $summary.passed -ne $summary.tests -or $summary.knownFailure) { throw 'Missing validated test summary.' }
-Initialize-HolyBearToolchain
+Initialize-HolyBearToolchain -RequireStable
 New-Item -ItemType Directory -Path $output | Out-Null
 $install = Join-Path $output 'install'
 & cmake --install $build --config Release --prefix $install
@@ -67,8 +67,8 @@ $identity = @(
     "known_baseline_failures=$($summary.failures)"
 )
 Set-Content -LiteralPath (Join-Path $stage 'BUILD.txt') -Value $identity -Encoding utf8
-$crt = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC143.CRT'
-if (-not (Test-Path -LiteralPath $crt)) { throw 'Licensed release VC143 CRT directory is missing.' }
+$crt = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC145.CRT'
+if (-not (Test-Path -LiteralPath $crt)) { throw 'Licensed release VC145 CRT directory is missing.' }
 # Copy the runtime import closure from the redistributable directory, never System32/debug.
 $pending = [Collections.Generic.Queue[string]]::new()
 $pending.Enqueue((Join-Path $stage 'NitLink.exe'))

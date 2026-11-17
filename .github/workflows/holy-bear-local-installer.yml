@@ -20,7 +20,7 @@ jobs:
       github.repository_owner == 'HolyBearTW' &&
       (github.repository == 'HolyBearTW/nitlink' || github.repository == 'HolyBearTW/nitlink-holybear-edition') &&
       github.ref == 'refs/heads/holybear/integrated'
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

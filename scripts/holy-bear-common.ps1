@@ -119,12 +119,21 @@ function Get-HolyBearLocalCTestAttestation([string]$Tag) {
     return [pscustomobject]@{ Tests = [int]$tests[0].Groups[1].Value }
 }
 
-function Initialize-HolyBearToolchain {
+function Initialize-HolyBearToolchain([switch]$RequireStable) {
     # Process environment only; do not change the machine's PATH or settings.
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-    $installation = & $vswhere -latest -version '[17.0,18.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-    if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'Visual Studio 2022 C++ tools are required.' }
+    $vswhereArgs = @('-latest','-products','*','-version','[18.0,19.0)','-requires','Microsoft.VisualStudio.Component.VC.Tools.x86.x64','-property','installationPath')
+    $installation = & $vswhere @vswhereArgs
+    $isPrerelease = $false
+    if (($LASTEXITCODE -ne 0 -or -not $installation) -and !$RequireStable) {
+        $vswhereArgs = @('-latest','-prerelease','-products','*','-version','[18.0,19.0)','-requires','Microsoft.VisualStudio.Component.VC.Tools.x86.x64','-property','installationPath')
+        $installation = & $vswhere @vswhereArgs
+        $isPrerelease = $true
+    }
+    if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'Visual Studio 2026 C++ tools are required.' }
+    $installation = $installation.Trim()
     $init = Join-Path $installation 'Common7/Tools/VsDevCmd.bat'
+    $env:HOLYBEAR_VS_IS_PRERELEASE = $isPrerelease.ToString().ToLowerInvariant()
     $env:VSLANG = '1033'
     $command = '"{0}" -arch=x64 -host_arch=x64 >nul && set' -f $init
     $lines = & $env:ComSpec /d /s /c $command

@@ -105,11 +105,9 @@ package that passed RequireTag identifies a verified formal source tag.
 ## Publication checks
 
 The complete CTest suite includes WebView runtime tests. Every discovered test
-must run. The only permitted nonzero result is exactly one failed target named
-webview_runtime_security with its sole `FAIL` line equal to the documented
-restart assertion. Timeout, skipped/missing tests, additional failure lines
-or any other failing target stop publication. Actual counts are appended to
-the release notes; the assertion is never changed or skipped by the workflow.
+must run and pass. Any failure, timeout, skipped or missing test stops
+publication. Actual counts are appended to the release notes; assertions are
+never changed or skipped to permit publication.
 
 The workflow stages a fresh CMake install and an explicit allowed file set,
 adds unmodified Microsoft-signed redistributable CRT DLLs, validates EXE

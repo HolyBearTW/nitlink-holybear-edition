@@ -17,7 +17,7 @@ $payload = Join-Path $env:RUNNER_TEMP ('holy-bear-installer-test-' + [guid]::New
 Expand-Archive -LiteralPath (Join-Path $assetsRoot $info.ZipName) -DestinationPath $payload
 $settings = Join-Path $install 'nitlink.json'
 $sentinelHash = $null
-foreach ($language in @(1033, 1028, 2052)) {
+foreach ($language in @(1033, 1028, 2052, 1031, 1041, 1042, 1055)) {
     $process = Start-Process -FilePath (Join-Path $assetsRoot $info.SetupName) -ArgumentList '/S',"/LANG=$language" -WindowStyle Hidden -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
     foreach ($file in Get-ChildItem -LiteralPath $payload -Recurse -File) {
@@ -63,5 +63,5 @@ if ($registry.OpenSubKey($arpPath) -or $registry.OpenSubKey($regPath) -or (Test-
     throw 'Uninstall metadata or retained settings are incorrect.'
 }
 $registry.Dispose()
-Write-Output 'CI install/upgrade/uninstall passed for all three languages; NitLink was never launched.'
+Write-Output 'CI install/upgrade/uninstall passed for all seven languages; NitLink was never launched.'
 $global:LASTEXITCODE = 0

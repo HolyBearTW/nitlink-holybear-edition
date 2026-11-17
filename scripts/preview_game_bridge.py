@@ -49,7 +49,7 @@ def localized_game_name(original, display, locale, language=''):
     display=display if text(display) and display else original
     if locale=='en-US':
         return display if re.match(r'^en(?:$|[-_])',str(language),re.I) and not re.search(r'[\u3400-\u9fff\uf900-\ufaff]',display) else original
-    if locale in ('de-DE','ko-KR','ja-JP') and not re.match(r'^'+locale[:2]+r'(?:$|[-_])',str(language),re.I):
+    if locale in ('de-DE','ko-KR','ja-JP','tr-TR') and not re.match(r'^'+locale[:2]+r'(?:$|[-_])',str(language),re.I):
         return original
     if locale=='de-DE' and re.search(r'[\u3400-\u9fff\uf900-\ufaff]',display):
         return original
@@ -254,7 +254,7 @@ def covers(game_id, shape, locale, page, provider='all', official_query='', plat
         thumb = cover.get('thumb')
         language = cover.get('language')
         source = cover.get('languageSource')
-        verified = cover.get('languageVerified') is True and language in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','zxx') and text(source,128) and bool(source)
+        verified = cover.get('languageVerified') is True and language in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','tr-TR','zxx') and text(source,128) and bool(source)
         rows.append({'id':cover['id'],'url':cover['url'],'thumb':thumb if text(thumb,512) and URL_RE.fullmatch(thumb) else cover['url'],
                      'author':cover.get('author') if text(cover.get('author'),128) else '', 'shape':shape,
                      'language':language if verified else '', 'languageVerified':verified,
@@ -322,7 +322,7 @@ def image(url):
 def dispatch(params):
     operation=params.get('operation',[''])[0]
     locale=params.get('locale',[''])[0]
-    if locale not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP'):
+    if locale not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','tr-TR'):
         return {'status':'invalid'}
     if not SLOTS.acquire(timeout=1):
         return {'status':'rateLimited'}
@@ -404,7 +404,7 @@ def library(params):
             if key.startswith('sgdb-') and (not number(record.get('id')) or key!='sgdb-'+str(record['id'])):return {'status':'invalid'}
             if not isinstance(record.get('favorite'),bool) or not isinstance(record.get('manualCover'),bool):return {'status':'invalid'}
             names=record.get('displayNames',{})
-            if not isinstance(names,dict) or len(names)>6 or any(locale not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP') or not text(name) for locale,name in names.items()):return {'status':'invalid'}
+            if not isinstance(names,dict) or len(names)>7 or any(locale not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','tr-TR') or not text(name) for locale,name in names.items()):return {'status':'invalid'}
             for field in ('coverUrl','coverThumb'):
                 url=record.get(field,'')
                 allowed=not url or (text(url,512) and (URL_RE.fullmatch(url) or OFFICIAL.allows(url) or nintendo_url(url) or HK_STORE.image_url(url) or TW_LINEUP.image_url(url))) or (mode=='fixture' and re.fullmatch(r'preview/fixtures/[a-z0-9-]+\.(?:jpg|png|webp|svg)',url))
@@ -413,7 +413,7 @@ def library(params):
             if provider not in (('steamgriddb','nintendo-tw','nintendo-hk-eshop','nintendo-hk-store','playstation-tw','fixture') if mode=='fixture' else ('steamgriddb','nintendo-tw','nintendo-hk-eshop','nintendo-hk-store','playstation-tw')) or type(is_official)!=bool:return {'status':'invalid'}
             if provider in ('nintendo-tw','nintendo-hk-eshop'):
                 expected=('TW','Official Nintendo Taiwan') if provider=='nintendo-tw' else ('HK','Official Nintendo eShop CDN')
-                if not is_official or record.get('language') not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','zxx','') or (record.get('region'),record.get('sourceLabel'))!=expected or record.get('kind') not in ('boxArt','logo','keyArt','squareIcon'):return {'status':'invalid'}
+                if not is_official or record.get('language') not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','tr-TR','zxx','') or (record.get('region'),record.get('sourceLabel'))!=expected or record.get('kind') not in ('boxArt','logo','keyArt','squareIcon'):return {'status':'invalid'}
                 if provider=='nintendo-tw' and TW_LINEUP.image_url(record.get('coverUrl')):
                     if record.get('kind') not in ('logo','keyArt') or record.get('coverShape')!='landscape' or (record.get('coverThumb') and not TW_LINEUP.image_url(record['coverThumb'])):return {'status':'invalid'}
                 elif provider=='nintendo-tw' and (not legacy_taiwan_url(record.get('coverUrl')) or (record.get('coverThumb') and not legacy_taiwan_url(record['coverThumb']))):return {'status':'invalid'}
@@ -421,7 +421,7 @@ def library(params):
             elif provider=='playstation-tw':
                 if not is_official or (record.get('region'),record.get('sourceLabel'))!=('TW','Official PlayStation Taiwan') or not playstation_url(record.get('coverUrl')) or not any(c['url']==record.get('coverUrl') for c in OFFICIAL.candidates(record.get('id'))):return {'status':'invalid'}
                 if record.get('coverThumb') and not playstation_url(record['coverThumb']):return {'status':'invalid'}
-                if record.get('language') not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','zxx','') or record.get('kind') not in ('squareIcon','boxArt','keyArt','logo'):return {'status':'invalid'}
+                if record.get('language') not in ('zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','tr-TR','zxx','') or record.get('kind') not in ('squareIcon','boxArt','keyArt','logo'):return {'status':'invalid'}
             elif provider=='nintendo-hk-store':
                 if not is_official or record.get('language') or (record.get('region'),record.get('sourceLabel'))!=('HK','Official Nintendo Hong Kong Store') or record.get('kind')!='cover' or not HK_STORE.image_url(record.get('coverUrl')):return {'status':'invalid'}
             elif is_official or nintendo_url(record.get('coverUrl','')):return {'status':'invalid'}

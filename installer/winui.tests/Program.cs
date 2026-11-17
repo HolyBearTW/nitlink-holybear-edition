@@ -34,7 +34,7 @@ try
     Directory.CreateDirectory(target);
     File.WriteAllText(Path.Combine(target, "NitLink.exe"), "synthetic installed-app fixture");
     Require(Installer.IsInstalled, "existing target selects the update screen");
-    foreach (var language in new[] { "en-US", "zh-TW", "zh-CN", "de-DE", "ja-JP", "ko-KR" })
+    foreach (var language in new[] { "en-US", "zh-TW", "zh-CN", "de-DE", "ja-JP", "ko-KR", "tr-TR" })
     {
         File.WriteAllText(Path.Combine(target, "nitlink.json"), JsonSerializer.Serialize(new { language }));
         Require(Installer.LanguagePreference() == language, "saved language " + language);
@@ -49,6 +49,18 @@ try
     Require(Strings.Language == "zh-TW", "Hong Kong system language resolves to Traditional Chinese");
     Strings.Initialize("", ["ja"]);
     Require(Strings.Language == "ja-JP", "Japanese system language resolves to its supported catalog");
+    Strings.Initialize("", ["tr-CY"]);
+    Require(Strings.Language == "tr-TR", "Turkish system language resolves to its supported catalog");
+    File.Delete(Path.Combine(target, "nitlink.json"));
+    foreach (var (code, language) in new[] { (1033, "en-US"), (1028, "zh-TW"), (2052, "zh-CN"), (1031, "de-DE"), (1041, "ja-JP"), (1042, "ko-KR"), (1055, "tr-TR") })
+    {
+        Installer.Configure(["--engine", engine, "--directory", target, "--language", code.ToString()]);
+        Require(Installer.LanguagePreference() == language, "native installer language reaches WinUI: " + language);
+        Strings.Initialize(language, []);
+        Installer.Install(false);
+        var handoff = JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(scratch, "engine-args.json")))!;
+        Require(handoff.Contains("/LANG=" + code), "WinUI preserves the native engine language: " + language);
+    }
     Strings.Initialize("zh-TW", []);
     Installer.Install(true);
     var received = JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(scratch, "engine-args.json")))!;

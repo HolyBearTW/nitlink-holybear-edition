@@ -22,5 +22,9 @@
   {
     "Id": "ko-KR",
     "Name": "한국어"
+  },
+  {
+    "Id": "tr-TR",
+    "Name": "Türkçe"
   }
 ]

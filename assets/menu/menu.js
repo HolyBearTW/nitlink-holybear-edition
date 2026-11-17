@@ -246,6 +246,7 @@
         CN115: { avatar: 'https://avatars.githubusercontent.com/u/68493388?s=160&v=4', contribution: 'about.cn115Contribution' },
         n810K: { avatar: 'https://avatars.githubusercontent.com/u/7424933?s=160&v=4', contribution: 'about.n810kContribution' },
         Noka123: { avatar: 'https://avatars.githubusercontent.com/u/82983692?s=160&v=4', contribution: 'about.noka123Contribution' },
+        karsiyakali1912: { avatar: 'https://avatars.githubusercontent.com/u/70696247?s=160&v=4', contribution: 'about.karsiyakali1912Contribution' },
         i0rph: { avatar: 'https://avatars.githubusercontent.com/u/50132390?s=160&v=4', contribution: 'about.i0rphContribution' },
         tavricccc: { avatar: 'https://avatars.githubusercontent.com/u/177928699?s=160&v=4', contribution: 'about.tavriccccContribution' }
       };
@@ -1369,7 +1370,7 @@
           entry.card.setAttribute('aria-label',t('game.selectCover')+(officialCover(cover)?' · '+t('game.sourcesOfficial'):'')+(cover.language?' · '+t('game.coverLanguage.'+cover.language):''));
           entry.info.setAttribute('aria-label',t('game.artworkDetails'));entry.info.title=t('game.artworkDetails');
           const language=cover.language||(cover.provider==='nintendo-tw'?'zh-TW':'');
-          entry.badge.hidden=!officialCover(cover)||!['zh-TW','zh-CN','en-US','de-DE','ja-JP','ko-KR'].includes(language);
+          entry.badge.hidden=!officialCover(cover)||!['zh-TW','zh-CN','en-US','de-DE','ja-JP','ko-KR','tr-TR'].includes(language);
           entry.badge.textContent=entry.badge.hidden?'':t('game.coverBadge.'+language);
           entry.kind.hidden=cover.kind!=='logo'&&cover.kind!=='logoOnly';entry.kind.textContent='Logo';
           image(entry.art,cover.image,cover.imageStatus||'loading');

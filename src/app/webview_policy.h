@@ -64,6 +64,7 @@ inline constexpr std::wstring_view ContributorAvatarUris[] = {
     L"https://avatars.githubusercontent.com/u/7424933?s=160&v=4",
     L"https://avatars.githubusercontent.com/u/82983692?s=160&v=4",
     L"https://avatars.githubusercontent.com/u/50132390?s=160&v=4",
+    L"https://avatars.githubusercontent.com/u/70696247?s=160&v=4",
     L"https://avatars.githubusercontent.com/u/177928699?s=160&v=4"
 };
 inline bool IsContributorAvatarUri(std::wstring_view uri) {
@@ -75,7 +76,7 @@ inline bool CanReceiveMessage(std::wstring_view source, std::wstring_view curren
 }
 inline const Resource* FindResource(std::wstring_view uri) {
     for (const auto& resource : Resources) if (resource.uri == uri) return &resource;
-    constexpr std::wstring_view revision=L"?v=20261102-sharedglass1253-3";
+    constexpr std::wstring_view revision=L"?v=20261117-126-1";
     if(uri.ends_with(revision)){
         uri.remove_suffix(revision.size());
         for(const auto& resource:Resources)if(resource.kind==ResourceKind::Script&&resource.uri==uri)return &resource;
@@ -88,11 +89,15 @@ inline constexpr std::wstring_view ExternalLinks[] = {
     L"https://nitlink.app/", L"https://holybear.tw/", L"https://buymeacoffee.com/holybear",
     L"https://github.com/HolyBearTW/nitlink-holybear-edition/issues",
     L"https://github.com/HolyBearTW", L"https://github.com/CN115", L"https://github.com/n810K",
+    L"https://github.com/karsiyakali1912", L"https://github.com/nitlink-dev/nitlink/pull/48",
+    L"https://github.com/nitlink-dev/nitlink/issues/41",
+    L"https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.6",
     L"https://github.com/Noka123", L"https://github.com/i0rph", L"https://github.com/nitlink-dev",
     L"https://github.com/tavricccc", L"https://github.com/nitlink-dev/nitlink",
     L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSE",
     L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/LICENSES.md",
     L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/ACKNOWLEDGMENTS.md",
+    L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/HOLYBEAR-SOURCES.json",
     L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/docs/4ks-hdr-tonemap.md",
     L"https://github.com/markedjs/marked/tree/v18.1.3",
     L"https://github.com/cure53/DOMPurify/tree/3.4.17",

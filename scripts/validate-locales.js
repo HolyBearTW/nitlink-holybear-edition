@@ -29,10 +29,38 @@ const nativeTables = [...cpp.matchAll(/const Table& (\w+)Table\(\)\s*\{([\s\S]*?
   const values = new Map([...body.matchAll(/\{L"([^"]+)", L"((?:\\.|[^"\\])*)"\}/g)].map(m => [m[1], m[2]]));
   return {name, values};
 });
-// Turkish currently uses the complete English native table.
-assert.equal(nativeTables.length, locales.filter(locale => locale !== 'tr-TR').length);
+assert.equal(nativeTables.length, locales.length);
 for (const {name, values} of nativeTables) {
   assert.deepEqual([...values.keys()].sort(), [...nativeTables[0].values.keys()].sort(), name + ': native key coverage');
   for (const [key, value] of values) assert.deepEqual(placeholders(value), placeholders(nativeTables[0].values.get(key)), name + ': ' + key);
 }
-console.log(`Validated ${keys.length} menu strings and ${nativeTables[0].values.size} native strings in ${nativeTables.length} languages (${locales.length} menu languages).`);
+const installerDirectory = path.join(root, 'installer/winui/Localization');
+const installerLanguages = JSON.parse(fs.readFileSync(path.join(installerDirectory, 'languages.json'), 'utf8'));
+assert.deepEqual(installerLanguages.map(language => language.Id).sort(), [...locales].sort(), 'installer language coverage');
+const installerEnglish = JSON.parse(fs.readFileSync(path.join(installerDirectory, 'en-US.json'), 'utf8'));
+for (const locale of locales) {
+  const catalog = JSON.parse(fs.readFileSync(path.join(installerDirectory, locale + '.json'), 'utf8'));
+  assert.deepEqual(Object.keys(catalog).sort(), Object.keys(installerEnglish).sort(), locale + ': installer key coverage');
+  for (const [key, value] of Object.entries(catalog)) {
+    assert.equal(typeof value, 'string', locale + ': installer ' + key);
+    assert.ok(value.trim(), locale + ': empty installer ' + key);
+    assert.deepEqual(placeholders(value), placeholders(installerEnglish[key]), locale + ': installer ' + key);
+  }
+}
+const nativeInstaller = fs.readFileSync(path.join(root, 'installer/strings.nsh'), 'utf8');
+const installerTables = new Map();
+for (const [, key, language, value] of nativeInstaller.matchAll(/^LangString (\w+) \$\{LANG_(\w+)\} "(.*)"\r?$/gm)) {
+  if (!installerTables.has(language)) installerTables.set(language, new Map());
+  assert.ok(!installerTables.get(language).has(key), language + ': duplicate installer ' + key);
+  installerTables.get(language).set(key, value);
+}
+assert.deepEqual([...installerTables.keys()].sort(), ['ENGLISH', 'TRADCHINESE', 'SIMPCHINESE', 'GERMAN', 'JAPANESE', 'KOREAN', 'TURKISH'].sort());
+const nativeInstallerEnglish = installerTables.get('ENGLISH');
+for (const [language, table] of installerTables) {
+  assert.deepEqual([...table.keys()].sort(), [...nativeInstallerEnglish.keys()].sort(), language + ': native installer key coverage');
+  for (const [key, value] of table) {
+    assert.ok(value.trim(), language + ': empty native installer ' + key);
+    assert.deepEqual(placeholders(value), placeholders(nativeInstallerEnglish.get(key)), language + ': native installer ' + key);
+  }
+}
+console.log(`Validated ${keys.length} menu, ${nativeTables[0].values.size} native, ${Object.keys(installerEnglish).length} WinUI installer and ${nativeInstallerEnglish.size} native installer strings in all ${locales.length} languages.`);

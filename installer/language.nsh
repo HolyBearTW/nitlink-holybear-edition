@@ -10,6 +10,17 @@
   ${OrIf} $0 == 4100 ; zh-SG
     StrCpy $LANGUAGE 2052
   ${Else}
-    StrCpy $LANGUAGE 1033
+    IntOp $0 $0 & 0x3ff
+    ${If} $0 == 7 ; de
+      StrCpy $LANGUAGE 1031
+    ${ElseIf} $0 == 17 ; ja
+      StrCpy $LANGUAGE 1041
+    ${ElseIf} $0 == 18 ; ko
+      StrCpy $LANGUAGE 1042
+    ${ElseIf} $0 == 31 ; tr
+      StrCpy $LANGUAGE 1055
+    ${Else}
+      StrCpy $LANGUAGE 1033
+    ${EndIf}
   ${EndIf}
 !macroend

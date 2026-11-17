@@ -81,6 +81,11 @@ int main() {
           "German search, cover, and saved-title locale is accepted");
     Check(IsLocale(L"ko-KR")&&IsLocale(L"ja-JP")&&IsCoverLanguage(L"ko-KR")&&IsCoverLanguage(L"ja-JP"),
           "Korean and Japanese search, cover and saved-title locales are accepted");
+    Check(IsLocale(L"tr-TR") && IsCoverLanguage(L"tr-TR"),
+          "Turkish search, cover and saved-title locale is accepted");
+    Check(LocalizedGameName(L"Test Game", L"Deneme Oyunu", L"tr-TR", L"tr") == L"Deneme Oyunu" &&
+          LocalizedGameName(L"Test Game", L"測試遊戲", L"tr-TR", L"zh-hant") == L"Test Game",
+          "Turkish accepts verified Turkish titles and rejects the Worker's Chinese fallback");
     Check(LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"en-US",L"zh-hant")==L"The Legend of Zelda"&&
           LocalizedGameName(L"The Legend of Zelda",L"薩爾達傳說",L"de-DE",L"zh-hant")==L"The Legend of Zelda",
           "English and German never use an upstream Traditional-Chinese fallback");

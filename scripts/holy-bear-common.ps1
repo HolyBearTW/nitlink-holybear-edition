@@ -142,6 +142,9 @@ function Initialize-HolyBearToolchain([switch]$RequireStable) {
         if ($line -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process') }
     }
     $env:VSLANG = '1033'
+    # MSVC emits UTF-8; CMake's include detection also reads the console input code page.
+    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+    [Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
 }
 
 function Assert-HolyBearExecutable([string]$Path) {

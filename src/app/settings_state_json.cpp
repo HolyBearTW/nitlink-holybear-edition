@@ -103,6 +103,7 @@ std::wstring SerializeWebViewCoreSettingsProperties(const WebViewCoreSettingsSta
     json << L"]";
 
     boolProperty(L"preventSleep", state.preventSleep);
+    boolProperty(L"hidePcCursorDuringGameplay", state.hidePcCursorDuringGameplay);
     stringProperty(L"noSignalMode", state.noSignalMode);
     stringProperty(L"noSignalImage", state.noSignalImage);
     boolProperty(L"noSignalImageAvailable", state.noSignalImageAvailable);

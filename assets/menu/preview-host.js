@@ -45,7 +45,7 @@
   const preferredSeed=id=>preferredSources(officialGames.get(id)?.artworkSources||[])
     .filter(cover=>activityArtworkPriority(cover)<8).sort((a,b)=>activityArtworkPriority(a)-activityArtworkPriority(b))[0];
   state.holyBearUpdate={current:document.querySelector('meta[name="nitlink-version"]')?.content||'',status:'never',automatic:false};
-  if(!['zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP'].includes(state.locale))state.locale=state.languagePreference='zh-TW';
+  if(!['zh-TW','zh-CN','en-US','de-DE','ko-KR','ja-JP','tr-TR'].includes(state.locale))state.locale=state.languagePreference='zh-TW';
   window.NitLinkPreview={mode};
   // WebView2 serializes native messages; preview models must not share mutable
   // objects with the UI's loading-state bookkeeping either.
@@ -236,7 +236,7 @@
         for(const game of reply.games||[]){const base=window.NitLinkGameTitles.base(game.name);if(base===game.name||game.displayName!==game.name)continue;const parent=reply.games.find(item=>item.name===base&&item.displayName!==item.name);if(parent){game.displayName=parent.displayName+' Nintendo Switch 2 Edition';game.displayNameLanguage=locale;}}
         (reply.games||[]).forEach(game=>{
           if(locale==='en-US')game.displayName=game.name;
-          if(['de-DE','ko-KR','ja-JP'].includes(locale)&&!String(game.displayNameLanguage||'').toLowerCase().startsWith(locale.slice(0,2).toLowerCase()))game.displayName=game.name;
+          if(['de-DE','ko-KR','ja-JP','tr-TR'].includes(locale)&&!String(game.displayNameLanguage||'').toLowerCase().startsWith(locale.slice(0,2).toLowerCase()))game.displayName=game.name;
           game.imageStatus='loading';game.thumbnailRequest=value.request;game.thumbnailLocale=locale;games.set(game.id,game);
         });emit({gameEvent:{...reply,kind:'search',request:value.request,locale}});
         // Enrich every result with bounded concurrency. Known official images do

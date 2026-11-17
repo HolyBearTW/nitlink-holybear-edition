@@ -4,6 +4,8 @@
 
 # NitLink
 
+HolyBear Edition is an unofficial community integration based on [NitLink 1.2.6](https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.6), with HolyBear game, artwork, Discord, audio and window customizations. F1 includes the upstream option to hide the PC cursor during active gameplay and a Turkish settings menu.
+
 A capture card viewer for Windows. It makes your console feel like part of your PC: same screen, same workflow, real HDR10, VRR, lowest-latency preview, no extra monitor required.
 
 Built and tested on the Elgato 4K Pro (PCIe), 4K S (USB), 4K X (USB), and Cam Link 4K (USB).
@@ -360,7 +362,7 @@ MIT. See `LICENSE`. Third-party licenses (NIS, WebView2, WIL, MJP's Catmull-Rom)
 - **German (de-DE) localization**: [Noka123](https://github.com/Noka123), contributed in [upstream PR #35](https://github.com/nitlink-dev/nitlink/pull/35).
 - **Korean (ko-KR) localization**: @i0rph contributed the upstream interface in [PR #37](https://github.com/nitlink-dev/nitlink/pull/37); HolyBear Edition adds its game, artwork, Discord and update translations.
 - **Japanese (ja-JP) localization**: New HolyBear Edition interface, game and Discord translations.
-- **Turkish (tr-TR) localization**: @karsiyakali1912 contributed the upstream settings menu in [PR #48](https://github.com/nitlink-dev/nitlink/pull/48); HolyBear-specific additions and native text use English.
+- **Turkish (tr-TR) localization**: @karsiyakali1912 contributed the upstream settings menu in [PR #48](https://github.com/nitlink-dev/nitlink/pull/48); HolyBear Edition completes its game, artwork, account, Discord, update, native and installer translations.
 
 ---
 

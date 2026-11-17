@@ -43,7 +43,7 @@ comparison remain unchanged. Do not revise published artifacts or overwrite
 maintainer-edited release text to apply this style retroactively.
 
 From PowerShell 7 on a Windows x64 development machine with Visual Studio
-2022 C++ tools, CMake, Ninja, Node, Python, 7-Zip and WebView2 Runtime:
+2026 Stable C++ tools (VS 18.x / VC145), CMake, Ninja, Node, Python, 7-Zip and WebView2 Runtime:
 
 ```powershell
 ./scripts/build-holybear.ps1

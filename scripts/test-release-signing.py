@@ -19,12 +19,23 @@ class ReleaseSigningTests(unittest.TestCase):
     def current_tag():
         return "v" + (signing.ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
-    def test_current_version_asset_names_include_the_fourth_component(self):
+    def test_current_version_asset_names(self):
         self.assertEqual(signing.identity(self.current_tag()), [
-            "NitLink-1.2.5.4-HolyBear-Win64.zip",
-            "NitLink-1.2.5.4-HolyBear-Setup-x64.exe",
+            "NitLink-1.2.6-HolyBear-Win64.zip",
+            "NitLink-1.2.6-HolyBear-Setup-x64.exe",
             "SHA256SUMS.txt",
         ])
+
+    def test_four_part_version_asset_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "VERSION").write_text("1.2.5.4-holybear\n", encoding="utf-8")
+            with patch.object(signing, "ROOT", root):
+                self.assertEqual(signing.identity("v1.2.5.4-holybear"), [
+                    "NitLink-1.2.5.4-HolyBear-Win64.zip",
+                    "NitLink-1.2.5.4-HolyBear-Setup-x64.exe",
+                    "SHA256SUMS.txt",
+                ])
 
     def test_verification_archive_preserves_only_the_existing_signature_bytes(self):
         names = signing.identity(self.current_tag())

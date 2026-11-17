@@ -24,7 +24,7 @@ enum class Operation { BeginLink, FinishLink, Sync, Disconnect,
     BeginManualLink, CancelNativeLogin, CompleteNintendoLogin, CompletePsnLogin, NativeLoginFailed };
 // NitLink's public Microsoft application Client ID. Maintainer setup: docs/XBOX-AUTH.md.
 inline constexpr wchar_t XboxClientId[] = L"6b9b7a75-e9fc-4fe5-813e-a4d8ad925815";
-inline constexpr std::array<std::wstring_view,6> SupportedLocales={L"zh-TW",L"zh-CN",L"en-US",L"de-DE",L"ja-JP",L"ko-KR"};
+inline constexpr std::array<std::wstring_view,7> SupportedLocales={L"zh-TW",L"zh-CN",L"en-US",L"de-DE",L"ja-JP",L"ko-KR",L"tr-TR"};
 inline std::optional<Provider> ParseProvider(std::wstring_view value) {
     if(value==L"nintendo")return Provider::Nintendo;if(value==L"playstation")return Provider::PlayStation;if(value==L"xbox")return Provider::Xbox;return std::nullopt;
 }

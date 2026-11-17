@@ -21,12 +21,13 @@ internal static class LifecycleChecks
     {
         var fixture = Path.GetFullPath(args[0]);
         var mode = args[1];
+        var language = args.Length > 2 && args[2] != "--isolated-child" ? args[2] : "1028";
         report = Path.Combine(fixture, mode + ".json");
         Directory.CreateDirectory(fixture);
         var target = Path.Combine(fixture, mode);
         Directory.CreateDirectory(target);
         if (mode != "install") File.WriteAllText(Path.Combine(target, "NitLink.exe"), "installed-app fixture");
-        if (args.Length == 2)
+        if (args.Length == 2 || args.Length == 3 && args[2] != "--isolated-child")
         {
             // Like window_size_tests.cpp, keep the entire UI on an inactive
             // desktop. CLR initializes STA before Main, so assign the child's
@@ -35,7 +36,7 @@ internal static class LifecycleChecks
             var desktop = CreateDesktopW(name, 0, 0, 0, 0x10000000, 0);
             if (desktop == 0) throw new System.ComponentModel.Win32Exception();
             var startup = new StartupInfo { Size = Marshal.SizeOf<StartupInfo>(), Desktop = name };
-            var command = new System.Text.StringBuilder($"\"{Environment.ProcessPath}\" \"{fixture}\" {mode} --isolated-child");
+            var command = new System.Text.StringBuilder($"\"{Environment.ProcessPath}\" \"{fixture}\" {mode} {language} --isolated-child");
             if (!CreateProcessW(Environment.ProcessPath!, command, 0, 0, false, 0, 0, null, ref startup, out var process))
                 throw new System.ComponentModel.Win32Exception();
             if (WaitForSingleObject(process.Process, 45000) != 0) { TerminateProcess(process.Process, 1); result = 1; }
@@ -43,7 +44,7 @@ internal static class LifecycleChecks
             CloseHandle(process.Thread); CloseHandle(process.Process); CloseDesktop(desktop);
             return result;
         }
-        Installer.Configure(["--engine", Environment.ProcessPath!, "--directory", target, "--language", "1028", .. mode == "uninstall" ? new[] { "/uninstall" } : Array.Empty<string>()]);
+        Installer.Configure(["--engine", Environment.ProcessPath!, "--directory", target, "--language", language, .. mode == "uninstall" ? new[] { "/uninstall" } : Array.Empty<string>()]);
         if (!Bootstrap.TryInitialize(Microsoft.WindowsAppSDK.Release.MajorMinor, Microsoft.WindowsAppSDK.Release.VersionTag,
             new PackageVersion(Microsoft.WindowsAppSDK.Runtime.Version.UInt64), Bootstrap.InitializeOptions.None, out var error)) return error;
         try { Run(); }

@@ -1,7 +1,10 @@
 // NitLink Traditional Chinese (Taiwan) UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['zh-TW'] = {
+  "game.coverLanguage.tr-TR": "土耳其文",
+  "game.coverBadge.tr-TR": "土耳其文",
   'language.turkish': 'Türkçe',
+  'about.karsiyakali1912Contribution': '土耳其語設定選單翻譯。',
   "audio.priming": "正在啟動播放",
   "audio.rebuffering": "正在重新填充",
   "audio.captureStalled": "等待擷取資料",
@@ -571,7 +574,7 @@ window.NitLinkLocales['zh-TW'] = {
   'update.apiUnavailable': 'GitHub 暫時無法處理這次請求。',
   'update.invalid': '無法驗證更新版本資訊。',
   'about.productTitle': 'NitLink {version} HolyBear Edition',
-  'about.subtitle': '非官方社群整合版本 · 基於 NitLink 1.2.5',
+  'about.subtitle': '非官方社群整合版本 · 基於 NitLink 1.2.6',
   'about.technicalInformation': '技術資訊',
   'about.quickLinks': '意見與支持連結',
   'about.renderer': '渲染技術',
@@ -588,10 +591,10 @@ window.NitLinkLocales['zh-TW'] = {
   'about.document.online': '已同步 GitHub 最新文件',
   'about.document.offline': '無法同步 GitHub，顯示內建文件',
   'about.supportOriginalAuthor': '在 Ko-fi 支持原作者',
-  'about.holyBearSupport': '在 Ko-fi 支持聖小熊',
+  'about.holyBearSupport': "在 Buy Me a Coffee 支持聖小熊",
   'about.holyBearSite': '聖小熊的秘密基地',
   'about.contributors': '貢獻者',
-  'about.holyBearDisclaimer': '基於 NitLink 1.2.5 的非官方社群整合版本，並非 nitlink-dev 官方發行版。',
+  'about.holyBearDisclaimer': '基於 NitLink 1.2.6 的非官方社群整合版本，並非 nitlink-dev 官方發行版。',
   'about.holyBearName': '聖小熊',
   'about.holyBearHandle': '(@HolyBearTW)',
   'about.cn115Handle': '(@CN115)',

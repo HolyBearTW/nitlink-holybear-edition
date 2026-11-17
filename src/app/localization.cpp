@@ -575,6 +575,119 @@ const Table& KoreanTable()
     return table;
 }
 
+const Table& TurkishTable()
+{
+    static const Table table = {
+        {L"window.minimize", L"Simge durumuna küçült"},
+        {L"window.maximize", L"Ekranı kapla"},
+        {L"window.restore", L"Önceki boyuta getir"},
+        {L"window.close", L"Kapat"},
+        {L"window.hud0", L"Standart HUD"},
+        {L"window.hud1", L"Ayrıntılı HUD"},
+        {L"window.hud2", L"Kompakt HUD"},
+        {L"window.settings", L"Ayarlar"},
+        {L"window.updateAvailable", L"Yeni sürüm mevcut"},
+        {L"window.hidden", L"Gizli"},
+        {L"overlay.help.contentFps", L"Oyun motorunun kare hızından değil, yakalanan görüntüler arasındaki değişikliklerden tahmin edilir."},
+        {L"overlay.help.captureFps", L"Yinelenen görüntüler dâhil, yakalama kartının her saniye sağladığı kareler."},
+        {L"overlay.help.presentFps", L"Yinelenen görüntüler dâhil, NitLink'in her saniye başarıyla sunduğu karelerdir; monitörün tarama hızı değildir."},
+        {L"overlay.help.appIngest", L"Yakalama kartı sürücüsünün zaman damgasından NitLink'in kareyi aldığı ana kadar geçen süredir; kumandadan ekrana toplam gecikme değildir."},
+        {L"game.switch2Edition", L"Switch 2 Edition"},
+        {L"discord.totalPlaytime", L"Toplam oynama süresi: {hours} sa {minutes} dk"},
+        {L"discord.sourcePrefix", L"Kaynak: "},
+        {L"error.com", L"COM çalışma zamanı başlatılamadı."},
+        {L"error.mediaFoundation", L"Media Foundation başlatılamadı."},
+        {L"error.application", L"NitLink başlatılamadı.\nBir yakalama kartının bağlı olduğunu kontrol edin."},
+        {L"dialog.exportAudioTrace", L"Ses iz kaydını dışa aktar"},
+        {L"dialog.audioTraceFilter", L"Ses iz kaydı (*.csv)"},
+        {L"toast.audioTraceSaved", L"Ses iz kaydı kaydedildi."},
+        {L"toast.audioTraceFailed", L"Ses iz kaydı kaydedilemedi. Yazılabilir bir klasör seçip yeniden deneyin."},
+        {L"dialog.chooseNoSignalImage", L"Sinyal Yok görseli seç"},
+        {L"dialog.imagesFilter", L"Görseller (*.png;*.jpg;*.jpeg;*.bmp)"},
+        {L"dialog.allFilesFilter", L"Tüm dosyalar (*.*)"},
+        {L"overlay.noSignal", L"SİNYAL YOK"},
+        {L"overlay.frameRate", L"Kare hızı"},
+        {L"overlay.presentRate", L"Sunum hızı"},
+        {L"overlay.presentFps", L"Sunum FPS"},
+        {L"overlay.captureFps", L"Yakalama FPS"},
+        {L"overlay.contentFps", L"İçerik FPS"},
+        {L"overlay.appIngest", L"Giriş süresi"},
+        {L"overlay.fps", L"FPS"},
+        {L"overlay.ms", L"MS"},
+        {L"overlay.gpu", L"GPU"},
+        {L"overlay.waitingForSource", L"Kaynak sinyali bekleniyor…"},
+        {L"overlay.initializingCapture", L"Yakalama cihazı başlatılıyor…"},
+        {L"overlay.resyncingSignal", L"Sinyal yeniden eşitleniyor…"},
+        {L"overlay.inputSignalLost", L"Giriş sinyali kayboldu"},
+        {L"overlay.waitingForHdmi", L"HDMI kaynağı bekleniyor…"},
+        {L"overlay.checkHdmi", L"Kaynak cihazın açık ve HDMI kablosunun iki ucunun da takılı olduğundan emin olun."},
+        {L"overlay.badgeColor", L"RENK"},
+        {L"value.sourceFrameRate", L"Kaynak kare hızı"},
+        {L"value.captureRate", L"Yakalama hızı"},
+        {L"value.displayRefresh", L"Ekran yenileme hızı"},
+        {L"value.auto", L"Otomatik"},
+        {L"value.stretch", L"Uzat"},
+        {L"value.right", L"Sağ"},
+        {L"value.left", L"Sol"},
+        {L"toast.noAudio", L"Ses yok: Windows'ta mikrofon erişimi kapalı. Ayarlar > Gizlilik ve güvenlik > Mikrofon."},
+        {L"toast.windowsHdrDisabled", L"Windows HDR etkin değil. Win+Alt+B tuşlarına basıp yeniden deneyin."},
+        {L"toast.vsyncOn", L"VSync: AÇIK (Alt+V)"},
+        {L"toast.vsyncOff", L"VSync: KAPALI (Alt+V)"},
+        {L"toast.gc553proCaptureSwitch", L"HDR kaynağı algılandı. Yakalama modu değiştiriliyor…"},
+        {L"toast.presentPacing", L"Kare sunum zamanlaması"},
+        {L"toast.aspectRatio", L"En boy oranı"},
+        {L"toast.colorRangeAuto", L"Renk aralığı: Media Foundation'dan OTOMATİK (Alt+R)"},
+        {L"toast.colorRangeFull", L"Renk aralığı: TAM aralık zorlanıyor (Alt+R)"},
+        {L"toast.colorRangeLimited", L"Renk aralığı: SINIRLI aralık zorlanıyor (Alt+R)"},
+        {L"toast.screenshotSaved", L"Ekran görüntüsü kaydedildi: "},
+        {L"toast.captureFormatUnavailable", L"Yakalama biçimi kullanılamıyor, otomatik seçime dönüldü."},
+        {L"toast.noSignalImageLoaded", L"Özel Sinyal Yok görseli yüklendi"},
+        {L"toast.noSignalImageLoadFailed", L"Özel Sinyal Yok görseli yüklenemedi"},
+        {L"toast.configRecoveryRequired", L"Yazma ve geri yükleme başarısız olduğundan geçerli ayar dosyası kullanılmıyor ve kaydetme kapatıldı. Ayarları {backup} konumundan geri yükleyin, ardından kurtarma dosyasını yeniden adlandırıp veya silip yeniden başlatın."},
+        {L"toast.configRecoveryCopy", L"Bir ayar kurtarma kopyası var: {backup}. Yeniden adlandırmadan veya silmeden önce inceleyin."},
+        {L"toast.configFolderNotWritable", L"{path} konumunda ayarlar oluşturulamadı. Klasör izinlerini ve kısayolun Başlangıç konumu klasörünü kontrol edin."},
+        {L"toast.configLoadFailed", L"Ayarlar yüklenemedi; değişiklikler kaydedilmeyecek. Özgün nitlink.json korundu. Dosyayı düzeltin veya yeniden adlandırın, ardından yeniden başlatın."},
+        {L"toast.configLoadFailedBackup", L"Ayarlar yüklenemedi; değişiklikler kaydedilmeyecek. Yedek: {backup}. nitlink.json dosyasını düzeltin veya yeniden adlandırın, ardından yeniden başlatın."},
+        {L"toast.configSaveFailed", L"Ayarlar kaydedilemedi. Klasör izinlerini ve nitlink.json dosyasının salt okunur ya da kilitli olup olmadığını kontrol edin."},
+        {L"toast.settingsProfile", L"Ayarlar kullanılamıyor: WebView2 profil klasörü açılamadı."},
+        {L"toast.settingsRuntime", L"Ayarlar kullanılamıyor. Microsoft Edge WebView2 Runtime'ı kurun veya güncelleyin."},
+        {L"toast.settingsStartFailed", L"Ayarlar başlatılamadı. WebView2'yi güncelleyip NitLink'i yeniden başlatın."},
+        {L"toast.settingsFiles", L"Ayar dosyaları eksik, boş veya okunamıyor. NitLink klasörünün tamamını yeniden kurun."},
+        {L"toast.settingsSecurity", L"Ayarlar kullanılamıyor. Gerekli güvenlik özellikleri için WebView2'yi güncelleyin."},
+        {L"toast.settingsMemory", L"Ayarları yüklemek için yeterli bellek yok. NitLink'i yeniden başlatın."},
+        {L"toast.settingsResources", L"Ayar kaynakları güvenli biçimde yüklenemedi. NitLink'i yeniden kurun."},
+        {L"toast.settingsNavigation", L"Ayarlar sayfası yüklenemedi. NitLink klasörünün tamamını yeniden kurun."},
+        {L"toast.settingsProcessFailed", L"Ayarlar tarayıcısı durdu. Ayarları geri yüklemek için NitLink'i yeniden başlatın."},
+        {L"toast.settingsTimeout", L"Ayarların yüklenmesi tamamlanmadı. WebView2'yi güncelleyin veya NitLink'i yeniden kurup yeniden başlatın."},
+        {L"toast.settingsRetry", L"Ayarlar yeniden başlatılıyor. Yakalama görüntüsü devam edebilir."},
+        {L"toast.settingsStarting", L"Yükleme tamamlanınca ayarlar açılacak."},
+        {L"toast.imageInvalidPath", L"Tam bir yerel dosya yolu kullanarak görsel seçin."},
+        {L"toast.imageNetworkLocation", L"Ağdaki görseller desteklenmiyor. Görseli yerel bir sürücüye kopyalayın."},
+        {L"toast.imageFileUnavailable", L"Görsel dosyası bulunamıyor veya okunamıyor. Yeniden seçin."},
+        {L"toast.imageTooLarge", L"Görsel çok büyük: en fazla 512 MiB ve kenar başına 16384 piksel olabilir."},
+        {L"toast.imageUnsupportedFormat", L"Görsel içeriği desteklenmiyor. PNG, JPEG veya BMP dosyası kullanın."},
+        {L"toast.imageOutOfMemory", L"Görseli yüklemek için yeterli bellek yok. Daha küçük bir görsel seçin."},
+        {L"toast.p010SelectionFallback", L"Seçilen yakalama çözünürlüğü/kare hızına uygun P010 modu yok; yerel P010 {width}x{height} @ {fps} FPS kullanılıyor."},
+        {L"toast.p010Unavailable", L"Uyumlu bir P010 modu üzerinde anlaşılamadı; HDR çıkışı kapalı olarak {format} yakalama kullanılıyor."},
+        {L"toast.manualFormatHdrRequiresP010", L"Yakalama biçimi elle {format} olarak ayarlandığında HDR için P010 gerekir. HDR'yi etkinleştirmek için Otomatik veya P010 seçin."},
+        {L"diagnostic.levelsNoRange", L"DÜZEYLER: bu yolda YUV aralığı yok (HDR / P010 yakalamayı deneyin)"},
+        {L"diagnostic.levelsY", L"Y"},
+        {L"diagnostic.levelsSignal", L"sin"},
+        {L"diagnostic.levelsDecode", L"çöz"},
+        {L"diagnostic.levelsCb", L"Cb"},
+        {L"diagnostic.levelsCr", L"Cr"},
+        {L"diagnostic.bits8", L"8b"},
+        {L"value.full", L"TAM"},
+        {L"value.limited", L"SINIRLI"},
+        {L"value.needBlack", L"? siyah gerekli"},
+        {L"unit.ms", L"ms"},
+        {L"unit.fps", L"FPS"},
+        {L"title.hdr", L"HDR"},
+        {L"title.sdr", L"SDR"},
+    };
+    return table;
+}
+
 const Table& JapaneseTable()
 {
     static const Table table = {
@@ -798,7 +911,6 @@ bool Localization::IsJapaneseLocale(const std::wstring& locale)
     return locale == L"ja" || locale.starts_with(L"ja-");
 }
 
-// Turkish menu resources use English for native toasts and HUD text.
 bool Localization::IsTurkishLocale(const std::wstring& locale)
 {
     return locale == L"tr" || locale.starts_with(L"tr-");
@@ -821,7 +933,8 @@ std::wstring Localization::Get(const wchar_t* key) const
     const Table& selected = m_localeName == L"zh-CN" ? SimplifiedChineseTable() : m_localeName == L"zh-TW"
         ? TraditionalChineseTable() : m_localeName == L"de-DE" ? GermanTable()
         : m_localeName == L"ko-KR" ? KoreanTable()
-        : m_localeName == L"ja-JP" ? JapaneseTable() : EnglishTable();
+        : m_localeName == L"ja-JP" ? JapaneseTable()
+        : m_localeName == L"tr-TR" ? TurkishTable() : EnglishTable();
     auto it = selected.find(key);
     if (it != selected.end() && !it->second.empty()) return it->second;
 

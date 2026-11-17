@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(NitLink VERSION 1.2.5.4 LANGUAGES CXX)
+project(NitLink VERSION 1.2.6 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -416,7 +416,7 @@ if(BUILD_TESTING)
         add_test(NAME webview_settings_layout COMMAND NitLinkSettingsLayoutTests)
         add_test(NAME webview_f1_visibility COMMAND NitLinkSettingsLayoutTests --visibility-only)
         set_tests_properties(webview_f1_visibility PROPERTIES TIMEOUT 60)
-        set_tests_properties(webview_settings_layout PROPERTIES TIMEOUT 60)
+        set_tests_properties(webview_settings_layout PROPERTIES TIMEOUT 90)
         add_test(NAME webview_missing_assets
             COMMAND ${CMAKE_COMMAND}
                 "-DTEST_EXE=$<TARGET_FILE:NitLinkWebViewRuntimeTests>"

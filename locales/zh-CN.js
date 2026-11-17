@@ -1,7 +1,10 @@
 // NitLink Simplified Chinese UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['zh-CN'] = {
+  "game.coverLanguage.tr-TR": "土耳其语",
+  "game.coverBadge.tr-TR": "土耳其语",
   'language.turkish': 'Türkçe',
+  'about.karsiyakali1912Contribution': '土耳其语设置菜单翻译。',
   "audio.priming": "正在启动播放",
   "audio.rebuffering": "正在重新填充",
   "audio.captureStalled": "等待采集数据",
@@ -571,7 +574,7 @@ window.NitLinkLocales['zh-CN'] = {
   'update.apiUnavailable': 'GitHub 暂时无法处理这次请求。',
   'update.invalid': '无法验证更新版本信息。',
   'about.productTitle': 'NitLink {version} HolyBear Edition',
-  'about.subtitle': '非官方社区整合版本 · 基于 NitLink 1.2.5',
+  'about.subtitle': '非官方社区整合版本 · 基于 NitLink 1.2.6',
   'about.technicalInformation': '技术信息',
   'about.quickLinks': '意见与支持链接',
   'about.renderer': '渲染技术',
@@ -588,10 +591,10 @@ window.NitLinkLocales['zh-CN'] = {
   'about.document.online': '已同步 GitHub 最新文件',
   'about.document.offline': '无法同步 GitHub，显示内置文件',
   'about.supportOriginalAuthor': '在 Ko-fi 支持原作者',
-  'about.holyBearSupport': '在 Ko-fi 支持圣小熊',
+  'about.holyBearSupport': "在 Buy Me a Coffee 支持圣小熊",
   'about.holyBearSite': '圣小熊的秘密基地',
   'about.contributors': '贡献者',
-  'about.holyBearDisclaimer': '基于 NitLink 1.2.5 的非官方社区整合版本，并非 nitlink-dev 官方发行版。',
+  'about.holyBearDisclaimer': '基于 NitLink 1.2.6 的非官方社区整合版本，并非 nitlink-dev 官方发行版。',
   'about.holyBearName': '圣小熊',
   'about.holyBearHandle': '(@HolyBearTW)',
   'about.cn115Handle': '(@CN115)',

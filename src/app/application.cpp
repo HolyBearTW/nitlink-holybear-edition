@@ -1284,31 +1284,22 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
             return;
         }
         if (action == L"setLanguage" && m_config) {
-            const std::wstring requested = message->text;
-            if (requested == L"system" || requested == L"en-US" || requested == L"zh-TW" || requested == L"zh-CN" || requested == L"de-DE" || requested == L"ko-KR" || requested == L"ja-JP" || requested == L"tr-TR") {
-                m_config->language = requested == L"en-US" ? "en-US"
-                    : requested == L"zh-TW" ? "zh-TW"
-                    : requested == L"zh-CN" ? "zh-CN"
-                    : requested == L"de-DE" ? "de-DE"
-                    : requested == L"ko-KR" ? "ko-KR"
-                    : requested == L"ja-JP" ? "ja-JP"
-                    : requested == L"tr-TR" ? "tr-TR" : "system";
-                Localization::Instance().SetPreference(m_config->language);
-                if(m_accountService){std::set<Accounts::Provider> providers;for(const auto& game:m_accountService->Games())providers.insert(game.provider);
-                    for(const auto provider:providers)m_accountService->Submit({Accounts::Operation::Sync,provider,{},Localization::Instance().LocaleName()});}
-                // Search results belong to their effective locale. Do not
-                // relabel a previous zh-TW result as another locale on save.
-                m_searchGames.clear();m_searchDefaultCovers.clear();
-                m_readyAutoCover.reset();m_coverRequest=0;
-                if (m_overlay && !m_overlay->RefreshTextFormats()) {
-                    AppLog(L"setLanguage: failed to refresh overlay text formats");
-                }
-                m_config->Save("nitlink.json");
-                UpdateWindowTitle();
-                PushAboutDocument();
-                UpdateDiscordForCurrentGame(/*preserveStartTime=*/ true);
-                PushSettingsState();
+            m_config->language = WideToUtf8(message->text);
+            Localization::Instance().SetPreference(m_config->language);
+            if(m_accountService){std::set<Accounts::Provider> providers;for(const auto& game:m_accountService->Games())providers.insert(game.provider);
+                for(const auto provider:providers)m_accountService->Submit({Accounts::Operation::Sync,provider,{},Localization::Instance().LocaleName()});}
+            // Search results belong to their effective locale. Do not
+            // relabel a previous zh-TW result as another locale on save.
+            m_searchGames.clear();m_searchDefaultCovers.clear();
+            m_readyAutoCover.reset();m_coverRequest=0;
+            if (m_overlay && !m_overlay->RefreshTextFormats()) {
+                AppLog(L"setLanguage: failed to refresh overlay text formats");
             }
+            m_config->Save("nitlink.json");
+            UpdateWindowTitle();
+            PushAboutDocument();
+            UpdateDiscordForCurrentGame(/*preserveStartTime=*/ true);
+            PushSettingsState();
             return;
         }
         if (action == L"checkHolyBearUpdate") { CheckHolyBearUpdate(false); return; }
@@ -5406,6 +5397,7 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
             std::wstring(value.begin(), value.end()), std::wstring(label)});
     }
     coreState.preventSleep = m_config->preventSleep;
+    coreState.hidePcCursorDuringGameplay = m_config->hidePcCursorDuringGameplay;
     coreState.noSignalMode = Utf8ToWide(m_config->noSignalMode);
     coreState.noSignalImage = Utf8ToWide(m_config->noSignalImage);
     coreState.noSignalImageAvailable = m_overlay && m_overlay->HasNoSignalImage();
@@ -5433,7 +5425,6 @@ void Application::PushSettingsState(bool refreshCaptureDevices, uint32_t audioRe
                                                       : L"refresh") << L"\",";
     js << L"\"vsync\":"             << (m_config->vsync ? L"true" : L"false") << L",";
     js << L"\"lowLatency\":"        << (m_config->lowLatency        ? L"true" : L"false") << L",";
-    js << L"\"hidePcCursorDuringGameplay\":" << (m_config->hidePcCursorDuringGameplay ? L"true" : L"false") << L",";
     js << L"\"audioMuted\":"        << (m_config->audioMuted        ? L"true" : L"false") << L",";
     js << L"\"audioFifoMs\":" << m_config->audioFifoMs << L",";
     js << L"\"audioRenderMs\":" << m_config->audioRenderMs << L",";

@@ -55,7 +55,11 @@ internal static class Installer
             }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { }
-        return requestedLanguage switch { "1028" => "zh-TW", "2052" => "zh-CN", "1033" => "en-US", _ => "" };
+        return requestedLanguage switch
+        {
+            "1028" => "zh-TW", "2052" => "zh-CN", "1033" => "en-US",
+            "1031" => "de-DE", "1041" => "ja-JP", "1042" => "ko-KR", "1055" => "tr-TR", _ => ""
+        };
     }
 
     public static string License => string.Join("\n\n", new[] { "Setup.SOURCE", "NitLink.LICENSE", "Setup.LICENSE" }.Select(name =>
@@ -81,7 +85,11 @@ internal static class Installer
                 if (!process.WaitForExit(10000)) throw new IOException(Strings.Get("Installer.CloseApp"));
             }
         }
-        var language = Strings.Language switch { "zh-TW" => 1028, "zh-CN" => 2052, _ => 1033 };
+        var language = Strings.Language switch
+        {
+            "zh-TW" => 1028, "zh-CN" => 2052, "de-DE" => 1031,
+            "ja-JP" => 1041, "ko-KR" => 1042, "tr-TR" => 1055, _ => 1033
+        };
         // NSIS's /D and _?= paths consume the remainder of the command line and must be last.
         var arguments = uninstall ? $"/S _?={InstallDir}" : $"/S /LANG={language} /DESKTOP={(desktopShortcut ? 1 : 0)} /D={InstallDir}";
         using var operation = Process.Start(new ProcessStartInfo(engine, arguments) { UseShellExecute = false, CreateNoWindow = true })!;

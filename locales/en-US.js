@@ -2,7 +2,10 @@
 // language for every locale and for every missing individual translation.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['en-US'] = {
+  "game.coverLanguage.tr-TR": "Turkish",
+  "game.coverBadge.tr-TR": "Turkish",
   'language.turkish': 'Türkçe',
+  'about.karsiyakali1912Contribution': 'Turkish settings menu translation.',
   "audio.priming": "Starting playback",
   "audio.rebuffering": "Refilling buffer",
   "audio.captureStalled": "Waiting for capture packets",
@@ -572,7 +575,7 @@ window.NitLinkLocales['en-US'] = {
   'update.apiUnavailable': 'GitHub could not process the request.',
   'update.invalid': 'The release response could not be validated.',
   'about.productTitle': 'NitLink {version} HolyBear Edition',
-  'about.subtitle': 'Unofficial community edition · based on NitLink 1.2.5',
+  'about.subtitle': 'Unofficial community edition · based on NitLink 1.2.6',
   'about.technicalInformation': 'Technical Information',
   'about.quickLinks': 'Feedback and support links',
   'about.renderer': 'Rendering',
@@ -589,10 +592,10 @@ window.NitLinkLocales['en-US'] = {
   'about.document.online': 'Synced with the latest GitHub document',
   'about.document.offline': 'GitHub sync unavailable; showing the bundled document',
   'about.supportOriginalAuthor': 'Support the original author on Ko-fi',
-  'about.holyBearSupport': 'Support HolyBear on Ko-fi',
+  'about.holyBearSupport': "Support HolyBear on Buy Me a Coffee",
   'about.holyBearSite': "HolyBear's Secret Base",
   'about.contributors': 'Contributors',
-  'about.holyBearDisclaimer': 'Unofficial community integration build based on NitLink 1.2.5. Not an official nitlink-dev release.',
+  'about.holyBearDisclaimer': 'Unofficial community integration build based on NitLink 1.2.6. Not an official nitlink-dev release.',
   'about.holyBearName': 'HolyBear',
   'about.holyBearHandle': '(@HolyBearTW)',
   'about.cn115Handle': '(@CN115)',

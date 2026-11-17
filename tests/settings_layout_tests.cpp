@@ -315,7 +315,7 @@ void CaptureLayouts(WebViewSettings& host, HWND window, const std::filesystem::p
         L"v1.2.5.3-holybear", false, L"", 2560, 1440, WebViewSettings::Dock::Full);
     // Render the production source controls through the native host. The saved
     // one-character name is a fixture; no capture hardware or user config is used.
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP", L"tr-TR"}) {
         Resize(host, window, 1920, 1080, WebViewSettings::Dock::Full);
         PushState(host, L"Full", locale);
         std::wstring sourceState = LR"({"state":{"manualHdmiSource":"other",
@@ -522,10 +522,10 @@ void TestAudioDiagnostics(WebViewSettings& host, std::vector<std::wstring>& mess
             'audio.confidence','audio.localReprimes','audio.startupSilence','audio.rebufferFrames',
             'audio.resetDiscardFrames','audio.srcBypass','audio.trace','audio.exportTrace',
             'audio.traceHelp','audio.countersHelp','audio.clockLearning','audio.clockHolding','audio.clockUnavailable'];
-        return ['en-US','zh-TW','zh-CN','de-DE','ko-KR','ja-JP'].every(locale =>
+        return ['en-US','zh-TW','zh-CN','de-DE','ko-KR','ja-JP','tr-TR'].every(locale =>
             keys.every(key => typeof window.NitLinkLocales[locale][key] === 'string' &&
                 window.NitLinkLocales[locale][key].length > 0));
-    })())JS") == L"true", "all six locales define the audio diagnostics and export controls");
+    })())JS") == L"true", "all seven menu locales define the audio diagnostics and export controls");
     host.PostMessage(LR"({"state":{"locale":"zh-CN","audioPlaybackState":"captureStalled",
         "audioStreaming":false,"audioTraceAvailable":true,"audioFillMs":3,"audioClockConfidence":87,
         "audioStartupSilence":111,"audioRebufferFrames":222,"audioResetDiscardFrames":333,
@@ -617,7 +617,7 @@ void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstri
             const auto dock = std::wstring_view(side) == L"Full" ? WebViewSettings::Dock::Full
                 : std::wstring_view(side) == L"Left" ? WebViewSettings::Dock::Left : WebViewSettings::Dock::Right;
             Resize(host, window, size.first, size.second, dock);
-            for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
+            for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP", L"tr-TR"}) {
                 PushState(host, side, locale);
                 Script(view, LR"JS((() => {
                     document.querySelector('.rail-item[data-tab="pane-audio"]').click();
@@ -727,7 +727,7 @@ void TestAudioRefresh(WebViewSettings& host, HWND window, std::vector<std::wstri
     Check(busy(), "old response cannot acknowledge retry");
     pushAudio(retry, 12.34);
     Check(!busy(), "retry completes with its own fresh response");
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP", L"tr-TR"}) {
         PushState(host, L"Left", locale);
         Check(Script(view, LR"JS((() => {
             const b=document.getElementById('audio-refresh'), original=chrome.webview.postMessage;
@@ -856,7 +856,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             // subtitle now independently names 1.2.5 as well.
             (heroText.match(/1\.2\.5\.3/g) || []).length === 1 &&
             pane.querySelector('[data-i18n="about.subtitle"]').textContent ===
-                '非官方社群整合版本 · 基於 NitLink 1.2.5' &&
+                '非官方社群整合版本 · 基於 NitLink 1.2.6' &&
             !pane.querySelector('#holy-bear-version, #holy-bear-latest-version, .about-detail-list') &&
             document.querySelector('#holy-bear-last-check').closest('.about-update') !== null &&
             document.querySelector('#holy-bear-update-status').textContent === window.NitLinkLocales['zh-TW']['update.current'] &&
@@ -928,15 +928,15 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         {L"rateLimited", L"rateLimited"}, {L"notFound", L"notFound"},
         {L"serverUnavailable", L"serverUnavailable"}, {L"apiUnavailable", L"apiUnavailable"},
         {L"invalid", L"invalid"}, {L"never", L"never"}}};
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP", L"tr-TR"}) {
         PushAboutUpdate(host, L"Right", locale, L"current", L"v1.2.5.3-holybear",
             false, true, false, false, L"");
         std::wstring baseCopy = L"(() => { const locale=window.NitLinkLocales['" + std::wstring(locale) +
             L"']; const subtitle=document.querySelector('[data-i18n=\"about.subtitle\"]'); "
             L"return document.documentElement.lang==='" + std::wstring(locale) +
-            L"' && subtitle.textContent===locale['about.subtitle'] && subtitle.textContent.includes('1.2.5') && "
-            L"!subtitle.textContent.includes('1.2.4'); })()";
-        Check(Script(view, baseCopy) == L"true", "About identifies NitLink 1.2.5 as the base in all six languages");
+            L"' && subtitle.textContent===locale['about.subtitle'] && subtitle.textContent.includes('1.2.6') && "
+            L"!subtitle.textContent.includes('1.2.5'); })()";
+        Check(Script(view, baseCopy) == L"true", "About identifies NitLink 1.2.6 as the base in all seven menu languages");
         for (const auto& [status, key] : statuses) {
             const auto latest = std::wstring_view(status) == L"never" ? L"" : L"v1.2.5.3-holybear";
             PushAboutUpdate(host, L"Right", locale, status, latest, false,
@@ -1070,7 +1070,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
         const auto dock = std::wstring_view(side) == L"Full" ? WebViewSettings::Dock::Full
             : std::wstring_view(side) == L"Left" ? WebViewSettings::Dock::Left : WebViewSettings::Dock::Right;
         Resize(host, window, size.first, size.second, dock);
-        for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
+        for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP", L"tr-TR"}) {
           PushAboutUpdate(host, side, locale, L"available", L"v1.2.4.1-holybear",
               true, true, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.4.1-holybear");
           Script(view, L"document.querySelectorAll('.about-details').forEach(details => details.open = true)");
@@ -1107,7 +1107,7 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
     }
 
     Resize(host, window, 1920, 1080, WebViewSettings::Dock::Full);
-    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP"}) {
+    for (const auto* locale : {L"en-US", L"zh-TW", L"zh-CN", L"de-DE", L"ko-KR", L"ja-JP", L"tr-TR"}) {
         PushAboutUpdate(host, L"Full", locale, L"available", L"v1.2.5.3-holybear",
             true, false, false, false, L"https://github.com/HolyBearTW/nitlink-holybear-edition/releases/tag/v1.2.5.3-holybear",
             1791691200, NitLink::HolyBear::Version);
@@ -1116,12 +1116,12 @@ void TestAbout(WebViewSettings& host, HWND window, std::vector<std::wstring>& me
             std::wstring(numeric) + L" HolyBear Edition'") == L"true", "About displays the native four-part product version in all languages");
         Script(view, L"document.querySelector('#about-contributors').scrollIntoView({block:'center'})");
         PumpUntil([] { return false; }, 100);
-        for (const auto* contributor : {L"nitlink-dev", L"HolyBearTW", L"CN115", L"n810K", L"Noka123", L"i0rph", L"tavricccc"}) {
+        for (const auto* contributor : {L"nitlink-dev", L"HolyBearTW", L"CN115", L"n810K", L"Noka123", L"i0rph", L"karsiyakali1912", L"tavricccc"}) {
             Script(view, L"document.querySelector('[data-contributor=\"" + std::wstring(contributor) + L"\"]').focus({preventScroll:true})");
             Check(PumpUntil([&] { return Script(view, L"(() => { const requireAvatar = " +
                 std::wstring(requireGitHubAvatars ? L"true" : L"false") + LR"JS(;
                 const avatarIds = {"nitlink-dev":"285324765","HolyBearTW":"50009618","CN115":"68493388",
-                    "n810K":"7424933","Noka123":"82983692","i0rph":"50132390","tavricccc":"177928699"};
+                    "n810K":"7424933","Noka123":"82983692","i0rph":"50132390","karsiyakali1912":"70696247","tavricccc":"177928699"};
                 const card = document.getElementById('contributor-preview');
                 const text = card.querySelector('.contributor-preview-description');
                 const avatar = document.getElementById('contributor-preview-avatar');

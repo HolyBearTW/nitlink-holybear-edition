@@ -60,6 +60,7 @@ NitLink::WebViewCoreSettingsState RuntimeNativeStateFixture() {
             std::wstring(value.begin(), value.end()), std::wstring(label)});
     }
     state.preventSleep = true;
+    state.hidePcCursorDuringGameplay = true;
     state.noSignalMode = L"default";
     state.noSignalImage = L"C:\\test\\no-signal.png";
     state.noSignalImageAvailable = true;
@@ -772,7 +773,10 @@ int main(int argc, char** argv) {
             if (!message) return;
             if (message->action == L"javascriptException") {
                 javascriptExceptions.push_back(message->text);
-            } else if (message->action == L"ready" || message->action == L"cycleNoSignalMode") {
+            } else if (message->action == L"ready" || message->action == L"cycleNoSignalMode" ||
+                       message->action == L"toggleHidePcCursor") {
+                if (message->action == L"toggleHidePcCursor")
+                    nativeState.hidePcCursorDuringGameplay = !nativeState.hidePcCursorDuringGameplay;
                 if (message->action == L"cycleNoSignalMode") {
                     nativeState.noSignalMode = NitLink::NextNoSignalMode(nativeState.noSignalMode);
                     ++noSignalModeActions;
@@ -886,7 +890,8 @@ int main(int argc, char** argv) {
                 state.holyBearUpdate.latest === 'v1.2.5.1-holybear' &&
                 state.holyBearUpdate.unread === true &&
                 state.holyBearUpdate.lastCheckUtc === 1791730000 &&
-                state.preventSleep === true && Array.isArray(state.captureDevices) &&
+                state.preventSleep === true && state.hidePcCursorDuringGameplay === true &&
+                document.getElementById('toggle-hide-pc-cursor').classList.contains('on') && Array.isArray(state.captureDevices) &&
                 state.captureDevices.length === 2 &&
                 state.activeDevice === 'Live Gamer ULTRA S GC553Pro' &&
                 Array.isArray(state.manualHdmiSourceOptions) &&
@@ -913,6 +918,11 @@ int main(int argc, char** argv) {
                 document.getElementById('no-signal-image-row').hidden;
         })())JS") == L"true"; }),
               "production state JSON applies update flags, sleep, capture source, HDMI options and No Signal defaults");
+        Script(view, L"document.querySelector('[data-action=\"toggleHidePcCursor\"]').click()");
+        Check(PumpUntil([&] {
+            return !nativeState.hidePcCursorDuringGameplay &&
+                Script(view, L"!document.getElementById('toggle-hide-pc-cursor').classList.contains('on')") == L"true";
+        }), "cursor preference crosses the native bridge and returns its authoritative state");
         const size_t devicesInMenu = messages.size();
         Script(view, L"document.getElementById('source-trigger').click()");
         Check(PumpUntil([&] { return Script(view, LR"JS((() => {
@@ -948,8 +958,8 @@ int main(int argc, char** argv) {
             return noSignalModeActions == 2 && Script(view,
                 L"document.getElementById('no-signal-image-row').hidden") == L"true";
         }), "second No Signal click restores default mode through state round trip");
-        Check(nativeState.noSignalMode == L"default" && nativeStatePushes == 3,
-              "two native No Signal transitions produce three state pushes including ready");
+        Check(nativeState.noSignalMode == L"default" && nativeStatePushes == 4,
+              "two No Signal transitions, the cursor toggle and ready produce four state pushes");
 
         Script(view, LR"JS((() => {
             window.__originalGetElementById = document.getElementById.bind(document);

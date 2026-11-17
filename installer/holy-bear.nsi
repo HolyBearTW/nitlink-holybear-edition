@@ -109,9 +109,17 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 NitLink Contributors"
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "TradChinese"
 !insertmacro MUI_LANGUAGE "SimpChinese"
+!insertmacro MUI_LANGUAGE "German"
+!insertmacro MUI_LANGUAGE "Japanese"
+!insertmacro MUI_LANGUAGE "Korean"
+!insertmacro MUI_LANGUAGE "Turkish"
 SetFont /LANG=${LANG_ENGLISH} "Segoe UI" 9
 SetFont /LANG=${LANG_TRADCHINESE} "Segoe UI" 9
 SetFont /LANG=${LANG_SIMPCHINESE} "Segoe UI" 9
+SetFont /LANG=${LANG_GERMAN} "Segoe UI" 9
+SetFont /LANG=${LANG_JAPANESE} "Yu Gothic UI" 9
+SetFont /LANG=${LANG_KOREAN} "Malgun Gothic" 9
+SetFont /LANG=${LANG_TURKISH} "Segoe UI" 9
 !include "strings.nsh"
 !include "language.nsh"
 !insertmacro MUI_RESERVEFILE_LANGDLL
@@ -146,6 +154,10 @@ Function .onInit
   ${If} $1 == 1033
   ${OrIf} $1 == 1028
   ${OrIf} $1 == 2052
+  ${OrIf} $1 == 1031
+  ${OrIf} $1 == 1041
+  ${OrIf} $1 == 1042
+  ${OrIf} $1 == 1055
     StrCpy $LANGUAGE $1
   ${EndIf}
   ${IfNot} ${RunningX64}

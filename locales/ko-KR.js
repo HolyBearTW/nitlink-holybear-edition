@@ -1,6 +1,8 @@
 // NitLink Korean (Korea) UI resource.
 window.NitLinkLocales = window.NitLinkLocales || {};
 window.NitLinkLocales['ko-KR'] = {
+  "game.coverLanguage.tr-TR": "튀르키예어",
+  "game.coverBadge.tr-TR": "튀르키예어",
   "audio.priming": "재생 시작 중",
   "audio.rebuffering": "버퍼를 다시 채우는 중",
   "audio.captureStalled": "캡처 패킷 대기 중",
@@ -291,6 +293,7 @@ window.NitLinkLocales['ko-KR'] = {
   'language.german': 'Deutsch',
   'language.korean': '한국어',
   'language.turkish': 'Türkçe',
+  'about.karsiyakali1912Contribution': '설정 메뉴의 튀르키예어 번역.',
   'language.simplifiedChinese': '简体中文',
   'language.english': 'English',
   'language.traditionalChinese': '繁體中文',
@@ -342,7 +345,7 @@ window.NitLinkLocales['ko-KR'] = {
   'about.document.online': 'GitHub 최신 문서와 동기화됨',
   'about.document.offline': 'GitHub와 동기화할 수 없어 내장 문서를 표시합니다',
   'about.supportOriginalAuthor': 'Ko-fi에서 원작자 후원',
-  'about.holyBearSupport': 'Ko-fi에서 HolyBear 후원',
+  'about.holyBearSupport': "Buy Me a Coffee에서 HolyBear 후원",
   'about.holyBearSite': 'HolyBear의 비밀 기지',
   'source.captureDevice': '캡처 장치',
   'source.manualFormat': '수동 캡처 형식',
@@ -638,7 +641,7 @@ Object.assign(window.NitLinkLocales['ko-KR'], {
   'update.apiUnavailable': 'GitHub가 요청을 처리하지 못했습니다.',
   'update.invalid': '릴리스 응답을 확인할 수 없습니다.',
   'about.productTitle': 'NitLink {version} HolyBear Edition',
-  'about.subtitle': '비공식 커뮤니티 에디션 · NitLink 1.2.5 기반',
+  'about.subtitle': '비공식 커뮤니티 에디션 · NitLink 1.2.6 기반',
   'about.technicalInformation': '기술 정보',
   'about.quickLinks': '의견 및 지원 링크',
   'about.renderingDetails': 'D3D11 · P010 / NV12 / BGRA',
@@ -649,7 +652,7 @@ Object.assign(window.NitLinkLocales['ko-KR'], {
   'about.licenseNotices': '타사 라이선스',
   'about.acknowledgments': '감사의 말',
   'about.contributors': '기여자',
-  'about.holyBearDisclaimer': 'NitLink 1.2.5 기반의 비공식 커뮤니티 통합 빌드입니다. nitlink-dev의 공식 릴리스가 아닙니다.',
+  'about.holyBearDisclaimer': 'NitLink 1.2.6 기반의 비공식 커뮤니티 통합 빌드입니다. nitlink-dev의 공식 릴리스가 아닙니다.',
   'about.holyBearName': 'HolyBear',
   'about.holyBearHandle': '(@HolyBearTW)',
   'about.cn115Handle': '(@CN115)',

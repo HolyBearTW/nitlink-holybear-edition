@@ -103,6 +103,8 @@ int main(int argc, char** argv) {
     check(ParseVersion(L"v1.2.5.1-holybear") > ParseVersion(L"v1.2.5-holybear"), "1.2.5.1 update exceeds 1.2.5");
     check(ParseVersion(L"v1.2.5.2-holybear") > ParseVersion(L"v1.2.5.1-holybear"), "1.2.5.2 update exceeds 1.2.5.1");
     check(ParseVersion(L"v1.2.5.3-holybear") > ParseVersion(L"v1.2.5.2-holybear"), "1.2.5.3 update exceeds 1.2.5.2");
+    check(ClassifyReply(response("v1.2.6-holybear"), L"1.2.5.4-holybear").status == UpdateStatus::Available,
+          "published 1.2.5.4 upgrades to 1.2.6");
     for (auto bad : {L"1.2.4", L"v0.1.2", L"v1.2.4-holybear-beta", L"v1.2-holybear", L"v1.02.4-holybear",
             L"v1.2.4.1.1-holybear", L"v65536.2.4-holybear", L"v1.2.4.-holybear", L"v1.2.4-holybear/evil"})
         check(!ParseVersion(bad), "invalid/other edition version");
@@ -149,7 +151,7 @@ int main(int argc, char** argv) {
         check(ClassifyReply(reply, L"1.2.4-holybear").status == UpdateStatus::Invalid,
             "revision update rejects nonformal, mismatched or incorrectly typed release data");
     }
-    check(ClassifyReply(response("v1.2.6-holybear")).status == UpdateStatus::Available, "newer version");
+    check(ClassifyReply(response("v1.2.7-holybear")).status == UpdateStatus::Available, "newer version");
     check(ClassifyReply(response("v1.2.3-holybear")).status == UpdateStatus::Current, "local newer version");
     check(ClassifyReply(response("v1.2.4.2-holybear"), L"1.2.4.1-holybear").status == UpdateStatus::Available, "revision API release");
     auto invalid = response("v1.2.5-holybear");

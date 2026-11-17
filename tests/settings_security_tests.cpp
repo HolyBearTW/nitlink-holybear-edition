@@ -188,6 +188,18 @@ int main() {
         std::wcerr<<L"Simplified Chinese placeholder output: "<<simplifiedPlaceholder<<L'\n';
     Expect(simplifiedPlaceholder.find(L"1920×1080 @ 60") != std::wstring::npos,
            "Simplified Chinese native placeholders are substituted");
+    localization.SetPreference("en-US");
+    const auto englishStarting = localization.Get(L"toast.settingsStarting");
+    localization.SetPreference("tr-TR");
+    Expect(localization.Preference() == NitLink::LanguagePreference::Turkish &&
+           localization.LocaleName() == L"tr-TR" && std::wstring(localization.UiFontFamily()) == L"Segoe UI",
+           "Turkish selects its menu locale and default font");
+    Expect(localization.Get(L"toast.settingsStarting") != englishStarting &&
+           localization.Get(L"toast.settingsStarting") == L"Yükleme tamamlanınca ayarlar açılacak.",
+           "Turkish native text uses its complete translated table");
+    for (const auto* locale : {L"tr", L"tr-TR", L"tr-CY"})
+        Expect(NitLink::LocalizationTestAccess::ResolveSystemLocale(locale) == L"tr-TR",
+               "Turkish system languages resolve to tr-TR");
     localization.SetPreference("system");
     using namespace NitLink::WebViewPolicy;
     for (auto action : {L"ready", L"cycleNoSignalMode", L"chooseNoSignalImage",
@@ -251,6 +263,7 @@ int main() {
     for (auto valid : {
         LR"({"action":"setLanguage","value":"system"})", LR"({"action":"setLanguage","value":"en-US"})",
         LR"({"action":"setLanguage","value":"zh-CN"})",
+        LR"({"action":"setLanguage","value":"tr-TR"})",
         LR"({"action":"setLanguage","value":"zh-TW"})", LR"({"action":"setLanguage","value":"de-DE"})", LR"({"action":"setNoSignalMode","value":"image"})",
         LR"({"action":"setNoSignalMode","value":"default"})", LR"({"action":"setNoSignalFit","value":"contain"})",
         LR"({"action":"setNoSignalFit","value":"cover"})", LR"({"action":"setNoSignalFit","value":"stretch"})",
@@ -406,12 +419,25 @@ int main() {
     Expect(FindResource(L"https://nitlink.invalid/locales/de-DE.js") != nullptr,"German locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ko-KR.js") != nullptr,"Korean locale resource is allowlisted");
     Expect(FindResource(L"https://nitlink.invalid/locales/ja-JP.js") != nullptr,"Japanese locale resource is allowlisted");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261102-sharedglass1253-3")!=nullptr,"fixed script revision maps to packaged editor");
+    Expect(FindResource(L"https://nitlink.invalid/locales/tr-TR.js?v=20261117-126-1") != nullptr,
+           "packaged Turkish script revision is allowlisted");
+    Expect(IsContributorAvatarUri(L"https://avatars.githubusercontent.com/u/70696247?s=160&v=4"),
+           "Turkish contributor avatar is explicitly allowlisted");
+    for (const auto uri : {L"https://github.com/karsiyakali1912",
+         L"https://github.com/nitlink-dev/nitlink/pull/48", L"https://github.com/nitlink-dev/nitlink/issues/41",
+         L"https://github.com/nitlink-dev/nitlink/releases/tag/v1.2.6",
+         L"https://github.com/HolyBearTW/nitlink-holybear-edition/blob/holybear/integrated/HOLYBEAR-SOURCES.json"}) {
+        Expect(CanOpenExternal(MenuUri, uri, true), "new contributor and release source link is allowlisted");
+        Expect(!CanOpenExternal(MenuUri, uri, false), "new source links still require a user action");
+        Expect(!CanOpenExternal(MenuUri, std::wstring(uri) + L"?redirect=other", true),
+               "new source allowlist entries remain exact URLs");
+    }
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=20261117-126-1")!=nullptr,"fixed script revision maps to packaged editor");
     Expect(!FindResource(L"https://nitlink.invalid/assets/menu/artwork-editor.js?v=other"),"unapproved revision rejected");
     Expect(ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":0.2,"y":0.8,"zoom":1.5}})").has_value(),"bounded artwork recipe bridge");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"crop","x":-1,"y":0.8,"zoom":1.5}})"),"negative crop rejected");
     Expect(!ParseSettingsMessage(LR"({"action":"renderGameArtwork","value":{"gameId":5267007,"coverId":4200000001,"mode":"fit","x":0.2,"y":0.8,"zoom":1,"url":"https://evil.test/image"}})"),"artwork editor cannot submit arbitrary URLs");
-    Expect(FindResource(L"https://nitlink.invalid/assets/menu/account-library.js?v=20261102-sharedglass1253-3")!=nullptr,"account script has an exact packaged revision");
+    Expect(FindResource(L"https://nitlink.invalid/assets/menu/account-library.js?v=20261117-126-1")!=nullptr,"account script has an exact packaged revision");
     Expect(FindResource(L"https://nitlink.invalid/assets/nitlink-mono.svg")!=nullptr,"loading logo is a packaged resource");
     Expect(ParseSettingsMessage(LR"({"action":"beginAccountLink","value":"xbox"})").has_value(),"provider login schema");
     Expect(!ParseSettingsMessage(LR"({"action":"beginAccountLink","value":"https://evil.test"})"),"account login cannot redirect to arbitrary URLs");

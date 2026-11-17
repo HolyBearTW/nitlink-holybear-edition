@@ -58,7 +58,7 @@ inline bool MatchesCoverTitle(std::wstring_view product,std::wstring_view game) 
 }
 inline bool IsLocale(std::wstring_view locale) {
     return locale == L"zh-TW" || locale == L"zh-CN" || locale == L"en-US" || locale == L"de-DE" ||
-        locale == L"ko-KR" || locale == L"ja-JP";
+        locale == L"ko-KR" || locale == L"ja-JP" || locale == L"tr-TR";
 }
 inline bool NeedsLocalizedTitle(std::wstring_view title,std::wstring_view locale) {
     if(locale==L"zh-TW"||locale==L"zh-CN"||locale==L"ja-JP")return std::none_of(title.begin(),title.end(),[](wchar_t c){return c>=0x3040&&c<=0x9fff;});
@@ -78,8 +78,8 @@ inline std::wstring LocalizedGameName(std::wstring_view original, std::wstring_v
             (language[prefix.size()]==L'-' || language[prefix.size()]==L'_'));
     };
     if(locale==L"en-US")return std::wstring(!display.empty()&&matches(L"en")?display:original);
-    if(locale==L"de-DE"||locale==L"ko-KR"||locale==L"ja-JP"){
-        const auto code=locale==L"de-DE"?L"de":locale==L"ko-KR"?L"ko":L"ja";
+    if(locale==L"de-DE"||locale==L"ko-KR"||locale==L"ja-JP"||locale==L"tr-TR"){
+        const auto code=locale==L"de-DE"?L"de":locale==L"ko-KR"?L"ko":locale==L"ja-JP"?L"ja":L"tr";
         return std::wstring(!display.empty()&&matches(code)?display:original);
     }
     if((locale==L"zh-CN"||locale==L"zh-TW")&&!display.empty()&&display.size()<=1024&&matches(L"zh")){
@@ -263,7 +263,7 @@ inline bool ValidSavedGame(std::string_view key, const SavedGame& game) {
         std::all_of(key.begin(),key.end(),[](char c){return (c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='_';});
     if ((!builtin && !account && (!game.id || DynamicId(key) != game.id)) || game.name.empty() || !ValidText(game.name) ||
         !ValidText(game.customName) || game.lastUsedUtc > 253402300799ull ||
-        game.displayNames.size() > 6 || (!game.coverUrl.empty() && !IsCoverUrl(game.coverUrl)) ||
+        game.displayNames.size() > 7 || (!game.coverUrl.empty() && !IsCoverUrl(game.coverUrl)) ||
         (!game.coverThumb.empty() && !IsCoverUrl(game.coverThumb))) return false;
     if(!game.coverShape.empty()&&game.coverShape!=L"square"&&game.coverShape!=L"portrait"&&game.coverShape!=L"landscape")return false;
     if(!ValidText(game.sourceLabel,128)||(!game.language.empty()&&!IsCoverLanguage(game.language))||

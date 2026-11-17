@@ -1,8 +1,9 @@
 {
   "upstream": {
     "repository": "nitlink-dev/nitlink",
-    "version": "1.2.3",
-    "commit": "d522bdc7011b2d1e86fe8709d1f6f1667a3d4634"
+    "version": "1.2.6",
+    "commit": "f39b909517f95791d97e64463fc65e5be7a17fcc",
+    "originalIntegrationCommit": "d522bdc7011b2d1e86fe8709d1f6f1667a3d4634"
   },
   "pr31": {
     "url": "https://github.com/nitlink-dev/nitlink/pull/31",
@@ -42,7 +43,17 @@
       {"feature": "4K X negotiated-format tone mapping", "commit": "05ad330ff5146146f4c5f8f378859e94f271692a"},
       {"feature": "F1 WebView composition refresh", "commit": "4267ef61661084e55861e0e5e50a7114ffb1d55c"}
     ],
-    "note": "Selected fixes, not a wholesale upstream merge. HolyBear audio defaults remain 12/10."
+    "note": "Selected fixes, not a wholesale upstream merge. HolyBear audio defaults remain 12/10.",
+    "v126": {
+      "tag": "v1.2.6",
+      "commit": "f39b909517f95791d97e64463fc65e5be7a17fcc",
+      "features": [
+        {"feature": "Turkish settings menu translation", "commit": "131e6a362b3181e8efbec06a8c9b994852a97617"},
+        {"feature": "Hide PC cursor during gameplay", "commit": "91bcd619348f6bff961c7d5cce5b4bc04c1b4959"},
+        {"feature": "Selectable and automatic Turkish locale", "commit": "d0cf5666e1f5363e40e41137028ac48899ffd1fe"}
+      ],
+      "scope": "Ported into HolyBear video-child, custom-caption, independent-settings and resource-policy architecture. Preserves upstream Turkish translations and completes all HolyBear menu, native HUD/toast and WinUI/NSIS installer strings. All seven locales have matching key and placeholder coverage."
+    }
   },
   "integration": "HolyBearTW",
   "note": "Selected source changes; manual HDMI identity and Discord functionality shared with PR #25 are included once."

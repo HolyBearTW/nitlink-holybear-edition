@@ -86,8 +86,8 @@ project authorship or maintainership.
   localization.
 
 - **Turkish (tr-TR):** @karsiyakali1912 contributed the settings menu in
-  [upstream PR #48](https://github.com/nitlink-dev/nitlink/pull/48). HolyBear-specific
-  additions and native text use English.
+  [upstream PR #48](https://github.com/nitlink-dev/nitlink/pull/48). HolyBear Edition
+  completes its game, artwork, account, Discord, update, native and installer translations.
 
 ## About contributor cards
 

@@ -45,6 +45,7 @@ struct WebViewCoreSettingsState {
     std::wstring effectiveHdmiSource;
     std::vector<ManualHdmiSourceOptionState> manualHdmiSourceOptions;
     bool preventSleep = false;
+    bool hidePcCursorDuringGameplay = false;
     std::wstring noSignalMode;
     std::wstring noSignalImage;
     bool noSignalImageAvailable = false;

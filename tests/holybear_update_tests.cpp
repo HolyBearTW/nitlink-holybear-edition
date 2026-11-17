@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     UpdateChecker worker([&](std::stop_token stop) {
         ++requests;
         while (!release && !stop.stop_requested()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        return response("v1.2.6-holybear");
+        return response("v1.2.7-holybear");
     });
     check(worker.Start(), "background start");
     check(!worker.Start(), "repeated manual request ignored while busy");
